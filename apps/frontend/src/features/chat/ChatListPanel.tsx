@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 
 import { useChats } from "../../entities/chat";
@@ -68,9 +69,7 @@ export function ChatListPanel({ className }: { className?: string }) {
         ))}
       </div>
 
-      {/* Phone-only bottom tab bar — DESIGN-BRIEF.md §4 "Раскладка телефона".
-          "Настройки" has no screen to open yet (out of F3's scope), so it's
-          rendered inert rather than linking to a route that doesn't exist. */}
+      {/* Phone-only bottom tab bar — DESIGN-BRIEF.md §4 "Раскладка телефона". */}
       <div className="flex border-t border-line px-2 pt-2 pb-6 md:hidden">
         <button
           type="button"
@@ -81,15 +80,15 @@ export function ChatListPanel({ className }: { className?: string }) {
           </span>
           Чаты
         </button>
-        <button
-          type="button"
+        <Link
+          to="/settings"
           className="flex flex-1 flex-col items-center justify-center gap-0.5 py-3 text-xs text-mute"
         >
           <span aria-hidden className="font-mono text-base">
             {"◐"}
           </span>
           Настройки
-        </button>
+        </Link>
       </div>
     </div>
   );

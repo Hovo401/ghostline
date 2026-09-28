@@ -16,6 +16,7 @@ interface FakeAttachmentRow {
   id: string;
   uploaderId: string;
   status: "PENDING" | "READY";
+  kind: "IMAGE" | "FILE" | "VOICE" | "VIDEO" | "AVATAR";
   key: string;
   mime: string;
   size: bigint;

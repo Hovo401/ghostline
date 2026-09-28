@@ -1,6 +1,8 @@
 import { Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 
+import { StorageModule } from "../storage/storage.module";
+
 import { AccessTokenGuard } from "./access-token.guard";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
@@ -16,7 +18,7 @@ import { TokenService } from "./token.service";
  * rather than re-implementing JWT verification.
  */
 @Module({
-  imports: [JwtModule.register({})],
+  imports: [JwtModule.register({}), StorageModule],
   controllers: [AuthController],
   providers: [AuthService, TokenService, AccessTokenGuard],
   exports: [TokenService, AccessTokenGuard],

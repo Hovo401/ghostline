@@ -10,6 +10,9 @@ export const UserPublicProfileSchema = z.object({
   username: z.string(),
   displayName: z.string(),
   avatarKey: z.string().nullable(),
+  // Computed at read time from `StorageService.createDownloadUrl` — never
+  // persisted (same pattern as `Attachment.url`, see attachment.schema.ts).
+  avatarUrl: z.string().url().nullable(),
   bio: z.string().nullable(),
   online: z.boolean(),
   lastSeenAt: z.string().datetime().nullable(),
@@ -27,6 +30,10 @@ export const UpdateMeRequestSchema = z.object({
   bio: z.string().max(140).nullable().optional(),
   showOnline: z.boolean().optional(),
   readReceipts: z.boolean().optional(),
+  // Client uploads via `POST /attachments/presign` (`kind: "avatar"`) +
+  // `POST /attachments/:id/complete` first, then sends the resulting id
+  // here — the backend never accepts raw file bytes on this route.
+  avatarAttachmentId: z.string().uuid().optional(),
 });
 export type UpdateMeRequest = z.infer<typeof UpdateMeRequestSchema>;
 

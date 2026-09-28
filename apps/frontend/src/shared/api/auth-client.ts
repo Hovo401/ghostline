@@ -3,6 +3,7 @@ import {
   type LoginRequest,
   MeResponseSchema,
   type RegisterRequest,
+  type UpdateMeRequest,
   UsernameAvailabilityResponseSchema,
 } from "@ghostline/contracts";
 
@@ -34,6 +35,12 @@ export async function refreshSession() {
 
 export async function fetchMe() {
   const data = await apiFetch("/me");
+  return MeResponseSchema.parse(data);
+}
+
+/** FR-USER-01/03/04/08 — settings' profile tab "Сохранить". */
+export async function updateMe(body: UpdateMeRequest) {
+  const data = await apiFetch("/me", { method: "PATCH", body });
   return MeResponseSchema.parse(data);
 }
 

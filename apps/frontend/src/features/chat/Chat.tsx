@@ -1,5 +1,8 @@
+import { Link } from "@tanstack/react-router";
+
 import { useChatRealtime, useChats, useTypingRealtime } from "../../entities/chat";
 import { useMessageRealtime } from "../../entities/message";
+import { useMeRealtime } from "../../entities/session";
 import { useSessionStore } from "../../shared/api/session-store";
 import { useGhostlineSocket } from "../../shared/api/socket-client";
 import { Avatar } from "../../shared/ui/avatar";
@@ -22,6 +25,7 @@ export function Chat() {
   useChatRealtime();
   useMessageRealtime();
   useTypingRealtime();
+  useMeRealtime();
 
   const { data: chats } = useChats();
   const selectedChatId = useChatUiStore((state) => state.selectedChatId);
@@ -51,17 +55,17 @@ export function Chat() {
           </span>
           Чаты
         </button>
-        <button
-          type="button"
+        <Link
+          to="/settings"
           className="flex h-13 w-15 flex-col items-center justify-center gap-0.5 rounded-xl text-[11.5px] text-mute"
         >
           <span aria-hidden className="font-mono text-[15px]">
             {"◐"}
           </span>
           Настройки
-        </button>
+        </Link>
         <div className="flex-1" />
-        {me && <Avatar name={me.displayName} size={36} />}
+        {me && <Avatar name={me.displayName} src={me.avatarUrl ?? undefined} size={36} />}
       </nav>
 
       <ChatListPanel className={selectedChatId ? "hidden md:flex" : "flex"} />

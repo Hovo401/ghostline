@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { sanitizeUsername, usernameHint } from "./username-hint";
+import { sanitizeUsername, usernameHint } from "./username";
 
 describe("sanitizeUsername", () => {
   it("lower-cases and strips anything outside a-z 0-9 _", () => {

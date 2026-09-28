@@ -1,5 +1,8 @@
-import type { Attachment as WireAttachment } from "@ghostline/contracts";
-import type { Attachment as PrismaAttachment } from "@prisma/client";
+import type { Attachment as WireAttachment, AttachmentKind } from "@ghostline/contracts";
+import type {
+  Attachment as PrismaAttachment,
+  AttachmentKind as PrismaAttachmentKind,
+} from "@prisma/client";
 
 import type { StorageService } from "../storage/storage.service";
 
@@ -29,4 +32,29 @@ export async function toWireAttachment(
     name: attachment.name,
     url: await storage.createDownloadUrl(attachment.key, attachment.name ?? undefined),
   };
+}
+
+const WIRE_TO_PRISMA_KIND: Record<AttachmentKind, PrismaAttachmentKind> = {
+  image: "IMAGE",
+  file: "FILE",
+  voice: "VOICE",
+  video: "VIDEO",
+  avatar: "AVATAR",
+};
+
+export function toPrismaAttachmentKind(kind: AttachmentKind): PrismaAttachmentKind {
+  return WIRE_TO_PRISMA_KIND[kind];
+}
+
+/**
+ * Same "compute fresh from the key, never persist" rule as `toWireAttachment`
+ * above, for `User.avatarKey` — `null` short-circuits without a wasted
+ * `StorageService` round trip (most users have no avatar).
+ */
+export async function toAvatarUrl(
+  avatarKey: string | null,
+  storage: StorageService,
+): Promise<string | null> {
+  if (!avatarKey) return null;
+  return storage.createDownloadUrl(avatarKey);
 }

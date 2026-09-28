@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import type { ChatListItem } from "../chat/chat.schema";
 import type { Message } from "../message/message.schema";
+import type { UserPublicProfile } from "../user/user.schema";
 
 /**
  * Realtime protocol (Socket.IO), per REQUIREMENTS.md §7.5.
@@ -58,6 +59,7 @@ export interface ServerToClientEvents {
   "chat:updated": (payload: ChatListItem) => void;
   "chat:removed": (payload: ChatRemovedPayload) => void;
   "read:updated": (payload: ReadUpdatedPayload) => void;
+  "user:updated": (payload: UserPublicProfile) => void;
   presence: (payload: PresencePayload) => void;
   typing: (payload: TypingServerPayload) => void;
 }

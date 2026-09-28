@@ -7,6 +7,10 @@
  */
 export const CHATS_QUERY_KEY = ["chats"] as const;
 
+/** `entities/session`'s `useMe`/`useUpdateMe` and `useMeRealtime` all key
+ * off this one constant, same reasoning as `CHATS_QUERY_KEY` above. */
+export const ME_QUERY_KEY = ["me"] as const;
+
 export function messagesQueryKey(chatId: string) {
   return ["messages", chatId] as const;
 }

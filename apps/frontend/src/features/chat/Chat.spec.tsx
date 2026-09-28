@@ -62,6 +62,7 @@ describe("Chat", () => {
         username: "me",
         displayName: "Я",
         avatarKey: null,
+        avatarUrl: null,
         bio: null,
         online: true,
         lastSeenAt: null,

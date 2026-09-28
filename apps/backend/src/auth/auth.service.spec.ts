@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { AppConfigService } from "../config/app-config.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { StorageService } from "../storage/storage.service";
 
 import { AuthService } from "./auth.service";
 import { TokenService } from "./token.service";
@@ -134,6 +135,8 @@ async function buildAuthService() {
     jwt: { accessSecret: "a".repeat(32), refreshSecret: "b".repeat(32) },
   } as AppConfigService;
 
+  const fakeStorage = { createDownloadUrl: () => Promise.resolve("http://example.test/avatar") };
+
   const moduleRef = await Test.createTestingModule({
     providers: [
       AuthService,
@@ -141,6 +144,7 @@ async function buildAuthService() {
       JwtService,
       { provide: PrismaService, useValue: fakePrisma },
       { provide: AppConfigService, useValue: fakeConfig },
+      { provide: StorageService, useValue: fakeStorage },
     ],
   }).compile();
 

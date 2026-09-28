@@ -39,6 +39,7 @@ describe("apiFetch", () => {
       username: "u",
       displayName: "u",
       avatarKey: null,
+      avatarUrl: null,
       bio: null,
       online: false,
       lastSeenAt: null,

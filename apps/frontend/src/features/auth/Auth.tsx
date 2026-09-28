@@ -1,7 +1,13 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
-import { useLogin, useRegister, useUsernameAvailability } from "../../entities/session";
+import {
+  sanitizeUsername,
+  useLogin,
+  useRegister,
+  useUsernameAvailability,
+  usernameHint,
+} from "../../entities/session";
 import { Button } from "../../shared/ui/button";
 import { GhostField } from "../../shared/ui/ghost-field";
 import { Scramble } from "../../shared/ui/scramble";
@@ -9,7 +15,6 @@ import { SegmentedTabs } from "../../shared/ui/segmented-tabs";
 import { TextField } from "../../shared/ui/text-field";
 
 import { MIN_PASSWORD_LENGTH, scorePasswordStrength } from "./password-strength";
-import { sanitizeUsername, usernameHint } from "./username-hint";
 
 // Debounce for the live username-availability check (FR-AUTH-04) — long
 // enough to skip mid-word keystrokes, short enough to feel live.

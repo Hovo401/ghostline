@@ -14,6 +14,7 @@ const USER = {
   username: "tihiy_veter",
   displayName: "tihiy_veter",
   avatarKey: null,
+  avatarUrl: null,
   bio: null,
   online: true,
   lastSeenAt: null,

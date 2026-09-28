@@ -78,7 +78,19 @@
       "Bash(echo \"This is a small test document for Ghostline file upload testing.\")",
       "Bash(ls -la test-document.txt)",
       "Bash(find . -maxdepth 3 -iname \"playwright*\" -not -path \"*/node_modules/*\")",
-      "Bash(cat .claude/settings.json)"
+      "Bash(cat .claude/settings.json)",
+      "Bash(python3 -m json.tool)",
+      "Bash(git stash *)",
+      "Bash(pnpm --filter @ghostline/frontend run test > /tmp/test-out.log 2>&1; echo \"EXIT:$?\"; tail -10 /tmp/test-out.log)",
+      "Bash(curl -s -o /dev/null -w \"status: %{http_code}\\\\n\" http://localhost/api/v1/users/availability?username=nginxcheck2)",
+      "Bash(curl -s http://localhost/api/v1/users/availability?username=nginxcheck2)",
+      "Bash(pnpm db:migrate)",
+      "Bash(DATABASE_URL=\"postgresql://ghostline:change-me@localhost:5433/ghostline\" pnpm --filter @ghostline/backend run db:migrate)",
+      "Bash(curl -s -o /dev/null -w \"status: %{http_code}\\\\n\" http://localhost/api/v1/users/availability?username=check123)",
+      "Bash(curl -s -o /dev/null -w \"health status: %{http_code}\\\\n\" http://localhost/api/health)",
+      "Bash(curl -s -o /dev/null -w \"root health: %{http_code}\\\\n\" http://localhost:3000/health)",
+      "Bash(curl -s -o /dev/null -w \"health via nginx: %{http_code}\\\\n\" http://localhost/api/health)",
+      "Bash(curl -s -o /dev/null -w \"status: %{http_code}\\\\n\" http://localhost/)"
     ],
     "deny": [
       "Read(**/node_modules/**)",
@@ -103,7 +115,8 @@
       "Bash(git reset --hard*)"
     ],
     "additionalDirectories": [
-      "C:\\Users\\Lenovo\\AppData\\Local\\Temp\\claude\\c--Users-Lenovo-Diotek-data-my-project-chat\\7a975eed-dcc1-4d78-b494-80acd5e68c1c\\scratchpad"
+      "C:\\Users\\Lenovo\\AppData\\Local\\Temp\\claude\\c--Users-Lenovo-Diotek-data-my-project-chat\\7a975eed-dcc1-4d78-b494-80acd5e68c1c\\scratchpad",
+      "\\tmp"
     ]
   },
   "hooks": {

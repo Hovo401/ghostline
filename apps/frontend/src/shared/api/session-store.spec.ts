@@ -7,6 +7,7 @@ const USER = {
   username: "tihiy_veter",
   displayName: "tihiy_veter",
   avatarKey: null,
+  avatarUrl: null,
   bio: null,
   online: true,
   lastSeenAt: null,
@@ -38,5 +39,15 @@ describe("useSessionStore", () => {
     expect(useSessionStore.getState().status).toBe("anonymous");
     expect(useSessionStore.getState().user).toBeNull();
     expect(getAccessToken()).toBeNull();
+  });
+
+  it("updateUser patches the cached profile without touching the token/status", () => {
+    useSessionStore.getState().setSession("token-123", USER);
+
+    useSessionStore.getState().updateUser({ ...USER, displayName: "Новое имя" });
+
+    expect(useSessionStore.getState().status).toBe("authenticated");
+    expect(useSessionStore.getState().user?.displayName).toBe("Новое имя");
+    expect(getAccessToken()).toBe("token-123");
   });
 });

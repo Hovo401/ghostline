@@ -22,6 +22,12 @@ interface SessionState {
 interface SessionActions {
   setSession: (accessToken: string, user: UserPublicProfile) => void;
   clearSession: () => void;
+  /** Patches the cached profile in place — `entities/session`'s
+   * `useUpdateMe` (after a `PATCH /me`) and `useMeRealtime` (after a
+   * `user:updated` push for this device's own user) both go through this
+   * instead of `setSession`, since neither has a fresh access token to
+   * pass it. */
+  updateUser: (user: UserPublicProfile) => void;
 }
 
 export const useSessionStore = create<SessionState & SessionActions>((set) => ({
@@ -33,6 +39,9 @@ export const useSessionStore = create<SessionState & SessionActions>((set) => ({
   },
   clearSession: () => {
     set({ status: "anonymous", accessToken: null, user: null });
+  },
+  updateUser: (user) => {
+    set({ user });
   },
 }));
 

@@ -2,9 +2,13 @@ import { randomBytes, randomUUID } from "node:crypto";
 
 import type { AuthTokenResponse, LoginRequest, RegisterRequest } from "@ghostline/contracts";
 import { ConflictException, Injectable, UnauthorizedException } from "@nestjs/common";
+import type { User } from "@prisma/client";
 import * as argon2 from "argon2";
 
+import { toAvatarUrl } from "../attachments/attachment.util";
 import { PrismaService } from "../prisma/prisma.service";
+import { StorageService } from "../storage/storage.service";
+import { isUsernameTaken } from "../users/username.util";
 
 import { TokenService } from "./token.service";
 import { REFRESH_TOKEN_TTL_MS } from "./token.types";
@@ -25,12 +29,12 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tokens: TokenService,
+    private readonly storage: StorageService,
   ) {}
 
   async register(dto: RegisterRequest): Promise<AuthTokenResponse & { refreshToken: string }> {
     const username = dto.username.toLowerCase();
-    const existing = await this.prisma.user.findUnique({ where: { username } });
-    if (existing) {
+    if (await isUsernameTaken(this.prisma, username)) {
       throw new ConflictException("username already taken");
     }
 
@@ -53,15 +57,7 @@ export class AuthService {
     return {
       accessToken: issued.accessToken,
       refreshToken: issued.refreshToken,
-      user: {
-        id: user.id,
-        username: user.username,
-        displayName: user.displayName,
-        avatarKey: user.avatarKey,
-        bio: user.bio,
-        online: true,
-        lastSeenAt: null,
-      },
+      user: await this.toPublicProfile(user),
     };
   }
 
@@ -80,15 +76,7 @@ export class AuthService {
     return {
       accessToken: issued.accessToken,
       refreshToken: issued.refreshToken,
-      user: {
-        id: user.id,
-        username: user.username,
-        displayName: user.displayName,
-        avatarKey: user.avatarKey,
-        bio: user.bio,
-        online: true,
-        lastSeenAt: user.lastSeenAt?.toISOString() ?? null,
-      },
+      user: await this.toPublicProfile(user),
     };
   }
 
@@ -134,19 +122,10 @@ export class AuthService {
       },
     });
 
-    const user = session.user;
     return {
       accessToken,
       refreshToken,
-      user: {
-        id: user.id,
-        username: user.username,
-        displayName: user.displayName,
-        avatarKey: user.avatarKey,
-        bio: user.bio,
-        online: true,
-        lastSeenAt: user.lastSeenAt?.toISOString() ?? null,
-      },
+      user: await this.toPublicProfile(session.user),
     };
   }
 
@@ -181,5 +160,23 @@ export class AuthService {
     });
 
     return { accessToken: this.tokens.signAccessToken(userId), refreshToken };
+  }
+
+  /**
+   * The caller is always authenticated as `user` here (they just
+   * registered/logged in/refreshed), so they're online right now by
+   * definition — same reasoning as `UsersService.getMe`.
+   */
+  private async toPublicProfile(user: User): Promise<AuthTokenResponse["user"]> {
+    return {
+      id: user.id,
+      username: user.username,
+      displayName: user.displayName,
+      avatarKey: user.avatarKey,
+      avatarUrl: await toAvatarUrl(user.avatarKey, this.storage),
+      bio: user.bio,
+      online: true,
+      lastSeenAt: user.lastSeenAt?.toISOString() ?? null,
+    };
   }
 }

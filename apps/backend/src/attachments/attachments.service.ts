@@ -21,7 +21,7 @@ import { MEDIA_QUEUE, type MediaJobData } from "../jobs/media.processor";
 import { PrismaService } from "../prisma/prisma.service";
 import { StorageService } from "../storage/storage.service";
 
-import { toWireAttachment } from "./attachment.util";
+import { toPrismaAttachmentKind, toWireAttachment } from "./attachment.util";
 
 /**
  * Presigned upload flow (REQUIREMENTS.md §7.6): the backend never sees
@@ -54,6 +54,7 @@ export class AttachmentsService {
         id,
         uploaderId: userId,
         status: "PENDING",
+        kind: toPrismaAttachmentKind(dto.kind),
         key,
         mime: dto.mime,
         size: dto.size,

@@ -8,6 +8,11 @@ export interface SegmentedTabsProps<T extends string> {
   value: T;
   onChange: (value: T) => void;
   className?: string;
+  /** Stretches to the container's full width with each segment sharing it
+   * evenly (DESIGN-BRIEF §7.3/§8.4 — phone settings tabs, "Размер текста"/
+   * "Форма сообщений"), instead of the default shrink-to-content sizing
+   * ("Вход"/"Регистрация"). */
+  fill?: boolean;
 }
 
 export function SegmentedTabs<T extends string>({
@@ -15,11 +20,16 @@ export function SegmentedTabs<T extends string>({
   value,
   onChange,
   className,
+  fill = false,
 }: SegmentedTabsProps<T>) {
   return (
     <div
       role="tablist"
-      className={["inline-flex rounded-xl border border-line p-1", className]
+      className={[
+        fill ? "flex w-full" : "inline-flex",
+        "rounded-xl border border-line p-1",
+        className,
+      ]
         .filter(Boolean)
         .join(" ")}
     >
@@ -36,8 +46,11 @@ export function SegmentedTabs<T extends string>({
             }}
             className={[
               "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-200",
+              fill ? "flex-1" : "",
               selected ? "bg-fg text-bg" : "text-mute",
-            ].join(" ")}
+            ]
+              .filter(Boolean)
+              .join(" ")}
           >
             {opt.label}
           </button>

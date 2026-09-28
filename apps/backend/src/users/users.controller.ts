@@ -4,12 +4,14 @@ import type {
   UserSearchResponse,
 } from "@ghostline/contracts";
 import {
+  Body,
   Controller,
   Delete,
   Get,
   HttpCode,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -18,6 +20,7 @@ import {
 import { AccessTokenGuard } from "../auth/access-token.guard";
 import { CurrentUserId } from "../auth/current-user.decorator";
 
+import { UpdateMeDto } from "./dto/update-me.dto";
 import { UserSearchQueryDto } from "./dto/user-search.dto";
 import { UsernameAvailabilityDto } from "./dto/username-availability.dto";
 import { UsersService } from "./users.service";
@@ -35,6 +38,12 @@ export class UsersController {
   @UseGuards(AccessTokenGuard)
   getMe(@CurrentUserId() userId: string): Promise<MeResponse> {
     return this.usersService.getMe(userId);
+  }
+
+  @Patch("me")
+  @UseGuards(AccessTokenGuard)
+  updateMe(@CurrentUserId() userId: string, @Body() dto: UpdateMeDto): Promise<MeResponse> {
+    return this.usersService.updateMe(userId, dto);
   }
 
   @Get("users/availability")

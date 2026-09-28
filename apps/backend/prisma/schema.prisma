@@ -135,6 +135,11 @@ model Attachment {
   id         String   @id @default(uuid()) @db.Uuid
   uploaderId String   @db.Uuid
   status     UploadStatus @default(PENDING)
+  // What the presigned upload was for (REQUIREMENTS.md §7.6) — `UsersService`
+  // checks this is `AVATAR` before letting `PATCH /me` adopt it, so an
+  // attachment meant for a chat message can't be repurposed as a profile
+  // photo (or vice versa).
+  kind       AttachmentKind
   key        String
   mime       String
   size       BigInt
@@ -152,6 +157,14 @@ model Attachment {
 enum UploadStatus {
   PENDING
   READY
+}
+
+enum AttachmentKind {
+  IMAGE
+  FILE
+  VOICE
+  VIDEO
+  AVATAR
 }
 
 model Block {
