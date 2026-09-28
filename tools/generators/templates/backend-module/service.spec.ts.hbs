@@ -1,0 +1,15 @@
+import { Test } from "@nestjs/testing";
+import { describe, expect, it } from "vitest";
+
+import { PrismaService } from "../prisma/prisma.service";
+import { {{pascalCase name}}Service } from "./{{dashCase name}}.service";
+
+describe("{{pascalCase name}}Service", () => {
+  it("is defined", async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [{{pascalCase name}}Service, { provide: PrismaService, useValue: {} }],
+    }).compile();
+
+    expect(moduleRef.get({{pascalCase name}}Service)).toBeDefined();
+  });
+});

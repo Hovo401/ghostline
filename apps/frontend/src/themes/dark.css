@@ -1,0 +1,16 @@
+/*
+ * Theme: Dark (default) — DESIGN-BRIEF.md §2.2.
+ * Adding a theme means adding one file like this + registering its id in
+ * shared/theme/appearance-store.ts's ThemeId union — no component changes.
+ */
+:root,
+[data-theme="dark"] {
+  --gl-bg: #0b0d0c;
+  --gl-bg2: #121614;
+  --gl-panel: #161a18;
+  --gl-line: #252b28;
+  --gl-fg: #e9ece8;
+  --gl-mute: #98a09b;
+  --gl-in: #1b201d;
+  --gl-desk: #050606;
+}

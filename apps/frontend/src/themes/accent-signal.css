@@ -1,0 +1,17 @@
+/*
+ * Accent: Signal (default) — DESIGN-BRIEF.md §2.3.
+ * An accent sets a fill (`--gl-accent-fill`, may be a gradient), the
+ * always-solid `--gl-ink` text color to put ON that fill, and a
+ * tone-dependent `--gl-accent-text` (for links/"read" — needs a darker
+ * variant on the light theme to stay at contrast ≥ 4.5:1).
+ */
+[data-accent="signal"] {
+  --gl-accent-fill: #b8f25b;
+  --gl-ink: #0b0d0c;
+}
+[data-theme="dark"][data-accent="signal"] {
+  --gl-accent-text: #b8f25b;
+}
+[data-theme="light"][data-accent="signal"] {
+  --gl-accent-text: #3f7a0c;
+}

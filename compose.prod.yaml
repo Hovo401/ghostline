@@ -1,0 +1,184 @@
+# Production stack — `pnpm prod:build && pnpm prod:up`. No dev tooling
+# (no mailpit, no bind mounts, no host-published DB/Redis/S3 ports); TLS
+# via Let's Encrypt (nginx + certbot, docker/nginx.Dockerfile).
+#
+# First deploy on a domain with no certificate yet: nginx's prod config
+# needs a cert to even start its :443 server block. Bring up everything
+# except nginx first (`docker compose -f compose.prod.yaml up -d --scale nginx=0`
+# is awkward with a healthcheck dependency; simplest is documented in
+# README.md's self-host guide), or start with `certbot` already holding a
+# cert from a previous deploy — this is a one-time bootstrap wrinkle, not
+# a steady-state one.
+
+name: ghostline
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    volumes:
+      - valkey-data:/data
+    command: ["valkey-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:latest
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    environment:
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      CORS_ORIGIN: https://${DOMAIN}
+    volumes:
+      - seaweedfs-data:/data
+      - ./docker/seaweedfs/entrypoint.sh:/entrypoint.sh:ro
+    healthcheck:
+      test:
+        ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:9333/cluster/status"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  s3-init:
+    image: amazon/aws-cli:2.17.62
+    entrypoint: ["/bin/sh", "/init-bucket.sh"]
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      AWS_DEFAULT_REGION: ${S3_REGION}
+      S3_ENDPOINT: http://seaweedfs:8333
+      S3_BUCKET: ${S3_BUCKET}
+    volumes:
+      - ./docker/seaweedfs/init-bucket.sh:/init-bucket.sh:ro
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    restart: "no"
+
+  migrate:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      target: build # has the prisma CLI; `prod`'s `--prod deploy` output doesn't
+    command: ["pnpm", "--filter", "@ghostline/backend", "run", "db:deploy"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      target: prod
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      CORS_ORIGIN: https://${DOMAIN}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://valkey:6379
+      S3_ENDPOINT: http://seaweedfs:8333
+      S3_PUBLIC_URL: https://${DOMAIN}/s3
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      target: prod
+    command: ["node", "dist/main.worker.js"]
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://valkey:6379
+      S3_ENDPOINT: http://seaweedfs:8333
+      S3_PUBLIC_URL: https://${DOMAIN}/s3
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/nginx.Dockerfile
+      target: prod
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - letsencrypt:/etc/letsencrypt:ro
+      - certbot-webroot:/var/www/certbot:ro
+    depends_on:
+      - backend
+
+  # No reload-on-renew hook by design (see docs/REQUIREMENTS.md open
+  # questions) — cheapest fix today is a cron on the host running
+  # `docker compose exec nginx nginx -s reload` after `certbot renew`.
+  certbot:
+    image: certbot/certbot:latest
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/renew-loop.sh"]
+    environment:
+      DOMAIN: ${DOMAIN}
+      CERTBOT_EMAIL: ${CERTBOT_EMAIL}
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot-webroot:/var/www/certbot
+      - ./docker/certbot/renew-loop.sh:/renew-loop.sh:ro
+
+volumes:
+  postgres-data:
+  valkey-data:
+  seaweedfs-data:
+  letsencrypt:
+  certbot-webroot:

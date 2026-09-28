@@ -1,0 +1,11 @@
+/* Theme: Light — DESIGN-BRIEF.md §2.2. See dark.css for the pattern. */
+[data-theme="light"] {
+  --gl-bg: #f3f2ed;
+  --gl-bg2: #eae9e2;
+  --gl-panel: #ffffff;
+  --gl-line: #d6d5cc;
+  --gl-fg: #121513;
+  --gl-mute: #555c57;
+  --gl-in: #ffffff;
+  --gl-desk: #cfcec6;
+}

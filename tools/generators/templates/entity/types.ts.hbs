@@ -1,0 +1,7 @@
+// Prefer re-exporting a type from @ghostline/contracts here once one
+// exists for {{dashCase name}} (`pnpm gen contract` makes one) — this
+// file is for view-model shapes the frontend needs that the wire
+// contract doesn't, not a duplicate of it.
+export interface {{pascalCase name}} {
+  id: string;
+}

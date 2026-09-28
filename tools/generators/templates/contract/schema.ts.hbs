@@ -1,0 +1,6 @@
+import { z } from "zod";
+
+export const {{pascalCase name}}Schema = z.object({
+  id: z.string().uuid(),
+});
+export type {{pascalCase name}} = z.infer<typeof {{pascalCase name}}Schema>;

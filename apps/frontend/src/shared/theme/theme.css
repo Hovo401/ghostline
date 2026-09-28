@@ -1,0 +1,39 @@
+@import "tailwindcss";
+@import "../../themes/dark.css";
+@import "../../themes/light.css";
+@import "../../themes/accent-signal.css";
+@import "@fontsource/geologica/500.css";
+@import "@fontsource/geologica/600.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/600.css";
+
+/*
+ * Maps Ghostline's runtime tokens (set per `[data-theme]`/`[data-accent]`
+ * in themes/*.css) onto Tailwind v4 theme variables, so components use
+ * ordinary utilities (`bg-bg`, `text-fg`, `bg-accent`, …) that repaint
+ * instantly on theme/accent change — see DESIGN-BRIEF.md §8.2.
+ * Literal colors belong in themes/*.css only; nowhere else (enforced by
+ * the `no-restricted-syntax` hex-literal rule in eslint.frontend.mjs).
+ */
+@theme {
+  --color-bg: var(--gl-bg);
+  --color-bg2: var(--gl-bg2);
+  --color-panel: var(--gl-panel);
+  --color-line: var(--gl-line);
+  --color-fg: var(--gl-fg);
+  --color-mute: var(--gl-mute);
+  --color-in: var(--gl-in);
+  --color-desk: var(--gl-desk);
+  --color-accent: var(--gl-accent-fill);
+  --color-accent-text: var(--gl-accent-text);
+  --color-ink: var(--gl-ink);
+
+  --font-display: "Geologica", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+body {
+  background-color: var(--gl-bg);
+  color: var(--gl-fg);
+  font-family: var(--font-display);
+}

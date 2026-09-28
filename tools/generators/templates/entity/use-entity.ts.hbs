@@ -1,0 +1,12 @@
+import { useQuery } from "@tanstack/react-query";
+
+import type { {{pascalCase name}} } from "./{{dashCase name}}.types";
+
+export function use{{pascalCase name}}(id: string) {
+  return useQuery<{{pascalCase name}}>({
+    queryKey: ["{{camelCase name}}", id],
+    queryFn: () => {
+      throw new Error("TODO: fetch {{dashCase name}} " + id);
+    },
+  });
+}

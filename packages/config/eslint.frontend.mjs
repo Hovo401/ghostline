@@ -1,0 +1,74 @@
+// Frontend ESLint config: base rules + React + design-token enforcement
+// + layered-architecture boundaries (shared < entities < features < routes < app).
+import reactHooks from "eslint-plugin-react-hooks";
+import reactRefresh from "eslint-plugin-react-refresh";
+import boundaries from "eslint-plugin-boundaries";
+import { createBaseConfig } from "./eslint.base.mjs";
+
+const HEX_COLOR_LITERAL =
+  "Literal[value=/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/]";
+
+/** @param {string} tsconfigRootDir */
+export function createFrontendConfig(tsconfigRootDir) {
+  return [
+    ...createBaseConfig(tsconfigRootDir),
+    reactHooks.configs["recommended-latest"],
+    reactRefresh.configs.vite,
+    {
+      plugins: { boundaries },
+      settings: {
+        "boundaries/elements": [
+          { type: "app", pattern: "src/app/*", mode: "folder" },
+          { type: "routes", pattern: "src/routes/*", mode: "folder" },
+          { type: "features", pattern: "src/features/*", mode: "folder" },
+          { type: "entities", pattern: "src/entities/*", mode: "folder" },
+          { type: "shared", pattern: "src/shared/*", mode: "folder" },
+          { type: "themes", pattern: "src/themes/*", mode: "folder" },
+        ],
+      },
+      rules: {
+        ...boundaries.configs.recommended.rules,
+        "boundaries/element-types": [
+          "error",
+          {
+            default: "disallow",
+            rules: [
+              { from: "app", allow: ["routes", "features", "entities", "shared", "themes"] },
+              { from: "routes", allow: ["features", "entities", "shared", "themes"] },
+              { from: "features", allow: ["entities", "shared", "themes"] },
+              { from: "entities", allow: ["shared", "themes"] },
+              { from: "shared", allow: ["shared", "themes"] },
+              { from: "themes", allow: ["shared"] },
+            ],
+          },
+        ],
+        // Design tokens only — no ad-hoc hex colors in component code.
+        // Colors live in shared/theme token files; see DESIGN-BRIEF §8.
+        "no-restricted-syntax": [
+          "error",
+          {
+            selector: "TSEnumDeclaration",
+            message: "Use a const object (`as const`) or a zod enum instead of `enum`.",
+          },
+          {
+            selector: HEX_COLOR_LITERAL,
+            message:
+              "No hex color literals in components — use a theme token from shared/theme (see DESIGN-BRIEF §2/§8).",
+          },
+        ],
+      },
+    },
+    {
+      // Theme token definitions are the one place allowed to declare raw
+      // color literals — everything else must consume them.
+      files: ["src/themes/**/*.ts"],
+      rules: { "no-restricted-syntax": "off" },
+    },
+    {
+      // The bootstrap entry isn't hot-reloaded as a component itself —
+      // react-refresh's "only export components" constraint doesn't apply.
+      files: ["src/app/**"],
+      rules: { "react-refresh/only-export-components": "off" },
+    },
+  ];
+}

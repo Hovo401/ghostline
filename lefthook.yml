@@ -1,0 +1,20 @@
+# https://lefthook.dev — installed via the root `prepare` script.
+# Keep this fast: it runs on every commit. The full battery (lint +
+# typecheck + test + build) belongs to the Claude Code Stop hook
+# (.claude/settings.json) and CI (.github/workflows/ci.yml), which run
+# once per agent turn / push rather than once per commit.
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      glob: "*.{ts,tsx,js,mjs,cjs,json,css,md,yaml,yml}"
+      run: pnpm exec prettier --write {staged_files} && git add {staged_files}
+    lint-changed:
+      # `...[HEAD]` has nothing to diff against on a repo's very first
+      # commit (no HEAD yet) — fall back to linting everything just then.
+      run: pnpm exec turbo run lint --filter="...[HEAD]" || pnpm exec turbo run lint
+
+commit-msg:
+  commands:
+    commitlint:
+      run: pnpm exec commitlint --edit {1}

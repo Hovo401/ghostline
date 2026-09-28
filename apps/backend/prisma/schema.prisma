@@ -1,0 +1,57 @@
+// Ghostline — Prisma schema.
+//
+// Scaffold note: only `User` and `Session` are modeled here, enough to
+// migrate and exercise auth end-to-end. The rest of the domain
+// (Invite, Chat, ChatMember, Message, Attachment, Reaction, Block,
+// UserSettings — see docs/REQUIREMENTS.md §7.4) is added module by module,
+// each behind its own migration, not in one big upfront schema.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  username     String    @unique
+  displayName  String
+  email        String?   @unique
+  passwordHash String
+  recoveryHash String
+  bio          String?
+  role         UserRole  @default(USER)
+  lastSeenAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions Session[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model Session {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  familyId   String    @db.Uuid
+  userAgent  String?
+  ip         String?
+  lastUsedAt DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("sessions")
+}

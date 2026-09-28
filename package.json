@@ -1,0 +1,47 @@
+{
+  "name": "ghostline",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Ghostline — web messenger without a phone number",
+  "license": "AGPL-3.0-only",
+  "packageManager": "pnpm@10.33.2",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "docker compose -f compose.dev.yaml up --watch",
+    "dev:down": "docker compose -f compose.dev.yaml down",
+    "dev:logs": "docker compose -f compose.dev.yaml logs -f",
+    "prod:build": "docker compose -f compose.prod.yaml build",
+    "prod:up": "docker compose -f compose.prod.yaml up -d",
+    "prod:down": "docker compose -f compose.prod.yaml down",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "check": "turbo run lint typecheck test build && pnpm run check:repo",
+    "check:changed": "turbo run lint typecheck test build --filter=\"...[HEAD]\"",
+    "check:repo": "pnpm run knip && pnpm run jscpd && pnpm run depcruise",
+    "knip": "knip",
+    "jscpd": "jscpd apps packages --config .jscpd.json",
+    "depcruise": "depcruise apps/backend/src --config .dependency-cruiser.cjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:migrate": "pnpm --filter @ghostline/backend run db:migrate",
+    "db:studio": "pnpm --filter @ghostline/backend run db:studio",
+    "gen": "plop --plopfile tools/generators/plopfile.mjs",
+    "prepare": "lefthook install"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.6.1",
+    "@commitlint/config-conventional": "^19.6.0",
+    "dependency-cruiser": "^17.0.1",
+    "jscpd": "^4.0.5",
+    "knip": "^5.44.0",
+    "lefthook": "^1.10.10",
+    "plop": "^4.0.1",
+    "prettier": "^3.4.2",
+    "turbo": "^2.5.0",
+    "typescript": "^5.9.0"
+  }
+}

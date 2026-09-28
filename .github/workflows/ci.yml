@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TELEMETRY_DISABLED: "1"
+
+jobs:
+  check:
+    name: lint · typecheck · unit tests · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2 # turbo's `...[HEAD]` filters need the previous commit too
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: turbo (lint, typecheck, test, build)
+        run: pnpm turbo run lint typecheck test build
+
+      - name: repo-wide checks (knip, jscpd, dependency-cruiser)
+        run: pnpm run check:repo
+
+  e2e:
+    name: backend e2e (real Postgres/Redis/S3, via compose.dev.yaml)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: create a minimal .env for compose
+        run: |
+          cat > .env <<'EOF'
+          NODE_ENV=test
+          PORT=3000
+          LOG_LEVEL=warn
+          CORS_ORIGIN=http://localhost
+          POSTGRES_USER=ghostline
+          POSTGRES_PASSWORD=ci-only
+          POSTGRES_DB=ghostline
+          S3_BUCKET=ghostline-media
+          S3_REGION=us-east-1
+          S3_ACCESS_KEY_ID=ci-only
+          S3_SECRET_ACCESS_KEY=ci-only-ci-only
+          S3_FORCE_PATH_STYLE=true
+          S3_PUBLIC_URL=http://localhost/s3
+          JWT_ACCESS_SECRET=ci-only-ci-only-ci-only-ci-only-ci-only
+          JWT_REFRESH_SECRET=ci-only-ci-only-ci-only-ci-only-ci-only
+          EOF
+
+      - name: start infra (postgres, valkey, seaweedfs)
+        run: |
+          docker compose -f compose.dev.yaml up -d --wait postgres valkey seaweedfs s3-init
+
+      - name: run backend e2e tests inside the backend image
+        run: |
+          docker compose -f compose.dev.yaml run --rm --no-deps backend \
+            pnpm --filter @ghostline/backend run test:e2e
+
+      - name: tear down
+        if: always()
+        run: docker compose -f compose.dev.yaml down -v
+
+  docker-build:
+    name: docker build (backend, nginx)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: build backend prod image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/backend.Dockerfile
+          target: prod
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: build nginx prod image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/nginx.Dockerfile
+          target: prod
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

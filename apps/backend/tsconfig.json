@@ -1,0 +1,14 @@
+{
+  "extends": "@ghostline/config/tsconfig.backend.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "strictBindCallApply": true,
+    "outDir": "./dist",
+    "rootDir": "./"
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

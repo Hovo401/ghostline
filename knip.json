@@ -1,0 +1,32 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [".claude/hooks/*.mjs", "tools/generators/plopfile.mjs"],
+      "project": [".claude/hooks/*.mjs", "tools/generators/**/*.mjs"]
+    },
+    "apps/backend": {
+      "entry": ["src/main.ts", "src/main.worker.ts"],
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": ["pino-pretty"]
+    },
+    "apps/frontend": {
+      "entry": ["src/app/main.tsx", "src/routes/**/*.{ts,tsx}"],
+      "project": ["src/**/*.{ts,tsx}"],
+      "ignoreDependencies": [
+        "@fontsource/geologica",
+        "@fontsource/jetbrains-mono",
+        "tailwindcss",
+        "@ghostline/contracts",
+        "socket.io-client"
+      ],
+      "ignore": ["src/shared/api/socket-client.ts"]
+    },
+    "packages/contracts": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/config": {}
+  },
+  "exclude": ["exports", "types"]
+}

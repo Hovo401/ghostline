@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ghostline</title>
+    <script>
+      // Runs before any CSS/React so the correct theme paints on first
+      // frame — see src/shared/theme for the store this mirrors and
+      // docs/DESIGN-BRIEF.md §8 for the contract. Keep this in perfect
+      // sync with shared/theme/appearance-store.ts's resolution logic;
+      // it intentionally duplicates that one small computation because it
+      // must run standalone, before any module loads.
+      (function () {
+        try {
+          var raw = localStorage.getItem("ghostline:appearance");
+          var stored = raw ? JSON.parse(raw) : {};
+          var theme = stored.theme || "dark";
+          var accent = stored.accent || "signal";
+          var resolved =
+            theme === "system"
+              ? window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light"
+              : theme;
+          var root = document.documentElement;
+          root.setAttribute("data-theme", resolved);
+          root.setAttribute("data-accent", accent);
+        } catch (_e) {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/app/main.tsx"></script>
+  </body>
+</html>
