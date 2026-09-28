@@ -5,7 +5,7 @@
 // eslint.config.mjs by walking up from the process cwd, not from the
 // target file — so this has to `pnpm --filter <pkg> exec` into the right
 // package directory, not just run `eslint <path>` from the repo root).
-import { execFileSync } from "node:child_process";
+import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -21,6 +21,13 @@ const PACKAGE_DIRS = [
 function readStdinJson() {
   const raw = readFileSync(0, "utf8");
   return raw.trim() ? JSON.parse(raw) : {};
+}
+
+// execSync always goes through a shell (pnpm is a .cmd shim on Windows
+// and needs one there) — quote every path argument since that shell
+// could be cmd.exe, which doesn't understand single quotes.
+function quote(arg) {
+  return `"${arg.replace(/"/g, '\\"')}"`;
 }
 
 function main() {
@@ -41,7 +48,7 @@ function main() {
     return;
   }
 
-  runBestEffort(["exec", "prettier", "--write", relPath]);
+  runBestEffort(`pnpm exec prettier --write ${quote(relPath)}`);
 
   if (!/\.(ts|tsx)$/.test(relPath)) return;
 
@@ -51,7 +58,7 @@ function main() {
   const pathInPkg = relPath.slice(dir.length + 1);
 
   try {
-    execFileSync("pnpm", ["--filter", pkgName, "exec", "eslint", "--fix", pathInPkg], {
+    execSync(`pnpm --filter ${pkgName} exec eslint --fix ${quote(pathInPkg)}`, {
       cwd: REPO_ROOT,
       stdio: "pipe",
       encoding: "utf8",
@@ -66,9 +73,9 @@ function main() {
   }
 }
 
-function runBestEffort(args) {
+function runBestEffort(command) {
   try {
-    execFileSync("pnpm", args, { cwd: REPO_ROOT, stdio: "pipe" });
+    execSync(command, { cwd: REPO_ROOT, stdio: "pipe" });
   } catch {
     // formatting failures (e.g. a file prettier can't parse yet, mid-edit)
     // shouldn't block the agent — eslint below is the hard gate.
