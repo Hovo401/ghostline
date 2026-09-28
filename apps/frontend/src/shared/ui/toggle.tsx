@@ -30,8 +30,8 @@ export function Toggle({ checked, onChange, label, className }: ToggleProps) {
     >
       <span
         className={[
-          "absolute top-1 h-5 w-5 rounded-full transition-transform duration-200",
-          checked ? "translate-x-6 bg-ink" : "translate-x-1 bg-fg",
+          "absolute top-1 left-1 h-5 w-5 rounded-full transition-transform duration-200",
+          checked ? "translate-x-5 bg-ink" : "translate-x-0 bg-fg",
         ].join(" ")}
       />
     </button>
