@@ -29,7 +29,7 @@
     "format:check": "prettier --check .",
     "db:migrate": "pnpm --filter @ghostline/backend run db:migrate",
     "db:studio": "pnpm --filter @ghostline/backend run db:studio",
-    "gen": "plop --plopfile tools/generators/plopfile.mjs",
+    "gen": "plop --plopfile tools/generators/plopfile.mjs --dest .",
     "prepare": "lefthook install || true"
   },
   "devDependencies": {

@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+import type { ChatListItem } from "../chat/chat.schema";
+import type { Message } from "../message/message.schema";
+
 /**
  * Realtime protocol (Socket.IO), per REQUIREMENTS.md §7.5.
  *
@@ -48,17 +51,11 @@ export const messageDeletedPayloadSchema = z.object({
 });
 export type MessageDeletedPayload = z.infer<typeof messageDeletedPayloadSchema>;
 
-/**
- * `message:new` / `message:updated` and `chat:updated` carry the full
- * resource. Those resource shapes belong to their own domain modules
- * (messages/chats) once implemented — placeholder `unknown` here on
- * purpose so this scaffold doesn't guess at a shape ahead of the schema.
- */
 export interface ServerToClientEvents {
-  "message:new": (payload: unknown) => void;
-  "message:updated": (payload: unknown) => void;
+  "message:new": (payload: Message) => void;
+  "message:updated": (payload: Message) => void;
   "message:deleted": (payload: MessageDeletedPayload) => void;
-  "chat:updated": (payload: unknown) => void;
+  "chat:updated": (payload: ChatListItem) => void;
   "chat:removed": (payload: ChatRemovedPayload) => void;
   "read:updated": (payload: ReadUpdatedPayload) => void;
   presence: (payload: PresencePayload) => void;
