@@ -30,7 +30,7 @@
     "db:migrate": "pnpm --filter @ghostline/backend run db:migrate",
     "db:studio": "pnpm --filter @ghostline/backend run db:studio",
     "gen": "plop --plopfile tools/generators/plopfile.mjs",
-    "prepare": "lefthook install"
+    "prepare": "lefthook install || true"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.6.1",

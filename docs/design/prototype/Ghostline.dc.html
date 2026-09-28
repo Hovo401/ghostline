@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geologica:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Pixelify+Sans:wght@400;500;600;700&family=PT+Serif:wght@400;700&display=swap">
+<script src="./ghost-ui.js"></script>
+<script type="module" src="./ghost-scene.js"></script>
+<style>
+html,body{margin:0;height:100%;overflow:hidden}
+body{background:#050606;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:inherit;text-decoration:underline;text-underline-offset:3px}
+a:hover{color:var(--accent-t)}
+input,button{font:inherit;color:inherit}
+input::placeholder{color:var(--mute);opacity:1}
+[data-gl]{--bg:#0B0D0C;--bg2:#121614;--panel:#161A18;--line:#252B28;--fg:#E9ECE8;--mute:#98A09B;--desk:#050606;--in:#1B201D;--ink:#0B0D0C;--accent:#B8F25B;--accent-t:#B8F25B;--accent-fill:var(--accent);--avatar:var(--bg2);--avatar-fg:var(--fg);--glow:none;--font:Geologica,system-ui,sans-serif;--glyph-a:.26;--bubble-r:18px;--fs:15px;--frame-w:100%;--frame-h:100%;--frame-r:0px;--frame-b:0px;--vh:calc(100vh - 52px);--h1:clamp(40px,min(6.6vw,10vh),108px);--h2:44px;--list-w:340px;--profile-w:380px;--pad:56px;--split:minmax(0,1fr) minmax(0,1fr);--hero-j:center;--cols3:repeat(3,minmax(0,1fr))}
+[data-gl][data-theme=light]{--bg:#F3F2ED;--bg2:#EAE9E2;--panel:#FFFFFF;--line:#D6D5CC;--fg:#121513;--mute:#555C57;--desk:#CFCEC6;--in:#FFFFFF;--glyph-a:.34}
+[data-gl][data-theme=paper]{--bg:#F4EDE1;--bg2:#EBE2D3;--panel:#FBF7F0;--line:#D8CCB8;--fg:#2A2118;--mute:#6B5D4D;--desk:#D9CFBE;--in:#FBF7F0;--glyph-a:.34}
+[data-gl][data-theme=midnight]{--bg:#0D1220;--bg2:#121931;--panel:#161E38;--line:#253057;--fg:#E6E9F5;--mute:#9AA3C2;--desk:#070A14;--in:#1A2340;--glyph-a:.28}
+[data-gl][data-theme=terminal]{--bg:#06080B;--bg2:#0A0E12;--panel:#0C1116;--line:#16343D;--fg:#D4EEF2;--mute:#7FA3AB;--desk:#020304;--in:#0E151A;--glyph-a:.3;--avatar:var(--accent-fill);--avatar-fg:var(--ink);--glow:0 0 0 1px color-mix(in oklab, var(--accent) 55%, transparent), 0 0 22px color-mix(in oklab, var(--accent) 30%, transparent)}
+[data-gl][data-tone=light]{--accent-t:#3F7A0C}
+[data-gl][data-accent=ion]{--accent:#63E6F2;--accent-t:#63E6F2}
+[data-gl][data-tone=light][data-accent=ion]{--accent-t:#0A6E7C}
+[data-gl][data-accent=ember]{--accent:#FF9152;--accent-t:#FF9152}
+[data-gl][data-tone=light][data-accent=ember]{--accent-t:#A8420C}
+[data-gl][data-accent=violet]{--accent:#BBA8FF;--accent-t:#BBA8FF}
+[data-gl][data-tone=light][data-accent=violet]{--accent-t:#5A3ED0}
+[data-gl][data-accent=aurora]{--accent:#5EE6F0;--accent-t:#5EE6F0;--accent-fill:linear-gradient(135deg,#22D3EE,#D946EF)}
+[data-gl][data-tone=light][data-accent=aurora]{--accent-t:#0A6E7C}
+[data-gl][data-accent=sunset]{--accent:#FF8A5C;--accent-t:#FF8A5C;--accent-fill:linear-gradient(135deg,#FFB14A,#FF4D8D)}
+[data-gl][data-tone=light][data-accent=sunset]{--accent-t:#B03A1A}
+[data-gl][data-accent=mint]{--accent:#9AF07A;--accent-t:#9AF07A;--accent-fill:linear-gradient(135deg,#C6F25B,#3CE0C0)}
+[data-gl][data-tone=light][data-accent=mint]{--accent-t:#2F7A3A}
+[data-gl][data-font=mono]{--font:'JetBrains Mono',ui-monospace,monospace}
+[data-gl][data-font=pixel]{--font:'Pixelify Sans',system-ui,sans-serif}
+[data-gl][data-font=serif]{--font:'PT Serif',Georgia,serif}
+[data-gl][data-scale=s]{--fs:13.5px}
+[data-gl][data-scale=l]{--fs:17.5px}
+[data-gl][data-bubble=sharp]{--bubble-r:5px}
+[data-gl][data-hero=b]{--scrim-x:25%}[data-gl][data-hero=c]{--scrim-x:30%}
+[data-gl][data-device=phone]{--frame-w:390px;--frame-h:min(844px,calc(100vh - 88px));--frame-r:46px;--frame-b:9px;--vh:min(844px,calc(100vh - 88px));--h1:46px;--h2:30px;--list-w:100%;--profile-w:100%;--pad:24px;--split:minmax(0,1fr);--hero-j:flex-end;--cols3:minmax(0,1fr)}
+</style>
+</helmet>
+<div data-gl="" data-theme="{{ theme }}" data-tone="{{ tone }}" data-font="{{ font }}" data-accent="{{ accent }}" data-scale="{{ scale }}" data-bubble="{{ bubble }}" data-device="{{ device }}" data-hero="{{ hero }}" style="height:100vh;display:flex;flex-direction:column;background:var(--desk);color:var(--fg);font-family:var(--font);transition:background .3s">
+  <div style="height:52px;flex:none;display:flex;align-items:center;gap:10px;padding:0 12px;border-bottom:1px solid var(--line);background:var(--bg);overflow-x:auto;white-space:nowrap">
+    <div style="display:flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--mute);letter-spacing:.06em">
+      <span style="width:8px;height:14px;background:var(--accent-fill);display:block"></span>
+      
+    </div>
+    <div style="display:flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:10px">
+      <sc-for list="{{ screenTabs }}" as="t" hint-placeholder-count="4">
+        <button onClick="{{ t.onClick }}" style="height:30px;padding:0 12px;border:0;border-radius:7px;cursor:pointer;font-size:13px;background:{{ t.bg }};color:{{ t.fg }}">{{ t.label }}</button>
+      </sc-for>
+    </div>
+    <sc-if value="{{ onHome }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;align-items:center;gap:2px;padding:3px;border:1px solid var(--line);border-radius:10px">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mute);padding:0 6px">HERO</span>
+        <sc-for list="{{ heroTabs }}" as="t" hint-placeholder-count="3">
+          <button onClick="{{ t.onClick }}" style="height:30px;padding:0 10px;border:0;border-radius:7px;cursor:pointer;font-size:13px;background:{{ t.bg }};color:{{ t.fg }}">{{ t.label }}</button>
+        </sc-for>
+      </div>
+    </sc-if>
+    <div style="flex:1"></div>
+    <div style="display:flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:10px">
+      <sc-for list="{{ deviceTabs }}" as="t" hint-placeholder-count="2">
+        <button onClick="{{ t.onClick }}" style="height:30px;padding:0 12px;border:0;border-radius:7px;cursor:pointer;font-size:13px;background:{{ t.bg }};color:{{ t.fg }}">{{ t.label }}</button>
+      </sc-for>
+    </div>
+    <button onClick="{{ toggleTheme }}" title="Сменить тему" style="height:36px;width:36px;padding:0;flex:none;border:1px solid var(--line);border-radius:10px;background:transparent;cursor:pointer;font-size:13px;color:var(--fg)">{{ themeLabel }}</button>
+  </div>
+
+  <div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden">
+    <div style="width:var(--frame-w);height:var(--frame-h);border-radius:var(--frame-r);border:var(--frame-b) solid #1C1F1E;box-sizing:content-box;overflow:hidden;position:relative;background:var(--bg);transition:background .3s;flex:none;max-width:100%">
+      <div ref="{{ scrollRef }}" style="height:100%;overflow-y:auto;overflow-x:hidden;position:relative">
+
+        <sc-if value="{{ onHome }}" hint-placeholder-val="{{ true }}">
+          <div data-morph-track="" style="position:relative">
+            <div style="position:sticky;top:0;height:var(--vh);z-index:0;overflow:hidden">
+              <x-import component-from-global-scope="ghost-field" layout="{{ heroLayout }}" count="{{ homeCount }}" hint-size="100%,100%" style="position:absolute;inset:0"></x-import>
+            </div>
+            <div style="position:relative;z-index:1;margin-top:calc(-1 * var(--vh));pointer-events:none">
+              <section data-screen-label="Home · Hero" style="min-height:var(--vh);position:relative;display:flex;flex-direction:column">
+                <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 60% 55% at var(--scrim-x,50%) 55%, var(--bg) 35%, transparent 100%);opacity:.92"></div>
+                <nav style="position:relative;display:flex;align-items:center;gap:28px;padding:22px var(--pad);pointer-events:auto">
+                  <div style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:20px;letter-spacing:-.02em">
+                    <span>ghostline</span><span style="width:9px;height:19px;background:var(--accent-fill);display:block"></span>
+                  </div>
+                  <div style="flex:1"></div>
+                  <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
+                    <div style="display:flex;gap:28px;font-size:14px;color:var(--mute)">
+                      <span style="cursor:pointer" onClick="{{ scrollHow }}">Как это работает</span>
+                      <span>Возможности</span>
+                      <span>Помощь</span>
+                    </div>
+                  </sc-if>
+                  <button onClick="{{ goLogin }}" style="height:40px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--bg);cursor:pointer;font-size:14px">Войти</button>
+                </nav>
+
+                <sc-if value="{{ heroA }}" hint-placeholder-val="{{ true }}">
+                  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:var(--hero-j);text-align:center;gap:22px;padding:8px var(--pad) 40px;position:relative;text-shadow:0 0 28px var(--bg),0 0 8px var(--bg)">
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.14em;color:var(--mute)">ВЕБ-МЕССЕНДЖЕР · БЕЗ НОМЕРА ТЕЛЕФОНА</div>
+                    <h1 style="margin:0;font-size:var(--h1);font-weight:500;letter-spacing:-.04em;line-height:.98;max-width:11ch;text-wrap:balance">
+                      <x-import component-from-global-scope="ghost-scramble" text="Меньше шума. Больше разговора." instant="{{ noDecrypt }}" hint-size="100%,1em"></x-import>
+                    </h1>
+                    <p style="margin:0;max-width:34rem;font-size:18px;line-height:1.5;color:var(--mute);text-wrap:pretty">Ghostline работает прямо в браузере: без установки, номера телефона, ленты и рекламы. Только люди, с которыми вы общаетесь.</p>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;pointer-events:auto;text-shadow:none">
+                      <button onClick="{{ goRegister }}" style="height:52px;padding:0 24px;border-radius:12px;border:0;background:var(--accent-fill);color:var(--ink);font-weight:600;font-size:16px;cursor:pointer;white-space:nowrap" style-hover="filter:brightness(1.08)">Создать аккаунт</button>
+                      <button onClick="{{ scrollHow }}" style="height:52px;padding:0 22px;border-radius:12px;border:1px solid var(--line);background:var(--bg);font-size:16px;cursor:pointer;white-space:nowrap">Как это работает</button>
+                    </div>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ heroB }}" hint-placeholder-val="{{ false }}">
+                  <div style="flex:1;display:grid;grid-template-columns:var(--split);align-items:end;padding:8px var(--pad) 40px;position:relative">
+                    <div style="display:flex;flex-direction:column;gap:26px;align-self:var(--hero-j);text-shadow:0 0 28px var(--bg)">
+                      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.14em;color:var(--accent-t)">ЛИЧНЫЙ МЕССЕНДЖЕР</div>
+                      <h1 style="margin:0;font-size:var(--h1);font-weight:500;letter-spacing:-.04em;line-height:.98;max-width:9ch">
+                        <x-import component-from-global-scope="ghost-scramble" text="Всё лишнее — в шум." instant="{{ noDecrypt }}" hint-size="100%,1em"></x-import>
+                      </h1>
+                      <p style="margin:0;max-width:30rem;font-size:18px;line-height:1.5;color:var(--mute);text-wrap:pretty">Ни номера телефона, ни рекламы, ни алгоритмов. Открыли вкладку — и вы в разговоре.</p>
+                      <div style="display:flex;gap:10px;flex-wrap:wrap;pointer-events:auto;text-shadow:none">
+                        <button onClick="{{ goRegister }}" style="height:52px;padding:0 24px;border-radius:12px;border:0;background:var(--accent-fill);color:var(--ink);font-weight:600;font-size:16px;cursor:pointer">Создать аккаунт</button>
+                        <button onClick="{{ scrollHow }}" style="height:52px;padding:0 22px;border-radius:12px;border:1px solid var(--line);background:var(--bg);font-size:16px;cursor:pointer;white-space:nowrap">Как это работает</button>
+                      </div>
+                    </div>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ heroC }}" hint-placeholder-val="{{ false }}">
+                  <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:24px;padding:8px var(--pad) 40px;position:relative;text-shadow:0 0 22px var(--bg),0 0 6px var(--bg),0 0 2px var(--bg)">
+                    <h1 style="margin:0;font-size:calc(var(--h1) * 1.25);font-weight:600;letter-spacing:-.05em;line-height:.92;max-width:12ch">
+                      <x-import component-from-global-scope="ghost-scramble" text="Из шума — в разговор." instant="{{ noDecrypt }}" hint-size="100%,1em"></x-import>
+                    </h1>
+                    <div style="display:flex;gap:24px;align-items:flex-end;flex-wrap:wrap">
+                      <p style="margin:0;max-width:26rem;font-size:17px;line-height:1.5;color:var(--fg);text-wrap:pretty">Ghostline открывается в браузере на любом устройстве и не требует номера телефона.</p>
+                      <div style="display:flex;gap:10px;pointer-events:auto;text-shadow:none">
+                        <button onClick="{{ goRegister }}" style="height:52px;padding:0 24px;border-radius:12px;border:0;background:var(--accent-fill);color:var(--ink);font-weight:600;font-size:16px;cursor:pointer">Создать аккаунт</button>
+                      </div>
+                    </div>
+                  </div>
+                </sc-if>
+
+                <div style="position:relative;flex:none;padding:0 var(--pad) 24px;display:flex;justify-content:center;text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.12em;color:var(--mute)">{{ cursorHint }}</div>
+              </section>
+
+              <sc-for list="{{ stages }}" as="s" hint-placeholder-count="3">
+                <section data-screen-label="{{ s.label }}" style="height:var(--vh);display:flex;align-items:flex-end;padding:var(--pad);justify-content:{{ s.justify }}">
+                  <div style="max-width:440px;display:flex;flex-direction:column;gap:16px;padding:24px;margin:-24px;border-radius:18px;background:color-mix(in oklab, var(--bg) 82%, transparent);backdrop-filter:blur(6px)">
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.14em;color:var(--accent-t)">{{ s.tag }}</div>
+                    <h2 style="margin:0;font-size:var(--h2);font-weight:500;letter-spacing:-.03em;line-height:1.05;text-wrap:balance">{{ s.title }}</h2>
+                    <p style="margin:0;font-size:17px;line-height:1.55;color:var(--mute);text-wrap:pretty">{{ s.text }}</p>
+                  </div>
+                </section>
+              </sc-for>
+            </div>
+          </div>
+
+          <section data-screen-label="Home · Факты" style="position:relative;z-index:2;background:var(--bg);border-top:1px solid var(--line);padding:88px var(--pad) 72px">
+            <div style="display:grid;grid-template-columns:var(--cols3);gap:40px">
+              <sc-for list="{{ facts }}" as="f" hint-placeholder-count="3">
+                <div style="display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:20px">
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--mute)">{{ f.n }}</div>
+                  <div style="font-size:22px;font-weight:500;letter-spacing:-.02em">{{ f.title }}</div>
+                  <div style="font-size:15px;line-height:1.55;color:var(--mute);text-wrap:pretty">{{ f.text }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+          <section style="position:relative;z-index:2;background:var(--bg);padding:48px var(--pad) 40px;display:flex;flex-direction:column;gap:64px">
+            <div style="display:flex;flex-wrap:wrap;gap:28px;align-items:flex-end;justify-content:space-between">
+              <h2 style="margin:0;font-size:calc(var(--h1) * .9);font-weight:500;letter-spacing:-.045em;line-height:.95">Попробуйте тишину.</h2>
+              <button onClick="{{ goRegister }}" style="height:56px;padding:0 28px;border-radius:12px;border:0;background:var(--accent-fill);color:var(--ink);font-weight:600;font-size:17px;cursor:pointer">Открыть Ghostline</button>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:20px;justify-content:space-between;font-size:13px;color:var(--mute);border-top:1px solid var(--line);padding-top:22px">
+              <span>© 2026 Ghostline</span>
+              <div style="display:flex;gap:20px;flex-wrap:wrap"><a href="#">Помощь</a><a href="#">Условия</a><a href="#">Конфиденциальность</a></div>
+            </div>
+          </section>
+        </sc-if>
+
+        <sc-if value="{{ onAuth }}" hint-placeholder-val="{{ false }}">
+          <div data-screen-label="Вход и регистрация" style="min-height:100%;display:grid;grid-template-columns:var(--split)">
+            <div style="display:flex;flex-direction:column;padding:28px var(--pad) 40px;gap:40px">
+              <div style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:20px;letter-spacing:-.02em;cursor:pointer" onClick="{{ goHome }}">
+                <span>ghostline</span><span style="width:9px;height:19px;background:var(--accent-fill);display:block"></span>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:28px;width:100%;max-width:420px;margin:0 auto">
+                <div style="display:flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:12px;align-self:flex-start">
+                  <sc-for list="{{ authTabs }}" as="t" hint-placeholder-count="2">
+                    <button onClick="{{ t.onClick }}" style="height:36px;padding:0 18px;border:0;border-radius:9px;cursor:pointer;font-size:14px;background:{{ t.bg }};color:{{ t.fg }}">{{ t.label }}</button>
+                  </sc-for>
+                </div>
+
+                <sc-if value="{{ isLogin }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;flex-direction:column;gap:22px">
+                    <div style="display:flex;flex-direction:column;gap:8px">
+                      <h1 style="margin:0;font-size:36px;font-weight:500;letter-spacing:-.03em">С возвращением</h1>
+                      <p style="margin:0;color:var(--mute);font-size:15px;line-height:1.5">Войдите по имени пользователя. Номер телефона не нужен.</p>
+                    </div>
+                    <label style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--mute)">Имя пользователя
+                      <input value="{{ loginUser }}" onChange="{{ onLoginUser }}" placeholder="@имя" style="height:50px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font-size:16px;color:var(--fg);outline:none" style-focus="border-color:var(--accent-t)">
+                    </label>
+                    <label style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--mute)">Пароль
+                      <input type="password" value="{{ loginPass }}" onChange="{{ onLoginPass }}" onKeyDown="{{ onLoginKey }}" placeholder="••••••••" style="height:50px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font-size:16px;color:var(--fg);outline:none" style-focus="border-color:var(--accent-t)">
+                    </label>
+                    <button onClick="{{ doLogin }}" style="height:52px;border-radius:12px;border:0;background:var(--accent-fill);color:var(--ink);font-weight:600;font-size:16px;cursor:pointer;opacity:{{ loginOpacity }}">Войти</button>
+                    <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:14px;color:var(--mute)">
+                      <a href="#">Войти по фразе восстановления</a>
+                      <span style="cursor:pointer" onClick="{{ tabRegister }}">Создать аккаунт</span>
+                    </div>
+                    
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ isReg1 }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:22px">
+                    <div style="display:flex;flex-direction:column;gap:8px">
+                      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.1em;color:var(--mute)">ШАГ 1 ИЗ 2</div>
+                      <h1 style="margin:0;font-size:36px;font-weight:500;letter-spacing:-.03em">Новый аккаунт</h1>
+                      <p style="margin:0;color:var(--mute);font-size:15px;line-height:1.5">Только имя и пароль — номер телефона не понадобится.</p>
+                    </div>
+                    <label style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--mute)">Имя пользователя
+                      <input value="{{ regUser }}" onChange="{{ onRegUser }}" placeholder="например, tihiy_veter" style="height:50px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font-size:16px;color:var(--fg);outline:none" style-focus="border-color:var(--accent-t)">
+                      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:{{ userHintColor }}">{{ userHint }}</span>
+                    </label>
+                    <label style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--mute)">Пароль
+                      <input type="password" value="{{ regPass }}" onChange="{{ onRegPass }}" placeholder="Минимум 8 символов" style="height:50px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font-size:16px;color:var(--fg);outline:none" style-focus="border-color:var(--accent-t)">
+                      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px">
+                        <sc-for list="{{ strength }}" as="b" hint-placeholder-count="4">
+                          <div style="height:4px;border-radius:2px;background:{{ b.bg }};transition:background .25s"></div>
+                        </sc-for>
+                      </div>
+                      <span style="font-family:'JetBrains Mono',monospace;font-size:12px">{{ strengthLabel }}</span>
+                    </label>
+                    <button onClick="{{ regNext }}" style="height:52px;border-radius:12px;border:0;background:var(--accent-fill);color:var(--ink);font-weight:600;font-size:16px;cursor:pointer;opacity:{{ reg1Opacity }}">Продолжить</button>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ isReg2 }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:22px">
+                    <div style="display:flex;flex-direction:column;gap:8px">
+                      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.1em;color:var(--mute)">ШАГ 2 ИЗ 2</div>
+                      <h1 style="margin:0;font-size:36px;font-weight:500;letter-spacing:-.03em">Фраза восстановления</h1>
+                      <p style="margin:0;color:var(--mute);font-size:15px;line-height:1.5;text-wrap:pretty">Поможет вернуть доступ, если забудете пароль. Запишите её и храните в надёжном месте.</p>
+                    </div>
+                    <div style="position:relative;border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:16px">
+                      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 12px;filter:{{ phraseBlur }};transition:filter .3s">
+                        <sc-for list="{{ phrase }}" as="w" hint-placeholder-count="12">
+                          <div style="display:flex;gap:8px;font-family:'JetBrains Mono',monospace;font-size:14px"><span style="color:var(--mute);width:18px;text-align:right">{{ w.n }}</span><span>{{ w.w }}</span></div>
+                        </sc-for>
+                      </div>
+                      <sc-if value="{{ phraseHidden }}" hint-placeholder-val="{{ true }}">
+                        <button onClick="{{ revealPhrase }}" style="position:absolute;inset:0;margin:auto;width:max-content;height:40px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--bg);cursor:pointer;font-size:14px">Показать фразу</button>
+                      </sc-if>
+                    </div>
+                    <label style="display:flex;gap:12px;align-items:center;font-size:14px;cursor:pointer" onClick="{{ toggleSaved }}">
+                      <span style="width:22px;height:22px;border-radius:6px;border:1px solid {{ savedBorder }};background:{{ savedBg }};display:flex;align-items:center;justify-content:center;color:var(--ink);font-size:14px;flex:none">{{ savedMark }}</span>
+                      Я записал фразу в надёжном месте
+                    </label>
+                    <div style="display:flex;gap:10px">
+                      <button onClick="{{ regBack }}" style="height:52px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:transparent;cursor:pointer;font-size:15px">Назад</button>
+                      <button onClick="{{ regCreate }}" style="flex:1;height:52px;border-radius:12px;border:0;background:var(--accent-fill);color:var(--ink);font-weight:600;font-size:16px;cursor:pointer;opacity:{{ reg2Opacity }}">Создать аккаунт</button>
+                    </div>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+            <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
+              <div style="position:relative;background:var(--bg2);border-left:1px solid var(--line);overflow:hidden;min-height:100%">
+                <x-import component-from-global-scope="ghost-field" layout="center" morph="1" count="1600" hint-size="100%,100%" style="position:absolute;inset:0"></x-import>
+                <div style="position:absolute;left:40px;right:40px;bottom:36px;display:flex;flex-direction:column;gap:8px;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.06em;text-shadow:0 0 12px var(--bg2)">
+                  <span style="color:var(--mute)">ВЕБ-МЕССЕНДЖЕР · БЕЗ УСТАНОВКИ</span>
+                  <span style="font-size:15px;color:var(--fg)"><x-import component-from-global-scope="ghost-scramble" text="Откройте вкладку — и пишите." instant="{{ noDecrypt }}" hint-size="100%,1.2em"></x-import></span>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ onChat }}" hint-placeholder-val="{{ false }}">
+          <div data-screen-label="Мессенджер" style="height:100%;display:flex">
+            <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
+              <div style="width:76px;flex:none;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:18px 0;gap:10px;background:var(--bg)">
+                <div onClick="{{ goHome }}" style="width:36px;height:36px;border-radius:10px;background:var(--accent-fill);color:var(--ink);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;margin-bottom:14px;cursor:pointer">g</div>
+                <sc-for list="{{ railItems }}" as="r" hint-placeholder-count="2">
+                  <button onClick="{{ r.onClick }}" style="width:60px;height:52px;border:0;border-radius:12px;cursor:pointer;background:{{ r.bg }};color:{{ r.fg }};font-size:11.5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px"><span style="font-family:'JetBrains Mono',monospace;font-size:15px">{{ r.glyph }}</span>{{ r.label }}</button>
+                </sc-for>
+                <div style="flex:1"></div>
+                <div style="width:36px;height:36px;border-radius:50%;background:var(--bg2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;background-image:{{ avatarImg }};background-size:cover" onClick="{{ goProfile }}">{{ meIniShown }}</div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ showList }}" hint-placeholder-val="{{ true }}">
+              <div style="width:var(--list-w);flex:none;border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:var(--bg)">
+                <div style="padding:20px 18px 12px;display:flex;flex-direction:column;gap:14px">
+                  <div style="display:flex;align-items:center;justify-content:space-between">
+                    <div style="font-size:24px;font-weight:500;letter-spacing:-.02em">Чаты</div>
+                    <button style="height:34px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:transparent;cursor:pointer;font-size:13px">Новый</button>
+                  </div>
+                  <input value="{{ query }}" onChange="{{ onQuery }}" placeholder="Поиск" style="height:40px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg2);font-size:14px;color:var(--fg);outline:none" style-focus="border-color:var(--accent-t)">
+                </div>
+                <div style="flex:1;overflow-y:auto;padding:0 8px 8px">
+                  <sc-for list="{{ chatRows }}" as="c" hint-placeholder-count="6">
+                    <div onClick="{{ c.onClick }}" style="display:flex;gap:12px;align-items:center;padding:10px;border-radius:12px;cursor:pointer;background:{{ c.bg }}" style-hover="background:var(--bg2)">
+                      <div style="width:44px;height:44px;flex:none;border-radius:50%;background:var(--avatar);color:var(--avatar-fg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;position:relative">{{ c.ini }}
+                        <sc-if value="{{ c.online }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;right:0;bottom:0;width:11px;height:11px;border-radius:50%;background:var(--accent-fill);border:2px solid var(--bg)"></span></sc-if>
+                      </div>
+                      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+                        <div style="display:flex;gap:8px;align-items:baseline">
+                          <span style="flex:1;min-width:0;font-size:15px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.name }}</span>
+                          <span style="font-size:12px;color:var(--mute);flex:none">{{ c.time }}</span>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center">
+                          <sc-if value="{{ c.isTyping }}" hint-placeholder-val="{{ false }}">
+                            <span style="flex:1;min-width:0;display:flex;align-items:center;gap:7px;font-size:13.5px;color:var(--accent-t);white-space:nowrap"><span style="display:flex;align-items:center;height:14px;transform:scale(.8);transform-origin:left center"><x-import component-from-global-scope="ghost-dots" hint-size="26px,8px"></x-import></span>{{ c.typingLabel }}</span>
+                          </sc-if>
+                          <sc-if value="{{ c.notTyping }}" hint-placeholder-val="{{ true }}">
+                            <span style="flex:1;min-width:0;font-size:13.5px;color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.last }}</span>
+                          </sc-if>
+                          <sc-if value="{{ c.hasUnread }}" hint-placeholder-val="{{ false }}"><span style="min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--accent-fill);color:var(--ink);font-size:11.5px;font-weight:600;display:flex;align-items:center;justify-content:center">{{ c.unread }}</span></sc-if>
+                        </div>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+                <sc-if value="{{ isPhone }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;border-top:1px solid var(--line);padding:8px 8px 24px">
+                    <sc-for list="{{ railItems }}" as="r" hint-placeholder-count="2">
+                      <button onClick="{{ r.onClick }}" style="flex:1;height:52px;border:0;background:transparent;color:{{ r.tabFg }};cursor:pointer;font-size:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px"><span style="font-family:'JetBrains Mono',monospace;font-size:16px">{{ r.glyph }}</span>{{ r.label }}</button>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ showChat }}" hint-placeholder-val="{{ true }}">
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg2);position:relative;overflow:hidden">
+                <div style="height:68px;flex:none;display:flex;align-items:center;gap:12px;padding:0 16px;border-bottom:1px solid var(--line);background:var(--bg)">
+                  <sc-if value="{{ isPhone }}" hint-placeholder-val="{{ false }}">
+                    <button onClick="{{ closeChat }}" style="width:44px;height:44px;border:0;background:transparent;cursor:pointer;font-size:20px;margin-left:-8px">←</button>
+                  </sc-if>
+                  <div onClick="{{ openProfile }}" style="cursor:pointer;width:38px;height:38px;flex:none;border-radius:50%;background:var(--avatar);color:var(--avatar-fg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500">{{ chat.ini }}</div>
+                  <div onClick="{{ openProfile }}" title="Открыть профиль" style="cursor:pointer;flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+                    <div style="display:flex;gap:8px;align-items:center;font-size:15.5px;font-weight:500;white-space:nowrap;min-width:0"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis">{{ chat.name }}</span>
+                    </div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:{{ statusColor }}">{{ statusLine }}</div>
+                  </div>
+                  <button onClick="{{ cycleTimer }}" style="height:36px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:transparent;cursor:pointer;font-size:12.5px;white-space:nowrap;color:{{ timerFg }}">{{ timerLabel }}</button>
+                </div>
+
+                <div ref="{{ msgRef }}" style="flex:1;overflow-y:auto;padding:20px 18px;display:flex;flex-direction:column;gap:6px">
+                  <sc-for list="{{ msgs }}" as="m" hint-placeholder-count="5">
+                    <div style="display:flex;flex-direction:column;align-items:{{ m.align }};gap:4px;margin-top:{{ m.gapTop }}">
+                      <sc-if value="{{ m.showFrom }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;color:var(--accent-t);padding:0 6px">{{ m.from }}</span></sc-if>
+                      <sc-if value="{{ m.isText }}" hint-placeholder-val="{{ true }}">
+                        <div style="max-width:min(520px,82%);padding:10px 14px;border-radius:var(--bubble-r);background:{{ m.bg }};color:{{ m.fg }};border:{{ m.border }};box-shadow:{{ m.glow }};font-size:var(--fs);line-height:1.45;overflow-wrap:anywhere">
+                          <x-import component-from-global-scope="ghost-scramble" text="{{ m.text }}" instant="{{ m.instant }}" delay="{{ m.delay }}" hint-size="auto,1.4em"></x-import>
+                        </div>
+                      </sc-if>
+                      <sc-if value="{{ m.isImage }}" hint-placeholder-val="{{ false }}">
+                        <div style="width:300px;max-width:82%;border-radius:var(--bubble-r);overflow:hidden;border:{{ m.border }};background:{{ m.bg }};color:{{ m.fg }}">
+                          <div style="aspect-ratio:4/3;background:repeating-linear-gradient(135deg,var(--bg2) 0 10px,var(--panel) 10px 20px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--mute)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"></rect><circle cx="9" cy="10" r="2"></circle><path d="M21 16l-5-5-9 9"></path></svg><span style="font-family:'JetBrains Mono',monospace;font-size:11px">{{ m.caption }}</span></div>
+                          <sc-if value="{{ m.hasText }}" hint-placeholder-val="{{ false }}"><div style="padding:9px 14px;font-size:var(--fs);line-height:1.45">{{ m.text }}</div></sc-if>
+                        </div>
+                      </sc-if>
+                      <sc-if value="{{ m.isFile }}" hint-placeholder-val="{{ false }}">
+                        <div style="display:flex;gap:12px;align-items:center;padding:10px 16px 10px 10px;border-radius:var(--bubble-r);background:{{ m.bg }};color:{{ m.fg }};border:{{ m.border }};width:280px;max-width:82%">
+                          <div style="width:42px;height:50px;flex:none;border-radius:8px;background:{{ m.chipBg }};display:flex;align-items:flex-end;justify-content:center;padding-bottom:7px;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:500">{{ m.ext }}</div>
+                          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+                            <span style="font-size:14.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ m.name }}</span>
+                            <span style="font-family:'JetBrains Mono',monospace;font-size:11.5px;opacity:.75">{{ m.size }}</span>
+                          </div>
+                        </div>
+                      </sc-if>
+                      <sc-if value="{{ m.isVoice }}" hint-placeholder-val="{{ false }}">
+                        <div style="display:flex;gap:10px;align-items:center;padding:8px 14px 8px 8px;border-radius:var(--bubble-r);background:{{ m.bg }};color:{{ m.fg }};border:{{ m.border }};width:270px;max-width:82%">
+                          <button onClick="{{ m.onPlay }}" style="width:38px;height:38px;flex:none;border-radius:50%;border:0;background:{{ m.playBg }};color:{{ m.playFg }};cursor:pointer;display:flex;align-items:center;justify-content:center;outline:none"><sc-if value="{{ m.notPlaying }}" hint-placeholder-val="{{ true }}"><svg width="14" height="14" viewBox="0 0 14 14" style="margin-left:2px"><path d="M3 1.5v11l9.5-5.5z" fill="currentColor"></path></svg></sc-if><sc-if value="{{ m.isPlaying }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="2.5" y="1.5" width="3.2" height="11" rx="1" fill="currentColor"></rect><rect x="8.3" y="1.5" width="3.2" height="11" rx="1" fill="currentColor"></rect></svg></sc-if></button>
+                          <div style="flex:1;display:flex;align-items:center;gap:2px;height:30px">
+                            <sc-for list="{{ m.bars }}" as="b" hint-placeholder-count="28"><span style="flex:1;border-radius:2px;height:{{ b.h }};background:currentColor;opacity:{{ b.o }}"></span></sc-for>
+                          </div>
+                          <span style="font-family:'JetBrains Mono',monospace;font-size:11.5px;opacity:.8;flex:none">{{ m.durLabel }}</span>
+                        </div>
+                      </sc-if>
+                      <sc-if value="{{ m.isVideo }}" hint-placeholder-val="{{ false }}">
+                        <div onClick="{{ m.onPlay }}" style="position:relative;width:210px;height:210px;border-radius:50%;overflow:hidden;cursor:pointer;background:repeating-linear-gradient(135deg,var(--bg2) 0 10px,var(--panel) 10px 20px);border:1px solid var(--line);display:flex;align-items:center;justify-content:center">
+                          <div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(var(--accent) {{ m.pct }}, transparent 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px))"></div>
+                          <span style="width:52px;height:52px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center"><sc-if value="{{ m.notPlaying }}" hint-placeholder-val="{{ true }}"><svg width="14" height="14" viewBox="0 0 14 14" style="margin-left:2px"><path d="M3 1.5v11l9.5-5.5z" fill="currentColor"></path></svg></sc-if><sc-if value="{{ m.isPlaying }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="2.5" y="1.5" width="3.2" height="11" rx="1" fill="currentColor"></rect><rect x="8.3" y="1.5" width="3.2" height="11" rx="1" fill="currentColor"></rect></svg></sc-if></span>
+                          <span style="position:absolute;bottom:18px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;font-family:'JetBrains Mono',monospace;font-size:11px;padding:3px 9px;border-radius:10px">{{ m.durLabel }}</span>
+                        </div>
+                      </sc-if>
+                      <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:{{ m.metaColor }};padding:0 6px">{{ m.meta }}</span>
+                    </div>
+                  </sc-for>
+                  <sc-if value="{{ typingHere }}" hint-placeholder-val="{{ false }}">
+                    <div style="align-self:flex-start;padding:14px 16px;border-radius:var(--bubble-r);background:var(--in);border:1px solid var(--line);color:var(--mute);margin-top:10px">
+                      <x-import component-from-global-scope="ghost-dots" hint-size="30px,8px"></x-import>
+                    </div>
+                  </sc-if>
+                </div>
+
+                <div onClick="{{ closeProfile }}" style="position:absolute;inset:0;z-index:8;background:rgba(0,0,0,.35);opacity:{{ scrimOp }};pointer-events:{{ scrimPe }};transition:opacity .35s ease"></div>
+                <div style="position:absolute;top:0;right:0;bottom:0;width:var(--profile-w);max-width:100%;z-index:9;background:var(--bg);border-left:1px solid var(--line);transform:translateX({{ profileX }});transition:transform .5s cubic-bezier(.2,.8,.2,1);box-shadow:{{ profileShadow }};display:flex;flex-direction:column">
+                  <div style="height:68px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 12px 0 20px;border-bottom:1px solid var(--line)">
+                    <span style="font-size:15px;font-weight:500">Профиль</span>
+                    <button onClick="{{ closeProfile }}" title="Закрыть" style="width:40px;height:40px;border-radius:10px;border:0;background:transparent;cursor:pointer;font-size:18px;color:var(--mute)" style-hover="background:var(--bg2)">✕</button>
+                  </div>
+                  <div style="flex:1;overflow-y:auto;padding:28px 20px 32px;display:flex;flex-direction:column;gap:26px">
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;opacity:{{ pOp }};transform:translateY({{ pY }});transition:opacity .45s ease 0.08s, transform .55s cubic-bezier(.2,.8,.2,1) 0.08s">
+                      <div style="position:relative;width:112px;height:112px;border-radius:50%;background:var(--accent-fill);padding:3px">
+                        <div style="width:100%;height:100%;border-radius:50%;background:var(--avatar);color:var(--avatar-fg);border:3px solid var(--bg);display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:500;letter-spacing:-.02em">{{ chat.ini }}</div>
+                        <sc-if value="{{ chat.online }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;right:8px;bottom:8px;width:18px;height:18px;border-radius:50%;background:var(--accent-fill);border:3px solid var(--bg)"></span></sc-if>
+                      </div>
+                      <div style="display:flex;flex-direction:column;gap:4px">
+                        <div style="font-size:22px;font-weight:500;letter-spacing:-.02em">{{ chat.name }}</div>
+                        <div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--accent-t)">{{ chat.handle }}</div>
+                        <div style="font-size:13px;color:var(--mute)">{{ chat.status }}</div>
+                      </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;opacity:{{ pOp }};transform:translateY({{ pY }});transition:opacity .45s ease 0.14s, transform .55s cubic-bezier(.2,.8,.2,1) 0.14s">
+                        <button onClick="{{ toggleMute }}" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 4px;border-radius:14px;border:1px solid var(--line);background:var(--bg2);cursor:pointer;font-size:12px;color:var(--fg)" style-hover="border-color:var(--accent-t)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0112 0c0 7 3 8 3 8H3s3-1 3-8M10.3 21a2 2 0 003.4 0"></path></svg>{{ muteLabel }}</button>
+                        <button style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 4px;border-radius:14px;border:1px solid var(--line);background:var(--bg2);cursor:pointer;font-size:12px;color:var(--fg)" style-hover="border-color:var(--accent-t)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>Поиск</button>
+                    </div>
+                    <sc-if value="{{ hasBio }}" hint-placeholder-val="{{ true }}">
+                      <div style="display:flex;flex-direction:column;gap:6px;padding:14px 16px;border-radius:14px;background:var(--bg2);opacity:{{ pOp }};transform:translateY({{ pY }});transition:opacity .45s ease 0.2s, transform .55s cubic-bezier(.2,.8,.2,1) 0.2s">
+                        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.1em;color:var(--mute)">О СЕБЕ</span>
+                        <span style="font-size:14.5px;line-height:1.5">{{ chat.bio }}</span>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ hasMedia }}" hint-placeholder-val="{{ true }}">
+                      <div style="display:flex;flex-direction:column;gap:10px;opacity:{{ pOp }};transform:translateY({{ pY }});transition:opacity .45s ease 0.26s, transform .55s cubic-bezier(.2,.8,.2,1) 0.26s">
+                        <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:15px;font-weight:500">Медиа</span><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--mute)">{{ mediaCount }}</span></div>
+                        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px">
+                          <sc-for list="{{ media }}" as="md" hint-placeholder-count="3">
+                            <div style="aspect-ratio:1;border-radius:{{ md.r }};background:repeating-linear-gradient(135deg,var(--bg2) 0 8px,var(--panel) 8px 16px);display:flex;align-items:flex-end;justify-content:flex-end;padding:6px"><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--mute)">{{ md.label }}</span></div>
+                          </sc-for>
+                        </div>
+                      </div>
+                    </sc-if>
+                    <div style="display:flex;flex-direction:column;border-radius:14px;border:1px solid var(--line);overflow:hidden;opacity:{{ pOp }};transform:translateY({{ pY }});transition:opacity .45s ease 0.32s, transform .55s cubic-bezier(.2,.8,.2,1) 0.32s">
+                      <sc-for list="{{ profileRows }}" as="pr" hint-placeholder-count="3">
+                        <div onClick="{{ pr.onClick }}" style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border-top:{{ pr.bt }};cursor:pointer;font-size:14.5px" style-hover="background:var(--bg2)">
+                          <span style="color:{{ pr.fg }}">{{ pr.label }}</span><span style="font-size:13px;color:var(--mute)">{{ pr.value }}</span>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </div>
+                </div>
+                <sc-if value="{{ recVideo }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;inset:68px 0 0 0;z-index:6;background:color-mix(in oklab, var(--bg) 88%, transparent);backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px">
+                    <div style="position:relative;width:260px;height:260px;border-radius:50%;overflow:hidden;background:repeating-linear-gradient(135deg,var(--bg2) 0 10px,var(--panel) 10px 20px);display:flex;align-items:center;justify-content:center;color:var(--mute)">
+                      <div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(#E5484D {{ recPct }}, transparent 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px))"></div>
+                      <span style="font-family:'JetBrains Mono',monospace;font-size:11px">камера</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;font-family:'JetBrains Mono',monospace;font-size:14px"><span style="width:10px;height:10px;border-radius:50%;background:#E5484D;opacity:{{ recBlink }}"></span>{{ recTime }} / 1:00</div>
+                    <div style="display:flex;gap:10px">
+                      <button onClick="{{ cancelRec }}" style="height:46px;padding:0 20px;border-radius:12px;border:1px solid var(--line);background:var(--bg);cursor:pointer;font-size:15px">Отмена</button>
+                      <button onClick="{{ finishRec }}" style="height:46px;padding:0 22px;border-radius:12px;border:0;background:var(--accent-fill);color:var(--ink);font-weight:600;cursor:pointer;font-size:15px">Отправить</button>
+                    </div>
+                  </div>
+                </sc-if>
+                <div style="flex:none;position:relative;display:flex;gap:8px;align-items:center;padding:12px 16px 16px;background:var(--bg);border-top:1px solid var(--line)">
+                  <sc-if value="{{ attachOpen }}" hint-placeholder-val="{{ false }}">
+                    <div style="position:absolute;left:16px;bottom:72px;z-index:7;width:230px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:6px;display:flex;flex-direction:column;box-shadow:0 18px 50px rgba(0,0,0,.3)">
+                      <button onClick="{{ attachPhoto }}" style="height:44px;display:flex;align-items:center;gap:12px;padding:0 12px;border:0;border-radius:10px;background:transparent;cursor:pointer;font-size:14.5px;text-align:left" style-hover="background:var(--bg2)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"></rect><circle cx="9" cy="10" r="2"></circle><path d="M21 16l-5-5-9 9"></path></svg>Фото или видео</button>
+                      <button onClick="{{ attachFile }}" style="height:44px;display:flex;align-items:center;gap:12px;padding:0 12px;border:0;border-radius:10px;background:transparent;cursor:pointer;font-size:14.5px;text-align:left" style-hover="background:var(--bg2)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"></path><path d="M14 3v5h5"></path></svg>Файл</button>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ notRecVoice }}" hint-placeholder-val="{{ true }}">
+                    <button onClick="{{ toggleAttach }}" title="Прикрепить" style="width:44px;height:44px;flex:none;border-radius:50%;border:1px solid var(--line);background:{{ attachBg }};color:var(--fg);cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5l-8.6 8.6a5 5 0 01-7.1-7.1l8.6-8.6a3.3 3.3 0 014.7 4.7l-8.6 8.6a1.7 1.7 0 01-2.4-2.4l7.9-7.9"></path></svg></button>
+                    <input value="{{ draft }}" onChange="{{ onDraft }}" onKeyDown="{{ onDraftKey }}" placeholder="Сообщение" style="flex:1;min-width:0;height:46px;padding:0 16px;border-radius:23px;border:1px solid var(--line);background:var(--bg2);font-size:15px;color:var(--fg);outline:none" style-focus="border-color:var(--accent-t)">
+                    <sc-if value="{{ hasDraft }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ send }}" title="Отправить" style="width:46px;height:46px;flex:none;border-radius:50%;border:0;background:var(--accent-fill);color:var(--ink);font-size:20px;font-weight:600;cursor:pointer">↑</button>
+                    </sc-if>
+                    <sc-if value="{{ noDraft }}" hint-placeholder-val="{{ true }}">
+                      <button onClick="{{ startVoice }}" title="Голосовое сообщение" style="width:44px;height:44px;flex:none;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--fg);cursor:pointer;display:flex;align-items:center;justify-content:center" style-hover="background:var(--bg2)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0014 0M12 18v3"></path></svg></button>
+                      <button onClick="{{ startVideo }}" title="Видеосообщение" style="width:44px;height:44px;flex:none;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--fg);cursor:pointer;display:flex;align-items:center;justify-content:center" style-hover="background:var(--bg2)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3.2"></circle></svg></button>
+                    </sc-if>
+                  </sc-if>
+                  <sc-if value="{{ recVoice }}" hint-placeholder-val="{{ false }}">
+                    <button onClick="{{ cancelRec }}" style="height:44px;padding:0 14px;flex:none;border-radius:22px;border:1px solid var(--line);background:transparent;cursor:pointer;font-size:14px;color:var(--mute)">Отмена</button>
+                    <div style="flex:1;min-width:0;height:46px;border-radius:23px;background:var(--bg2);border:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 16px">
+                      <span style="width:10px;height:10px;flex:none;border-radius:50%;background:#E5484D;opacity:{{ recBlink }}"></span>
+                      <span style="font-family:'JetBrains Mono',monospace;font-size:13px;flex:none">{{ recTime }}</span>
+                      <div style="flex:1;min-width:0;display:flex;align-items:center;gap:2px;height:26px;overflow:hidden;color:var(--accent-t)">
+                        <sc-for list="{{ recBars }}" as="b" hint-placeholder-count="36"><span style="flex:1;min-width:2px;border-radius:2px;height:{{ b.h }};background:currentColor"></span></sc-for>
+                      </div>
+                    </div>
+                    <button onClick="{{ finishRec }}" title="Отправить" style="width:46px;height:46px;flex:none;border-radius:50%;border:0;background:var(--accent-fill);color:var(--ink);font-size:20px;font-weight:600;cursor:pointer">↑</button>
+                  </sc-if>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ onSettings }}" hint-placeholder-val="{{ false }}">
+          <div data-screen-label="Настройки · Внешний вид" style="height:100%;display:flex">
+            <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
+              <div style="width:76px;flex:none;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:18px 0;gap:10px">
+                <div onClick="{{ goHome }}" style="width:36px;height:36px;border-radius:10px;background:var(--accent-fill);color:var(--ink);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;margin-bottom:14px;cursor:pointer">g</div>
+                <sc-for list="{{ railItems }}" as="r" hint-placeholder-count="2">
+                  <button onClick="{{ r.onClick }}" style="width:60px;height:52px;border:0;border-radius:12px;cursor:pointer;background:{{ r.bg }};color:{{ r.fg }};font-size:11.5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px"><span style="font-family:'JetBrains Mono',monospace;font-size:15px">{{ r.glyph }}</span>{{ r.label }}</button>
+                </sc-for>
+              </div>
+              <div style="width:260px;flex:none;border-right:1px solid var(--line);padding:22px 12px;display:flex;flex-direction:column;gap:2px">
+                <div style="font-size:24px;font-weight:500;letter-spacing:-.02em;padding:0 10px 16px">Настройки</div>
+                <sc-for list="{{ settingsNav }}" as="s" hint-placeholder-count="6">
+                  <div onClick="{{ s.onClick }}" style="height:42px;display:flex;align-items:center;padding:0 12px;border-radius:10px;font-size:14.5px;white-space:nowrap;cursor:{{ s.cursor }};background:{{ s.bg }};color:{{ s.fg }}">{{ s.label }}</div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <div style="flex:1;min-width:0;overflow-y:auto">
+              <sc-if value="{{ isPhone }}" hint-placeholder-val="{{ false }}">
+                <div style="height:56px;display:flex;align-items:center;gap:6px;padding:0 10px;border-bottom:1px solid var(--line)">
+                  <button onClick="{{ goChat }}" style="width:44px;height:44px;border:0;background:transparent;cursor:pointer;font-size:20px">←</button>
+                  <span style="font-size:15px;color:var(--mute)">Настройки</span>
+                </div>
+                <div style="display:flex;gap:2px;padding:3px;margin:16px var(--pad) 0;border:1px solid var(--line);border-radius:12px">
+                  <sc-for list="{{ settingsTabs }}" as="t" hint-placeholder-count="2">
+                    <button onClick="{{ t.onClick }}" style="flex:1;height:38px;border:0;border-radius:9px;cursor:pointer;font-size:14px;background:{{ t.bg }};color:{{ t.fg }}">{{ t.label }}</button>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ onAppearanceTab }}" hint-placeholder-val="{{ true }}">
+              <div style="max-width:720px;padding:32px var(--pad) 64px;display:flex;flex-direction:column;gap:36px">
+                <h1 style="margin:0;font-size:32px;font-weight:500;letter-spacing:-.03em">Внешний вид</h1>
+
+                <div style="border:1px solid var(--line);border-radius:18px;background:var(--bg2);padding:20px;display:flex;flex-direction:column;gap:8px">
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.12em;color:var(--mute);margin-bottom:6px">ПРЕДПРОСМОТР</div>
+                  <div style="align-self:flex-start;max-width:78%;padding:10px 14px;border-radius:var(--bubble-r);background:var(--in);border:1px solid var(--line);font-size:var(--fs);line-height:1.45">Встречаемся у библиотеки в семь?</div>
+                  <div style="align-self:flex-end;max-width:78%;padding:10px 14px;border-radius:var(--bubble-r);background:var(--accent-fill);color:var(--ink);font-size:var(--fs);line-height:1.45">
+                    <x-import component-from-global-scope="ghost-scramble" text="{{ previewText }}" instant="{{ noDecrypt }}" hint-size="auto,1.4em"></x-import>
+                  </div>
+                  <span style="align-self:flex-end;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent-t)">19:02 · ✓✓ прочитано</span>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:14px">
+                  <div style="font-size:16px;font-weight:500">Тема</div>
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">
+                    <sc-for list="{{ themeCards }}" as="t" hint-placeholder-count="3">
+                      <div onClick="{{ t.onClick }}" style="cursor:pointer;display:flex;flex-direction:column;gap:10px;padding:10px;border-radius:16px;border:2px solid {{ t.border }}">
+                        <div style="height:88px;border-radius:10px;background:{{ t.bg }};padding:14px;display:flex;flex-direction:column;justify-content:center;gap:8px;border:1px solid {{ t.pv }}">
+                          <div style="width:62%;height:14px;border-radius:7px;background:{{ t.inBg }}"></div>
+                          <div style="width:48%;height:14px;border-radius:7px;background:var(--accent-fill);align-self:flex-end;box-shadow:{{ t.glow }}"></div>
+                        </div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;font-size:14px;padding:0 4px">{{ t.label }}<span style="width:16px;height:16px;border-radius:50%;border:{{ t.dot }}"></span></div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+
+                <sc-if value="{{ customTheme }}" hint-placeholder-val="{{ false }}">
+                  <div style="margin-top:-18px;display:flex;flex-wrap:wrap;gap:20px 32px;align-items:center;padding:16px;border:1px dashed var(--line);border-radius:14px"><label style="display:flex;align-items:center;gap:12px;cursor:pointer;font-size:14px">
+                          <span style="position:relative;width:40px;height:40px;flex:none;border-radius:12px;background:{{ cBg }};border:1px solid var(--line);overflow:hidden"><input type="color" value="{{ cBg }}" onChange="{{ onCBg }}" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0"></span>
+                          <span style="display:flex;flex-direction:column;gap:2px">Фон<span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--mute);text-transform:uppercase">{{ cBg }}</span></span>
+                        </label><label style="display:flex;align-items:center;gap:12px;cursor:pointer;font-size:14px">
+                          <span style="position:relative;width:40px;height:40px;flex:none;border-radius:12px;background:{{ cFg }};border:1px solid var(--line);overflow:hidden"><input type="color" value="{{ cFg }}" onChange="{{ onCFg }}" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0"></span>
+                          <span style="display:flex;flex-direction:column;gap:2px">Текст<span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--mute);text-transform:uppercase">{{ cFg }}</span></span>
+                        </label></div>
+                </sc-if>
+                <div style="display:flex;flex-direction:column;gap:14px">
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px"><div style="font-size:16px;font-weight:500">Акцент</div><span style="font-size:13px;color:var(--mute)">Цвет или градиент</span></div>
+                  <div style="display:flex;gap:18px;flex-wrap:wrap">
+                    <sc-for list="{{ accents }}" as="a" hint-placeholder-count="4">
+                      <div onClick="{{ a.onClick }}" style="cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;font-size:13px;color:{{ a.fg }}">
+                        <span style="position:relative;width:44px;height:44px;border-radius:50%;background:{{ a.color }};box-shadow:0 0 0 3px var(--bg), 0 0 0 5px {{ a.ring }}"><sc-if value="{{ a.custom }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;right:-4px;bottom:-4px;width:20px;height:20px;border-radius:50%;background:var(--fg);color:var(--bg);font-size:14px;font-weight:600;line-height:20px;text-align:center;border:2px solid var(--bg)">+</span></sc-if></span>{{ a.name }}
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+
+                <sc-if value="{{ true }}" hint-placeholder-val="{{ true }}">
+                  <div style="margin-top:-18px;border-style:{{ cPanelBorder }};display:flex;flex-wrap:wrap;gap:20px 32px;align-items:center;padding:16px;border:1px dashed var(--line);border-radius:14px"><label style="display:flex;align-items:center;gap:12px;cursor:pointer;font-size:14px">
+                          <span style="position:relative;width:40px;height:40px;flex:none;border-radius:12px;background:{{ cA1 }};border:1px solid var(--line);overflow:hidden"><input type="color" value="{{ cA1 }}" onChange="{{ onCA1 }}" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0"></span>
+                          <span style="display:flex;flex-direction:column;gap:2px">Цвет 1<span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--mute);text-transform:uppercase">{{ cA1 }}</span></span>
+                        </label><sc-if value="{{ cGrad }}" hint-placeholder-val="{{ true }}"><label style="display:flex;align-items:center;gap:12px;cursor:pointer;font-size:14px">
+                          <span style="position:relative;width:40px;height:40px;flex:none;border-radius:12px;background:{{ cA2 }};border:1px solid var(--line);overflow:hidden"><input type="color" value="{{ cA2 }}" onChange="{{ onCA2 }}" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0"></span>
+                          <span style="display:flex;flex-direction:column;gap:2px">Цвет 2<span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--mute);text-transform:uppercase">{{ cA2 }}</span></span>
+                        </label></sc-if>
+                    <div onClick="{{ toggleCGrad }}" style="cursor:pointer;display:flex;align-items:center;gap:10px;font-size:14px;margin-left:auto">Градиент
+                      <span style="width:44px;height:26px;flex:none;border-radius:13px;background:{{ cGradBg }};position:relative;transition:background .2s"><span style="position:absolute;top:3px;left:{{ cGradKnob }};width:20px;height:20px;border-radius:50%;background:{{ cGradKnobBg }};transition:left .2s"></span></span>
+                    </div></div>
+                </sc-if>
+                <div style="display:flex;flex-direction:column;gap:14px">
+                  <div style="font-size:16px;font-weight:500">Шрифт</div>
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">
+                    <sc-for list="{{ fonts }}" as="f" hint-placeholder-count="4">
+                      <div onClick="{{ f.onClick }}" style="cursor:pointer;display:flex;flex-direction:column;gap:6px;padding:14px;border-radius:14px;border:2px solid {{ f.border }};font-family:{{ f.ff }}">
+                        <span style="font-size:26px;line-height:1">Аа</span>
+                        <span style="font-size:13.5px;color:var(--mute)">{{ f.label }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:28px">
+                  <div style="display:flex;flex-direction:column;gap:14px">
+                    <div style="font-size:16px;font-weight:500">Размер текста</div>
+                    <div style="display:flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:12px">
+                      <sc-for list="{{ scaleTabs }}" as="t" hint-placeholder-count="3">
+                        <button onClick="{{ t.onClick }}" style="flex:1;height:38px;border:0;border-radius:9px;cursor:pointer;font-size:14px;background:{{ t.bg }};color:{{ t.fg }}">{{ t.label }}</button>
+                      </sc-for>
+                    </div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:14px">
+                    <div style="font-size:16px;font-weight:500">Форма сообщений</div>
+                    <div style="display:flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:12px">
+                      <sc-for list="{{ bubbleTabs }}" as="t" hint-placeholder-count="2">
+                        <button onClick="{{ t.onClick }}" style="flex:1;height:38px;border:0;border-radius:9px;cursor:pointer;font-size:14px;background:{{ t.bg }};color:{{ t.fg }}">{{ t.label }}</button>
+                      </sc-for>
+                    </div>
+                  </div>
+                </div>
+
+                <div onClick="{{ toggleDecrypt }}" style="cursor:pointer;display:flex;gap:16px;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:24px">
+                  <div style="display:flex;flex-direction:column;gap:4px">
+                    <div style="font-size:16px;font-weight:500">Анимация появления</div>
+                    <div style="font-size:14px;color:var(--mute);line-height:1.45">Новые сообщения проявляются из шума</div>
+                  </div>
+                  <span style="width:48px;height:28px;flex:none;border-radius:14px;background:{{ toggleBg }};position:relative;transition:background .2s">
+                    <span style="position:absolute;top:3px;left:{{ knobLeft }};width:22px;height:22px;border-radius:50%;background:{{ knobBg }};transition:left .2s"></span>
+                  </span>
+                </div>
+              </div>
+              </sc-if>
+              <sc-if value="{{ onProfileTab }}" hint-placeholder-val="{{ false }}">
+                <div style="max-width:720px;padding:32px var(--pad) 64px;display:flex;flex-direction:column;gap:32px">
+                  <h1 style="margin:0;font-size:32px;font-weight:500;letter-spacing:-.03em">Профиль</h1>
+                  <div style="display:flex;gap:22px;align-items:center;flex-wrap:wrap">
+                    <div style="width:104px;height:104px;flex:none;border-radius:50%;background:var(--accent-fill);padding:3px">
+                      <div style="width:100%;height:100%;border-radius:50%;border:3px solid var(--bg);background:var(--avatar);background-image:{{ avatarImg }};background-size:cover;background-position:center;color:var(--avatar-fg);display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:500">{{ meIniShown }}</div>
+                    </div>
+                    <div style="flex:none;display:flex;flex-direction:column;gap:10px">
+                      <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <label style="position:relative;height:40px;padding:0 16px;border-radius:10px;border:1px solid var(--line);white-space:nowrap;flex:none;display:flex;align-items:center;cursor:pointer;font-size:14px;overflow:hidden" style-hover="border-color:var(--accent-t)">Загрузить фото<input type="file" accept="image/*" onChange="{{ onAvatar }}" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label>
+                        <sc-if value="{{ hasAvatar }}" hint-placeholder-val="{{ false }}"><button onClick="{{ clearAvatar }}" style="height:40px;padding:0 14px;border-radius:10px;border:0;background:transparent;cursor:pointer;font-size:14px;color:var(--mute)">Удалить</button></sc-if>
+                      </div>
+                      <span style="font-size:13px;color:var(--mute);white-space:nowrap">JPG или PNG, от 400 px</span>
+                    </div>
+                  </div>
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px">
+                    <label style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--mute)">Имя
+                      <input value="{{ meName }}" onChange="{{ onMeName }}" placeholder="Как вас называть" style="height:48px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font-size:15px;color:var(--fg);outline:none" style-focus="border-color:var(--accent-t)">
+                    </label>
+                    <label style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--mute)">Имя пользователя
+                      <input value="{{ meUser }}" onChange="{{ onMeUser }}" style="height:48px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font-size:15px;color:var(--fg);outline:none;font-family:'JetBrains Mono',monospace" style-focus="border-color:var(--accent-t)">
+                      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:{{ meUserHintColor }}">{{ meUserHint }}</span>
+                    </label>
+                  </div>
+                  <label style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--mute)">
+                    <span style="display:flex;justify-content:space-between">О себе<span style="font-family:'JetBrains Mono',monospace;font-size:12px">{{ bioCount }}</span></span>
+                    <textarea value="{{ meBio }}" onChange="{{ onMeBio }}" rows="3" placeholder="Пара слов о вас" style="padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font:inherit;font-size:15px;line-height:1.5;color:var(--fg);outline:none;resize:vertical" style-focus="border-color:var(--accent-t)"></textarea>
+                  </label>
+                  <div style="display:flex;flex-direction:column;gap:12px">
+                    <div style="font-size:16px;font-weight:500">Кто что видит</div>
+                    <div style="display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;overflow:hidden">
+                      <div onClick="{{ toggleOnline }}" style="cursor:pointer;display:flex;gap:16px;align-items:center;justify-content:space-between;padding:14px 16px">
+                        <div style="display:flex;flex-direction:column;gap:3px"><span style="font-size:15px">Статус «в сети»</span><span style="font-size:13px;color:var(--mute)">Собеседники видят, когда вы онлайн</span></div>
+                        <span style="width:44px;height:26px;flex:none;border-radius:13px;background:{{ onlineBg }};position:relative;transition:background .2s"><span style="position:absolute;top:3px;left:{{ onlineKnob }};width:20px;height:20px;border-radius:50%;background:{{ onlineKb }};transition:left .2s"></span></span>
+                      </div>
+                      <div style="height:1px;background:var(--line)"></div>
+                      <div onClick="{{ toggleReceipts }}" style="cursor:pointer;display:flex;gap:16px;align-items:center;justify-content:space-between;padding:14px 16px">
+                        <div style="display:flex;flex-direction:column;gap:3px"><span style="font-size:15px">Отчёты о прочтении</span><span style="font-size:13px;color:var(--mute)">Отключите — и вы тоже не увидите «прочитано»</span></div>
+                        <span style="width:44px;height:26px;flex:none;border-radius:13px;background:{{ receiptsBg }};position:relative;transition:background .2s"><span style="position:absolute;top:3px;left:{{ receiptsKnob }};width:20px;height:20px;border-radius:50%;background:{{ receiptsKb }};transition:left .2s"></span></span>
+                      </div>
+                    </div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:12px">
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.12em;color:var(--mute)">ТАК ВАС ВИДЯТ ДРУГИЕ</div>
+                    <div style="display:flex;gap:14px;align-items:center;padding:16px;border-radius:16px;background:var(--bg2);border:1px solid var(--line)">
+                      <div style="width:52px;height:52px;flex:none;border-radius:50%;background:var(--avatar);background-image:{{ avatarImg }};background-size:cover;background-position:center;color:var(--avatar-fg);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:500;border:1px solid var(--line)">{{ meIniShown }}</div>
+                      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+                        <span style="font-size:16px;font-weight:500">{{ meNameShown }}</span>
+                        <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent-t)">@{{ meUser }} · {{ meStatus }}</span>
+                        <sc-if value="{{ hasMeBio }}" hint-placeholder-val="{{ true }}"><span style="font-size:13.5px;color:var(--mute);line-height:1.45;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ meBio }}</span></sc-if>
+                      </div>
+                    </div>
+                  </div>
+                  <div style="display:flex;gap:12px;align-items:center">
+                    <button onClick="{{ saveMe }}" style="height:50px;padding:0 26px;border-radius:12px;border:0;background:var(--accent-fill);color:var(--ink);font-weight:600;font-size:15px;cursor:pointer;opacity:{{ saveOpacity }}">Сохранить</button>
+                    <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--accent-t);opacity:{{ savedOp }};transition:opacity .3s">✓ Сохранено</span>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-if>
+
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;heroVariant&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;a&quot;,&quot;b&quot;,&quot;c&quot;],&quot;default&quot;:&quot;a&quot;,&quot;tsType&quot;:&quot;'a'|'b'|'c'&quot;,&quot;section&quot;:&quot;Home&quot;},&quot;particles&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;low&quot;,&quot;mid&quot;,&quot;high&quot;],&quot;default&quot;:&quot;mid&quot;,&quot;tsType&quot;:&quot;'low'|'mid'|'high'&quot;,&quot;section&quot;:&quot;Home&quot;},&quot;startScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;home&quot;,&quot;auth&quot;,&quot;chat&quot;,&quot;settings&quot;],&quot;default&quot;:&quot;home&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Прототип&quot;}}">
+const CHATS = [
+  { id: 'm', name: 'Марина Ковалёва', ini: 'МК', status: 'в сети', online: true, verified: true, handle: '@marina.k', bio: 'Юрист, люблю ясные договоры и долгие прогулки. Отвечаю вечером.' },
+  { id: 'n', name: 'Северный ветер', ini: 'СВ', status: '5 участников', group: true, handle: 'группа · 5 участников', bio: 'Рабочий чат проекта. Созвоны по вторникам и четвергам.' },
+  { id: 'l', name: 'Лиза Орлова', ini: 'ЛО', status: 'в сети', online: true, day: 'вчера', handle: '@liza_orl', bio: 'Дизайнер интерфейсов.' },
+  { id: 'a', name: 'Артём Белов', ini: 'АБ', status: 'был час назад', handle: '@a.belov' },
+  { id: 'd', name: 'Денис Шарапов', ini: 'ДШ', status: 'был вчера', day: 'пн', handle: '@denis_sh' },
+  { id: 's', name: 'Избранное', ini: 'ИЗ', status: 'только вы', self: true, day: 'пн', handle: 'заметки для себя' }
+];
+const MSGS = {
+  m: [
+    { out: false, text: 'Привет! Черновик договора готов, посмотришь сегодня?', time: '13:40' },
+    { out: true, text: 'Да, кидай сюда.', time: '13:42', status: 'read' },
+    { out: false, type: 'file', name: 'Договор_v3.pdf', ext: 'PDF', size: '2,4 МБ', time: '13:43' },
+    { out: true, type: 'voice', dur: 12, time: '13:58', status: 'read' },
+    { out: false, type: 'image', caption: 'фото · 1600×1200', text: 'Зал для встречи в четверг', time: '14:02' },
+    { out: false, type: 'video', dur: 9, time: '14:05' },
+    { out: false, text: 'Отлично. До вечера!', time: '14:08' }
+  ],
+  n: [
+    { out: false, from: 'Олег', text: 'Созвон переносим на 16:00', time: '13:44' },
+    { out: false, from: 'Вика', text: 'Мне подходит', time: '13:47' },
+    { out: false, from: 'Олег', text: 'Повестку закрепил выше', time: '13:51' }
+  ],
+  l: [{ out: false, text: 'Ты завтра в офисе?', time: '21:15' }],
+  a: [
+    { out: true, text: 'Ключи для стенда отправил сюда', time: '12:12', status: 'read' },
+    { out: false, text: 'Спасибо, всё работает', time: '12:30' }
+  ],
+  d: [
+    { out: true, text: 'Созвонимся в понедельник?', time: '10:02', status: 'read' },
+    { out: false, text: 'Давай, в 11', time: '10:20' }
+  ],
+  s: [{ out: true, text: 'Код от домофона: 4172', time: '09:00' }]
+};
+const REPLIES = ['Принято.', 'Хорошо, договорились.', 'Секунду, посмотрю.', 'Вижу. Спасибо!', 'Отлично, так и сделаем.', 'Ок, на связи.'];
+const TIMERS = ['Таймер: выкл', 'Исчезают: 30 с', 'Исчезают: 1 ч', 'Исчезают: 1 д', 'Исчезают: 1 нед'];
+const PHRASE = ['ветер', 'камень', 'тихий', 'север', 'мост', 'лампа', 'сосна', 'волна', 'ключ', 'туман', 'гавань', 'искра'];
+const SAFETY = ['37105', '82946', '10473', '55820', '91364', '07218', '46631', '28590', '73012', '64487', '19753', '30928'];
+const TAKEN = ['marina', 'admin', 'ghost', 'ghostline'];
+const KEY = 'ghostline-proto-v1';
+const FILES = [{ name: 'Смета_2026.xlsx', ext: 'XLS', size: '184 КБ' }, { name: 'Презентация.pdf', ext: 'PDF', size: '5,1 МБ' }, { name: 'Планировка.zip', ext: 'ZIP', size: '12 МБ' }];
+const fmt = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+const bars = (seed, n) => { let x = seed * 9301 + 49297; const out = []; for (let i = 0; i < n; i++) { x = (x * 9301 + 49297) % 233280; out.push(.2 + .8 * Math.abs(Math.sin(i * .55 + seed)) * (.5 + .5 * x / 233280)); } return out; };
+const preview = m => m.type === 'voice' ? 'Голосовое · ' + fmt(m.dur) : m.type === 'video' ? 'Видеосообщение · ' + fmt(m.dur) : m.type === 'image' ? 'Фото' + (m.text ? ' · ' + m.text : '') : m.type === 'file' ? 'Файл · ' + m.name : m.text;
+
+class Component extends DCLogic {
+  scrollRef = React.createRef();
+  msgRef = React.createRef();
+  timers = [];
+  state = this.initState();
+
+  initState() {
+    let s = {};
+    try { s = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
+    let msgs = {}, id = 1;
+    Object.keys(MSGS).forEach(k => { msgs[k] = MSGS[k].map(m => ({ ...m, id: id++ })); });
+    return {
+      screen: s.screen || this.props.startScreen || 'home',
+      device: s.device || 'desktop',
+      themePref: s.themePref || 'dark',
+      accent: s.accent || 'signal', font: s.font || 'sans', cBg: s.cBg || '#1A1030', cFg: s.cFg || '#F2ECFF', cA1: s.cA1 || '#FF5FA2', cA2: s.cA2 || '#7C5CFF', cGrad: s.cGrad !== false, scale: s.scale || 'm', bubble: s.bubble || 'round',
+      decrypt: s.decrypt !== false,
+      hero: this.props.heroVariant || s.hero || 'a',
+      authTab: 'login', regStep: 1, loginUser: '', loginPass: '', regUser: '', regPass: '', reveal: false, saved: false,
+      active: 'm', chatOpen: false, query: '', draft: '', msgs, typing: null, unread: { n: 3, l: 1 },
+      timerIdx: { m: 3 }, showSafety: false, verified: { m: true }, fresh: {}, rec: null, recTick: 0, recLevels: [], play: null, attachOpen: false, profileOpen: false, muted: {},
+      setTab: s.setTab || 'appearance',
+      me: s.me || { name: 'Алексей Громов', user: 'alex.g', bio: 'Пишу код, варю кофе, отвечаю быстро.', online: true, receipts: true, avatar: '' },
+      meDraft: null, savedAt: 0
+    };
+  }
+  componentDidMount() {
+    this.mq = matchMedia('(prefers-color-scheme: dark)');
+    this.mqH = () => this.forceUpdate();
+    this.mq.addEventListener('change', this.mqH);
+    this.stick();
+    this.applyCustom();
+    const amb = () => {
+      const pool = CHATS.filter(c => !c.self && c.id !== this.state.active && this.state.typing !== c.id);
+      const c = pool[(Math.random() * pool.length) | 0];
+      this.setState({ ambient: c.id });
+      this.later(() => this.setState({ ambient: null }), 3200);
+    };
+    this.later(amb, 1500);
+    this.ambIv = setInterval(amb, 8000);
+  }
+  applyCustom() {
+    const s = this.state, b = s.cBg, f = s.cFg, a = s.cA1, fill = s.cGrad ? 'linear-gradient(135deg,' + s.cA1 + ',' + s.cA2 + ')' : s.cA1;
+    const lum = hex => { const n = parseInt(hex.slice(1), 16); return (0.299 * (n >> 16) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255; };
+    const ink = lum(a) > .55 ? '#0B0D0C' : '#FFFFFF';
+    const mix = (p) => 'color-mix(in oklab, ' + b + ' ' + p + '%, ' + f + ')';
+    const css = '[data-gl][data-theme=custom]{--bg:' + b + ';--bg2:' + mix(94) + ';--panel:' + mix(90) + ';--line:' + mix(80) + ';--fg:' + f + ';--mute:' + mix(40) + ';--in:' + mix(88) + ';--desk:color-mix(in oklab, ' + b + ' 70%, #000);--glyph-a:.3}' +
+      '[data-gl][data-accent=custom]{--accent:' + a + ';--accent-t:' + a + ';--accent-fill:' + fill + ';--ink:' + ink + '}';
+    let el = document.getElementById('gl-custom');
+    if (!el) { el = document.createElement('style'); el.id = 'gl-custom'; document.head.appendChild(el); }
+    if (el.textContent !== css) el.textContent = css;
+  }
+  meVals() {
+    const s = this.state, d = s.meDraft || s.me, dirty = !!s.meDraft && JSON.stringify(s.meDraft) !== JSON.stringify(s.me);
+    const upd = patch => this.setState(st => ({ meDraft: { ...(st.meDraft || st.me), ...patch } }));
+    const ini = (d.name || '').trim().split(/\s+/).map(w => w[0] || '').join('').slice(0, 2).toUpperCase() || 'Я';
+    const u = d.user, okU = u.length >= 3 && !TAKEN.includes(u);
+    const tg = on => ({ bg: on ? 'var(--accent-fill)' : 'var(--line)', knob: on ? '21px' : '3px', kb: on ? 'var(--ink)' : 'var(--fg)' });
+    const o = tg(d.online), r = tg(d.receipts);
+    return {
+      meName: d.name, meUser: d.user, meBio: d.bio,
+      meNameShown: d.name.trim() || 'Без имени', meIniShown: d.avatar ? '' : ini,
+      avatarImg: d.avatar ? 'url(' + d.avatar + ')' : 'none', hasAvatar: !!d.avatar,
+      onAvatar: e => { const f = e.target.files && e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => upd({ avatar: rd.result }); rd.readAsDataURL(f); },
+      clearAvatar: () => upd({ avatar: '' }),
+      onMeName: e => upd({ name: e.target.value.slice(0, 40) }),
+      onMeUser: e => upd({ user: e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, '').slice(0, 24) }),
+      onMeBio: e => upd({ bio: e.target.value.slice(0, 140) }),
+      bioCount: d.bio.length + ' / 140', hasMeBio: !!d.bio.trim(),
+      meUserHint: u.length < 3 ? 'Минимум 3 символа' : TAKEN.includes(u) ? '@' + u + ' уже занято' : 'ghostline.app/@' + u,
+      meUserHintColor: okU ? 'var(--mute)' : '#E5484D',
+      meStatus: d.online ? 'в сети' : 'был недавно',
+      toggleOnline: () => upd({ online: !d.online }), toggleReceipts: () => upd({ receipts: !d.receipts }),
+      onlineBg: o.bg, onlineKnob: o.knob, onlineKb: o.kb, receiptsBg: r.bg, receiptsKnob: r.knob, receiptsKb: r.kb,
+      saveOpacity: dirty && okU ? 1 : .45,
+      saveMe: () => { if (!dirty || !okU) return; this.setState({ me: s.meDraft, meDraft: null, savedAt: Date.now() }); this.later(() => this.forceUpdate(), 2100); },
+      savedOp: Date.now() - s.savedAt < 2000 ? 1 : 0
+    };
+  }
+  customTone() { const n = parseInt(this.state.cBg.slice(1), 16); return (0.299 * (n >> 16) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255 > .5 ? 'light' : 'dark'; }
+  componentWillUnmount() { this.timers.forEach(clearTimeout); clearInterval(this.recIv); clearInterval(this.playIv); clearInterval(this.ambIv); this.mq && this.mq.removeEventListener('change', this.mqH); }
+  componentDidUpdate(pp, ps) {
+    const s = this.state;
+    if (pp.heroVariant !== this.props.heroVariant && this.props.heroVariant) this.setState({ hero: this.props.heroVariant });
+    this.applyCustom();
+    if (ps.screen !== s.screen && this.scrollRef.current) this.scrollRef.current.scrollTop = 0;
+    const keys = ['setTab', 'me', 'screen', 'device', 'themePref', 'accent', 'font', 'cBg', 'cFg', 'cA1', 'cA2', 'cGrad', 'scale', 'bubble', 'decrypt', 'hero'];
+    if (keys.some(k => ps[k] !== s[k])) { const o = {}; keys.forEach(k => o[k] = s[k]); try { localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) {} }
+    if (ps.msgs !== s.msgs || ps.active !== s.active || ps.typing !== s.typing || ps.screen !== s.screen || ps.chatOpen !== s.chatOpen) this.stick();
+  }
+  stick() { requestAnimationFrame(() => { const el = this.msgRef.current; if (el) el.scrollTop = el.scrollHeight; }); }
+  later(fn, ms) { this.timers.push(setTimeout(fn, ms)); }
+  hhmm() { return new Date().toTimeString().slice(0, 5); }
+  go(screen, extra) { this.setState({ screen, showSafety: false, ...(extra || {}) }); }
+  seg(a) { return { bg: a ? 'var(--fg)' : 'transparent', fg: a ? 'var(--bg)' : 'var(--mute)' }; }
+
+  setStatus(cid, id, status) {
+    this.setState(s => ({ msgs: { ...s.msgs, [cid]: s.msgs[cid].map(m => m.id === id ? { ...m, status } : m) } }));
+  }
+  send = () => {
+    const text = this.state.draft.trim();
+    if (!text) return;
+    this.setState({ draft: '' });
+    this.pushOut({ text });
+  };
+  startRec(kind) {
+    clearInterval(this.recIv);
+    this.setState({ rec: { kind, t0: Date.now() }, attachOpen: false, recTick: 0 });
+    this.recIv = setInterval(() => {
+      const r = this.state.rec; if (!r) return;
+      if (r.kind === 'video' && Date.now() - r.t0 >= 60000) return this.finishRec();
+      this.setState(s => ({ recTick: s.recTick + 1, recLevels: [...(s.recLevels || []).slice(-35), .2 + Math.random() * .8] }));
+    }, 120);
+  }
+  finishRec = () => {
+    const r = this.state.rec; clearInterval(this.recIv);
+    if (!r) return;
+    const dur = Math.max(1, Math.round((Date.now() - r.t0) / 1000));
+    this.setState({ rec: null, recLevels: [] });
+    this.pushOut({ type: r.kind, dur });
+  };
+  togglePlay(m) {
+    clearInterval(this.playIv);
+    if (this.state.play && this.state.play.id === m.id) { this.setState({ play: null }); return; }
+    this.setState({ play: { id: m.id, pos: 0 } });
+    this.playIv = setInterval(() => {
+      const p = this.state.play; if (!p) return clearInterval(this.playIv);
+      const pos = p.pos + .1 / m.dur;
+      if (pos >= 1) { clearInterval(this.playIv); this.setState({ play: null }); } else this.setState({ play: { id: m.id, pos } });
+    }, 100);
+  }
+  pushOut(extra) {
+    const cid = this.state.active, chat = CHATS.find(c => c.id === cid), id = Date.now();
+    this.setState(s => ({ attachOpen: false, fresh: { ...s.fresh, [id]: true }, msgs: { ...s.msgs, [cid]: [...s.msgs[cid], { id, out: true, time: this.hhmm(), status: 'sending', ...extra }] } }));
+    if (chat.self) { this.later(() => this.setStatus(cid, id, 'saved'), 450); return; }
+    this.later(() => this.setStatus(cid, id, 'sent'), 500);
+    this.later(() => this.setStatus(cid, id, 'delivered'), 1300);
+    this.later(() => { this.setStatus(cid, id, 'read'); this.setState({ typing: cid }); }, 2300);
+    this.later(() => {
+      const rid = id + 1, text2 = REPLIES[(Math.random() * REPLIES.length) | 0];
+      this.setState(s => ({
+        typing: s.typing === cid ? null : s.typing,
+        fresh: { ...s.fresh, [rid]: true },
+        unread: s.active === cid && (s.screen === 'chat') ? s.unread : { ...s.unread, [cid]: (s.unread[cid] || 0) + 1 },
+        msgs: { ...s.msgs, [cid]: [...s.msgs[cid], { id: rid, out: false, from: chat.group ? 'Олег' : null, text: text2, time: this.hhmm() }] }
+      }));
+    }, 4300);
+  }
+
+  renderVals() {
+    const s = this.state;
+    const theme = s.themePref === 'system' ? ((typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light') : s.themePref;
+    const tone = theme === 'custom' ? this.customTone() : (theme === 'light' || theme === 'paper' ? 'light' : 'dark');
+    const isPhone = s.device === 'phone';
+    const mult = { low: .6, mid: 1, high: 1.5 }[this.props.particles || 'mid'] || 1;
+    const chat = CHATS.find(c => c.id === s.active);
+    const list = s.msgs[s.active] || [];
+    const lastOutIdx = list.map(m => m.out).lastIndexOf(true);
+    const stWord = { sending: '◷ отправка', sent: '✓ отправлено', delivered: '✓✓ доставлено', read: '✓✓ прочитано', saved: '✓ сохранено' };
+    const stGlyph = { sending: '◷', sent: '✓', delivered: '✓✓', read: '✓✓', saved: '✓' };
+    const msgs = list.map((m, i) => {
+      const prev = list[i - 1];
+      const st = m.out && m.status ? (i === lastOutIdx ? stWord[m.status] : stGlyph[m.status]) : '';
+      const type = m.type || 'text', playing = s.play && s.play.id === m.id, pos = playing ? s.play.pos : 0;
+      return {
+        ...m, isText: type === 'text', isImage: type === 'image', isFile: type === 'file', isVoice: type === 'voice', isVideo: type === 'video',
+        hasText: !!m.text, chipBg: m.out ? 'rgba(0,0,0,.14)' : 'var(--bg2)',
+        playIcon: playing ? '❚❚' : '▶', onPlay: () => this.togglePlay(m),
+        playBg: m.out ? 'var(--ink)' : 'var(--accent-fill)', playFg: m.out ? 'var(--accent)' : 'var(--ink)', isPlaying: playing, notPlaying: !playing,
+        durLabel: m.dur ? (playing ? fmt(pos * m.dur) : fmt(m.dur)) : '',
+        pct: Math.round(pos * 100) + '%',
+        bars: type === 'voice' ? bars(m.id % 97, 28).map((v, k) => ({ h: Math.round(v * 100) + '%', o: k / 28 < pos ? 1 : (playing ? .35 : .55) })) : [],
+        align: m.out ? 'flex-end' : 'flex-start',
+        bg: m.out ? 'var(--accent-fill)' : 'var(--in)', fg: m.out ? 'var(--ink)' : 'var(--fg)',
+        border: m.out ? '1px solid transparent' : '1px solid var(--line)', glow: m.out ? 'var(--glow)' : 'none',
+        meta: st ? m.time + ' · ' + st : m.time,
+        metaColor: m.status === 'read' ? 'var(--accent-t)' : 'var(--mute)',
+        showFrom: !!m.from && (!prev || prev.from !== m.from),
+        gapTop: prev && prev.out !== m.out ? '12px' : '0px',
+        instant: s.decrypt ? 'false' : 'true',
+        delay: s.fresh[m.id] ? 0 : Math.min(list.length - 1 - i, 6) * 70
+      };
+    });
+    const q = s.query.trim().toLowerCase();
+    const chatRows = CHATS.filter(c => !q || c.name.toLowerCase().includes(q)).map(c => {
+      const ms = s.msgs[c.id], lm = ms[ms.length - 1];
+      const active = c.id === s.active && !isPhone;
+      const typing = s.typing === c.id || s.ambient === c.id;
+      return {
+        ...c, bg: active ? 'var(--bg2)' : 'transparent',
+        isTyping: typing, notTyping: !typing, typingLabel: c.group ? 'Вика печатает' : 'печатает',
+        last: (lm.out ? 'Вы: ' : (lm.from ? lm.from + ': ' : '')) + preview(lm),
+        time: s.fresh[lm.id] ? lm.time : (c.day || lm.time),
+        unread: s.unread[c.id] || 0, hasUnread: !!s.unread[c.id],
+        onClick: () => this.setState(st => ({ active: c.id, chatOpen: true, showSafety: false, profileOpen: false, unread: { ...st.unread, [c.id]: 0 } }))
+      };
+    });
+    const totalUnread = Object.values(s.unread).reduce((a, b) => a + b, 0);
+    const railItems = [
+      { k: 'chat', label: 'Чаты', glyph: totalUnread ? '◉' : '○' },
+      { k: 'settings', label: 'Настройки', glyph: '◐' }
+    ].map(r => ({ ...r, bg: s.screen === r.k ? 'var(--bg2)' : 'transparent', fg: s.screen === r.k ? 'var(--fg)' : 'var(--mute)', tabFg: s.screen === r.k ? 'var(--accent-t)' : 'var(--mute)', onClick: () => this.go(r.k, { chatOpen: false }) }));
+
+    const u = s.regUser;
+    const userOk = u.length >= 3 && !TAKEN.includes(u);
+    const userHint = !u ? 'Латиница, цифры и _' : u.length < 3 ? 'Минимум 3 символа' : TAKEN.includes(u) ? '@' + u + ' уже занято' : '@' + u + ' свободно';
+    const p = s.regPass;
+    const score = p.length < 8 ? (p.length ? 1 : 0) : 1 + (p.length >= 12 ? 1 : 0) + (/[A-ZА-Я]/.test(p) && /\d/.test(p) ? 1 : 0) + (/[^\wА-Яа-я]/.test(p) ? 1 : 0);
+    const sc = Math.min(4, score);
+    const scColor = sc <= 1 ? '#E5484D' : sc === 2 ? '#E8A23B' : 'var(--accent-fill)';
+    const reg1Ok = userOk && p.length >= 8;
+    const loginOk = s.loginUser.trim() && s.loginPass;
+
+    const timerIdx = s.timerIdx[s.active] || 0;
+    const verified = !!s.verified[s.active];
+    const typingHere = s.typing === s.active;
+    const hasDraft = !!s.draft.trim();
+
+    const themeCards = [
+      { k: 'dark', label: 'Тёмная', bg: '#0B0D0C', inBg: '#1F2522' },
+      { k: 'light', label: 'Светлая', bg: '#F3F2ED', inBg: '#FFFFFF' },
+      { k: 'system', label: 'Как в системе', bg: 'linear-gradient(90deg,#0B0D0C 50%,#F3F2ED 50%)', inBg: '#8A908C' },
+      { k: 'midnight', label: 'Полночь', bg: '#0D1220', inBg: '#1A2340' },
+      { k: 'paper', label: 'Бумага', bg: '#F4EDE1', inBg: '#FBF7F0' },
+      { k: 'terminal', label: 'Терминал', bg: '#06080B', inBg: '#0E151A', pv: '#16343D', glow: '0 0 12px color-mix(in oklab, var(--accent) 60%, transparent)' },
+      { k: 'custom', label: 'Своя', bg: s.cBg, inBg: 'color-mix(in oklab, ' + s.cBg + ' 80%, ' + s.cFg + ')' }
+    ].map(t => ({ pv: 'rgba(128,128,128,.25)', glow: 'none', ...t, border: s.themePref === t.k ? 'var(--accent-t)' : 'var(--line)', dot: s.themePref === t.k ? '5px solid var(--accent-t)' : '1.5px solid var(--mute)', onClick: () => this.setState({ themePref: t.k }) }));
+    const accents = [
+      { k: 'signal', name: 'Сигнал', color: '#B8F25B' }, { k: 'ion', name: 'Ион', color: '#63E6F2' },
+      { k: 'ember', name: 'Искра', color: '#FF9152' }, { k: 'violet', name: 'Фиалка', color: '#BBA8FF' },
+      { k: 'aurora', name: 'Аврора', color: 'linear-gradient(135deg,#22D3EE,#D946EF)' },
+      { k: 'sunset', name: 'Закат', color: 'linear-gradient(135deg,#FFB14A,#FF4D8D)' },
+      { k: 'mint', name: 'Мята', color: 'linear-gradient(135deg,#C6F25B,#3CE0C0)' },
+      { k: 'custom', name: 'Свой', color: s.cGrad ? 'linear-gradient(135deg,' + s.cA1 + ',' + s.cA2 + ')' : s.cA1 }
+    ].map(a => ({ ...a, custom: a.k === 'custom', ring: s.accent === a.k ? 'var(--fg)' : 'transparent', fg: s.accent === a.k ? 'var(--fg)' : 'var(--mute)', onClick: () => this.setState({ accent: a.k }) }));
+
+    return {
+      theme, tone, font: s.font, accent: s.accent, scale: s.scale, bubble: s.bubble, device: s.device,
+      isPhone, isDesktop: !isPhone,
+      onHome: s.screen === 'home', onAuth: s.screen === 'auth', onChat: s.screen === 'chat', onSettings: s.screen === 'settings',
+      scrollRef: this.scrollRef, msgRef: this.msgRef,
+      screenTabs: [['home', 'Главная'], ['auth', 'Вход'], ['chat', 'Чаты'], ['settings', 'Вид']].map(([k, l]) => ({ label: l, ...this.seg(s.screen === k), onClick: () => this.go(k, { chatOpen: false }) })),
+      heroTabs: [['a', 'A'], ['b', 'B'], ['c', 'C']].map(([k, l]) => ({ label: l, ...this.seg(s.hero === k), onClick: () => this.setState({ hero: k }) })),
+      deviceTabs: [['desktop', 'Десктоп'], ['phone', 'Телефон']].map(([k, l]) => ({ label: l, ...this.seg(s.device === k), onClick: () => this.setState({ device: k }) })),
+      themeLabel: tone === 'dark' ? '◐' : '◑',
+      toggleTheme: () => this.setState({ themePref: tone === 'dark' ? 'light' : 'dark' }),
+      heroA: s.hero === 'a', heroB: s.hero === 'b', heroC: s.hero === 'c',
+      heroLayout: { a: 'center', b: 'right', c: 'wall' }[s.hero],
+      homeCount: String(Math.round((isPhone ? 1300 : 2600) * mult)),
+      cursorHint: isPhone ? 'КОСНИТЕСЬ ЭКРАНА' : 'НАВЕДИТЕ КУРСОР НА ШУМ',
+      noDecrypt: s.decrypt ? 'false' : 'true',
+      stages: [
+        { label: 'Home · 01 Вход', tag: '01 / ВХОД', title: 'Одно имя вместо номера', text: 'Регистрация по имени пользователя. Номер телефона и список контактов не нужны.', justify: 'flex-start' },
+        { label: 'Home · 02 Связь', tag: '02 / СВЯЗЬ', title: 'Два человека — один разговор', text: 'Сообщения приходят мгновенно, а статусы видны сразу: отправлено, доставлено, прочитано.', justify: 'flex-end' },
+        { label: 'Home · 03 Тишина', tag: '03 / ТИШИНА', title: 'Никакого лишнего шума', text: 'Без рекламы, ленты и рекомендаций. Только ваши чаты.', justify: 'flex-start' }
+      ],
+      facts: [
+        { n: '01', title: 'Работает в браузере', text: 'Без установки: откройте ссылку на компьютере или телефоне.' },
+        { n: '02', title: 'Исчезающие сообщения', text: 'Таймер от 30 секунд до недели — отдельно для каждого чата.' },
+        { n: '03', title: 'Без номера телефона', text: 'Регистрация по имени пользователя. Контакты не загружаются.' }
+      ],
+      scrollHow: () => { const el = this.scrollRef.current; if (el) el.scrollTo({ top: el.clientHeight, behavior: 'smooth' }); },
+      goHome: () => this.go('home'),
+      goLogin: () => this.go('auth', { authTab: 'login' }),
+      goRegister: () => this.go('auth', { authTab: 'register', regStep: 1 }),
+      goChat: () => this.go('chat', { chatOpen: false }),
+
+      authTabs: [['login', 'Вход'], ['register', 'Регистрация']].map(([k, l]) => ({ label: l, ...this.seg(s.authTab === k), onClick: () => this.setState({ authTab: k, regStep: 1 }) })),
+      isLogin: s.authTab === 'login', isReg1: s.authTab === 'register' && s.regStep === 1, isReg2: s.authTab === 'register' && s.regStep === 2,
+      tabRegister: () => this.setState({ authTab: 'register', regStep: 1 }),
+      loginUser: s.loginUser, loginPass: s.loginPass,
+      onLoginUser: e => this.setState({ loginUser: e.target.value }),
+      onLoginPass: e => this.setState({ loginPass: e.target.value }),
+      onLoginKey: e => { if (e.key === 'Enter' && loginOk) this.go('chat'); },
+      loginOpacity: loginOk ? 1 : .45,
+      doLogin: () => { if (loginOk) this.go('chat'); },
+      regUser: s.regUser, regPass: s.regPass,
+      onRegUser: e => this.setState({ regUser: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 24) }),
+      onRegPass: e => this.setState({ regPass: e.target.value }),
+      userHint, userHintColor: !u || u.length < 3 ? 'var(--mute)' : userOk ? 'var(--accent-t)' : '#E5484D',
+      strength: [0, 1, 2, 3].map(i => ({ bg: i < sc ? scColor : 'var(--line)' })),
+      strengthLabel: ['Надёжность пароля', 'Слишком короткий', 'Средний', 'Надёжный', 'Очень надёжный'][sc],
+      reg1Opacity: reg1Ok ? 1 : .45,
+      regNext: () => { if (reg1Ok) this.setState({ regStep: 2, reveal: false, saved: false }); },
+      regBack: () => this.setState({ regStep: 1 }),
+      phrase: PHRASE.map((w, i) => ({ w, n: i + 1 })),
+      phraseBlur: s.reveal ? 'none' : 'blur(7px)', phraseHidden: !s.reveal,
+      revealPhrase: () => this.setState({ reveal: true }),
+      toggleSaved: e => { e.preventDefault(); this.setState(st => ({ saved: !st.saved })); },
+      savedBg: s.saved ? 'var(--accent-fill)' : 'transparent', savedBorder: s.saved ? 'var(--accent)' : 'var(--mute)', savedMark: s.saved ? '✓' : '',
+      reg2Opacity: s.saved && s.reveal ? 1 : .45,
+      regCreate: () => { if (s.saved && s.reveal) this.go('chat'); },
+
+      openProfile: () => this.setState({ profileOpen: true, attachOpen: false }),
+      closeProfile: () => this.setState({ profileOpen: false }),
+      profileX: s.profileOpen ? '0%' : '105%', profileShadow: s.profileOpen ? '-30px 0 60px rgba(0,0,0,.25)' : 'none',
+      scrimOp: s.profileOpen ? 1 : 0, scrimPe: s.profileOpen ? 'auto' : 'none',
+      pOp: s.profileOpen ? 1 : 0, pY: s.profileOpen ? '0px' : '14px',
+      hasBio: !!chat.bio,
+      media: list.filter(m => m.type === 'image' || m.type === 'video').map(m => ({ label: m.type === 'video' ? fmt(m.dur) : 'фото', r: m.type === 'video' ? '50%' : '8px' })),
+      hasMedia: list.some(m => m.type === 'image' || m.type === 'video'),
+      mediaCount: list.filter(m => m.type === 'image' || m.type === 'video').length + ' · файлов ' + list.filter(m => m.type === 'file').length + ' · голосовых ' + list.filter(m => m.type === 'voice').length,
+      muteLabel: s.muted[s.active] ? 'Со звуком' : 'Без звука',
+      toggleMute: () => this.setState(st => ({ muted: { ...st.muted, [st.active]: !st.muted[st.active] } })),
+      profileRows: [
+        { label: 'Исчезающие сообщения', value: TIMERS[timerIdx].split(': ')[1], fg: 'var(--fg)', onClick: () => this.setState(st => ({ timerIdx: { ...st.timerIdx, [st.active]: ((st.timerIdx[st.active] || 0) + 1) % TIMERS.length } })) },
+        { label: 'Уведомления', value: s.muted[s.active] ? 'выкл' : 'вкл', fg: 'var(--fg)', onClick: () => this.setState(st => ({ muted: { ...st.muted, [st.active]: !st.muted[st.active] } })) },
+        { label: chat.group ? 'Покинуть группу' : 'Заблокировать', value: '', fg: '#E5484D', onClick: () => {} }
+      ].map((r, i) => ({ ...r, bt: i ? '1px solid var(--line)' : '0' })),
+      showList: !isPhone || !s.chatOpen, showChat: !isPhone || s.chatOpen,
+      railItems, chatRows, chat, msgs, typingHere,
+      query: s.query, onQuery: e => this.setState({ query: e.target.value }),
+      closeChat: () => this.setState({ chatOpen: false, showSafety: false }),
+      chatVerified: verified,
+      statusLine: typingHere ? 'печатает…' : chat.status,
+      statusColor: typingHere ? 'var(--accent-t)' : 'var(--mute)',
+      timerLabel: isPhone ? (timerIdx ? TIMERS[timerIdx].split(': ')[1] : 'выкл') : TIMERS[timerIdx],
+      timerFg: timerIdx ? 'var(--accent-t)' : 'var(--mute)',
+      cycleTimer: () => this.setState(st => ({ timerIdx: { ...st.timerIdx, [st.active]: ((st.timerIdx[st.active] || 0) + 1) % TIMERS.length } })),
+      showSafety: s.showSafety, safetyBg: s.showSafety ? 'var(--bg2)' : 'transparent',
+      safetyLabel: isPhone ? 'Код' : 'Код безопасности',
+      toggleSafety: () => this.setState(st => ({ showSafety: !st.showSafety })),
+      safetyCode: SAFETY,
+      verifyLabel: verified ? 'Проверено ✓' : 'Отметить как проверенный',
+      markVerified: () => this.setState(st => ({ verified: { ...st.verified, [st.active]: true }, showSafety: false })),
+      draft: s.draft,
+      onDraft: e => this.setState({ draft: e.target.value }),
+      onDraftKey: e => { if (e.key === 'Enter') { e.preventDefault(); this.send(); } },
+      send: this.send,
+      hasDraft, noDraft: !hasDraft,
+      attachOpen: s.attachOpen, attachBg: s.attachOpen ? 'var(--bg2)' : 'transparent',
+      toggleAttach: () => this.setState(st => ({ attachOpen: !st.attachOpen })),
+      attachPhoto: () => this.pushOut({ type: 'image', caption: 'фото · 1600×1200' }),
+      attachFile: () => this.pushOut({ type: 'file', ...FILES[(Math.random() * FILES.length) | 0] }),
+      startVoice: () => this.startRec('voice'), startVideo: () => this.startRec('video'),
+      recVoice: !!s.rec && s.rec.kind === 'voice', recVideo: !!s.rec && s.rec.kind === 'video', notRecVoice: !(s.rec && s.rec.kind === 'voice'),
+      recTime: s.rec ? fmt((Date.now() - s.rec.t0) / 1000) : '0:00',
+      recPct: s.rec ? Math.min(100, (Date.now() - s.rec.t0) / 600) + '%' : '0%',
+      recBlink: s.recTick % 8 < 5 ? 1 : .25,
+      recBars: Array.from({ length: 36 }, (_, k) => { const L = s.recLevels || []; const v = L[L.length - 36 + k]; return { h: (v == null ? 8 : Math.round(v * 100)) + '%' }; }),
+      cancelRec: () => { clearInterval(this.recIv); this.setState({ rec: null, recLevels: [] }); },
+      finishRec: this.finishRec,
+
+      settingsNav: [['Профиль', 'profile'], ['Внешний вид', 'appearance']].map(([l, k]) => ({ label: l, bg: k && k === s.setTab ? 'var(--bg2)' : 'transparent', fg: k === s.setTab ? 'var(--fg)' : k ? 'var(--fg)' : 'var(--mute)', cursor: k ? 'pointer' : 'default', onClick: () => { if (k) this.setState({ setTab: k }); } })),
+      settingsTabs: [['profile', 'Профиль'], ['appearance', 'Внешний вид']].map(([k, l]) => ({ label: l, ...this.seg(s.setTab === k), onClick: () => this.setState({ setTab: k }) })),
+      onProfileTab: s.setTab === 'profile', onAppearanceTab: s.setTab !== 'profile',
+      goProfile: () => this.go('settings', { setTab: 'profile' }),
+      ...this.meVals(),
+      previewText: 'Да, буду. Возьму ключи от зала.',
+      themeCards, accents,
+      customTheme: s.themePref === 'custom', customAccent: s.accent === 'custom',
+      cBg: s.cBg, cFg: s.cFg, cA1: s.cA1, cA2: s.cA2, cGrad: s.cGrad,
+      onCBg: e => this.setState({ cBg: e.target.value }), onCFg: e => this.setState({ cFg: e.target.value }),
+      onCA1: e => this.setState({ cA1: e.target.value, accent: 'custom' }), onCA2: e => this.setState({ cA2: e.target.value, accent: 'custom' }),
+      toggleCGrad: () => this.setState(st => ({ cGrad: !st.cGrad, accent: 'custom' })),
+      cPanelBorder: s.accent === 'custom' ? 'solid' : 'dashed',
+      cGradBg: s.cGrad ? 'var(--accent-fill)' : 'var(--line)', cGradKnob: s.cGrad ? '21px' : '3px', cGradKnobBg: s.cGrad ? 'var(--ink)' : 'var(--fg)',
+      fonts: [['sans', 'Геологика', 'Geologica, sans-serif'], ['mono', 'Моно', "'JetBrains Mono', monospace"], ['pixel', 'Пиксель', "'Pixelify Sans', sans-serif"], ['serif', 'Антиква', "'PT Serif', serif"]].map(([k, l, ff]) => ({ label: l, ff, border: s.font === k ? 'var(--accent-t)' : 'var(--line)', onClick: () => this.setState({ font: k }) })),
+      scaleTabs: [['s', 'Мельче'], ['m', 'Обычный'], ['l', 'Крупнее']].map(([k, l]) => ({ label: l, ...this.seg(s.scale === k), onClick: () => this.setState({ scale: k }) })),
+      bubbleTabs: [['round', 'Скруглённые'], ['sharp', 'Строгие']].map(([k, l]) => ({ label: l, ...this.seg(s.bubble === k), onClick: () => this.setState({ bubble: k }) })),
+      toggleDecrypt: () => this.setState(st => ({ decrypt: !st.decrypt })),
+      toggleBg: s.decrypt ? 'var(--accent-fill)' : 'var(--line)', knobLeft: s.decrypt ? '23px' : '3px', knobBg: s.decrypt ? 'var(--ink)' : 'var(--fg)'
+    };
+  }
+}
+</script>
+</body>
+</html>

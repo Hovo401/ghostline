@@ -1,11 +1,9 @@
 import { Module } from "@nestjs/common";
 import { APP_PIPE } from "@nestjs/core";
-import { LoggerModule } from "nestjs-pino";
 import { ZodValidationPipe } from "nestjs-zod";
 
-import { AppConfigService } from "./config/app-config.service";
 import { AppConfigModule } from "./config/config.module";
-import { createPinoParams } from "./config/pino.config";
+import { PinoLoggerModule } from "./config/pino.config";
 import { HealthModule } from "./health/health.module";
 import { JobsModule } from "./jobs/jobs.module";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -17,10 +15,7 @@ import { StorageModule } from "./storage/storage.module";
 @Module({
   imports: [
     AppConfigModule,
-    LoggerModule.forRootAsync({
-      inject: [AppConfigService],
-      useFactory: createPinoParams,
-    }),
+    PinoLoggerModule,
     PrismaModule,
     RedisModule,
     StorageModule,

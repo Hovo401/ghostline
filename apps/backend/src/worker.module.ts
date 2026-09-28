@@ -1,9 +1,7 @@
 import { Module } from "@nestjs/common";
-import { LoggerModule } from "nestjs-pino";
 
-import { AppConfigService } from "./config/app-config.service";
 import { AppConfigModule } from "./config/config.module";
-import { createPinoParams } from "./config/pino.config";
+import { PinoLoggerModule } from "./config/pino.config";
 import { ProcessorsModule } from "./jobs/processors.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis/redis.module";
@@ -19,10 +17,7 @@ import { StorageModule } from "./storage/storage.module";
 @Module({
   imports: [
     AppConfigModule,
-    LoggerModule.forRootAsync({
-      inject: [AppConfigService],
-      useFactory: createPinoParams,
-    }),
+    PinoLoggerModule,
     PrismaModule,
     RedisModule,
     StorageModule,

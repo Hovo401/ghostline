@@ -4,6 +4,19 @@ Stages match REQUIREMENTS.md §9. Pick one task, copy `_template.md` to `T-NNN-s
 needs more than this row (a design decision to record, a non-obvious "done when"), work it,
 check it off. Don't load the rest of this file into context beyond the stage you're in.
 
+> **MVP build:** the M0–M5 tasks below are being executed as phases of `/build-mvp`
+> (`.claude/skills/build-mvp/SKILL.md`), progress in [PROGRESS.md](PROGRESS.md). The
+> "Отложено" section lists what that build deliberately leaves out.
+
+## Отложено (out of the /build-mvp scope)
+
+- Groups + roles, "Покинуть группу" (T-020, T-021)
+- Disappearing messages (T-025): timer button hidden in the chat header and profile panel
+- Recovery phrase (T-002): registration is one step
+- Safety code / verification
+- Media processing: thumbnails, EXIF strip, WebM↔MP4 transcoding (T-031, T-042)
+- Invites (T-003), session list/revoke UI, Web Push
+
 ## M0 — Foundation
 
 Scaffolded already (this repo, at the commit that added it): monorepo, Docker Compose (dev

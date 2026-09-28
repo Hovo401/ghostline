@@ -3,6 +3,11 @@
 # so cookies/CORS/mic-camera permissions behave the same in dev — see
 # docs/REQUIREMENTS.md §6.3 and docker/nginx/dev.conf.
 #
+# Open http://localhost in the browser — NOT a container's internal IP
+# (the `172.19.0.x` / `Network: …` address Vite prints in its own logs) and
+# NOT :5173 directly. Those addresses live inside the Docker network and
+# aren't reachable from the host on Docker Desktop for Windows.
+#
 # `develop.watch` (not bind-mount volumes) drives hot reload: bind mounts
 # are slow on Docker Desktop for Windows, and watch's file-event sync
 # avoids that entirely while still updating the running container in
@@ -26,9 +31,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "127.0.0.1:5432:5432" # local psql / Prisma Studio only
+      - "127.0.0.1:5433:5432" # local psql / Prisma Studio only
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql # postgres 18+ requires a single mount here, not .../data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
