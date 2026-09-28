@@ -1,0 +1,9 @@
+/* Accent: Ion — DESIGN-BRIEF.md §2.3. See accent-signal.css for the pattern. */
+[data-accent="ion"] {
+  --gl-accent-fill: #63e6f2;
+  --gl-accent-text: #63e6f2;
+  --gl-ink: #0b0d0c;
+}
+[data-tone="light"][data-accent="ion"] {
+  --gl-accent-text: #0a6e7c;
+}

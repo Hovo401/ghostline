@@ -8,26 +8,103 @@
       // Runs before any CSS/React so the correct theme paints on first
       // frame — see src/shared/theme for the store this mirrors and
       // docs/DESIGN-BRIEF.md §8 for the contract. Keep this in perfect
-      // sync with shared/theme/appearance-store.ts's resolution logic;
-      // it intentionally duplicates that one small computation because it
-      // must run standalone, before any module loads.
+      // sync with shared/theme/appearance-store.ts + use-apply-appearance's
+      // resolution logic; it intentionally duplicates that computation
+      // because it must run standalone, before any module loads.
       (function () {
+        var root = document.documentElement;
         try {
           var raw = localStorage.getItem("ghostline:appearance");
-          var stored = raw ? JSON.parse(raw) : {};
+          // zustand's `persist` middleware wraps state as { state, version }.
+          var stored = raw ? JSON.parse(raw).state || {} : {};
           var theme = stored.theme || "dark";
           var accent = stored.accent || "signal";
+          var font = stored.font || "sans";
+          var scale = stored.scale || "m";
+          var bubble = stored.bubble || "round";
+          var customTheme = stored.customTheme || { bg: "#1a1030", fg: "#f2ecff" };
+          var customAccent = stored.customAccent || {
+            color1: "#ff5fa2",
+            color2: "#7c5cff",
+            gradient: true,
+          };
+          var THEME_TONE = {
+            dark: "dark",
+            light: "light",
+            midnight: "dark",
+            paper: "light",
+            terminal: "dark",
+          };
           var resolved =
             theme === "system"
               ? window.matchMedia("(prefers-color-scheme: dark)").matches
                 ? "dark"
                 : "light"
               : theme;
-          var root = document.documentElement;
+          var lum = function (hex) {
+            var n = parseInt(hex.replace("#", ""), 16);
+            return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+          };
+          var tone =
+            resolved === "custom"
+              ? lum(customTheme.bg) > 0.55
+                ? "light"
+                : "dark"
+              : THEME_TONE[resolved] || "dark";
           root.setAttribute("data-theme", resolved);
+          root.setAttribute("data-tone", tone);
           root.setAttribute("data-accent", accent);
+          root.setAttribute("data-font", font);
+          root.setAttribute("data-scale", scale);
+          root.setAttribute("data-bubble", bubble);
+          if (resolved === "custom") {
+            var b = customTheme.bg,
+              f = customTheme.fg;
+            var mix = function (p) {
+              return "color-mix(in oklab, " + b + " " + p + "%, " + f + ")";
+            };
+            var themeEl = document.createElement("style");
+            themeEl.id = "gl-custom-theme";
+            themeEl.textContent =
+              '[data-theme="custom"]{--gl-bg:' +
+              b +
+              ";--gl-bg2:" +
+              mix(94) +
+              ";--gl-panel:" +
+              mix(90) +
+              ";--gl-line:" +
+              mix(80) +
+              ";--gl-fg:" +
+              f +
+              ";--gl-mute:" +
+              mix(40) +
+              ";--gl-in:" +
+              mix(88) +
+              ";--gl-desk:color-mix(in oklab, " +
+              b +
+              " 70%, #000);--gl-glyph-a:.3}";
+            document.head.appendChild(themeEl);
+          }
+          if (accent === "custom") {
+            var fill = customAccent.gradient
+              ? "linear-gradient(135deg," + customAccent.color1 + "," + customAccent.color2 + ")"
+              : customAccent.color1;
+            var ink = lum(customAccent.color1) > 0.55 ? "#0b0d0c" : "#ffffff";
+            var accentEl = document.createElement("style");
+            accentEl.id = "gl-custom-accent";
+            accentEl.textContent =
+              '[data-accent="custom"]{--gl-accent-fill:' +
+              fill +
+              ";--gl-accent-text:" +
+              customAccent.color1 +
+              ";--gl-ink:" +
+              ink +
+              "}";
+            document.head.appendChild(accentEl);
+          }
         } catch (_e) {
-          document.documentElement.setAttribute("data-theme", "dark");
+          root.setAttribute("data-theme", "dark");
+          root.setAttribute("data-tone", "dark");
         }
       })();
     </script>

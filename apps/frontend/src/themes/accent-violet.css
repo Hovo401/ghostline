@@ -1,0 +1,9 @@
+/* Accent: Violet (Фиалка) — DESIGN-BRIEF.md §2.3. See accent-signal.css for the pattern. */
+[data-accent="violet"] {
+  --gl-accent-fill: #bba8ff;
+  --gl-accent-text: #bba8ff;
+  --gl-ink: #0b0d0c;
+}
+[data-tone="light"][data-accent="violet"] {
+  --gl-accent-text: #5a3ed0;
+}

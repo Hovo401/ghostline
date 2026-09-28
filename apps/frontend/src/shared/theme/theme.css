@@ -1,20 +1,66 @@
 @import "tailwindcss";
 @import "../../themes/dark.css";
 @import "../../themes/light.css";
+@import "../../themes/midnight.css";
+@import "../../themes/paper.css";
+@import "../../themes/terminal.css";
 @import "../../themes/accent-signal.css";
+@import "../../themes/accent-ion.css";
+@import "../../themes/accent-ember.css";
+@import "../../themes/accent-violet.css";
+@import "../../themes/accent-aurora.css";
+@import "../../themes/accent-sunset.css";
+@import "../../themes/accent-mint.css";
 @import "@fontsource/geologica/500.css";
 @import "@fontsource/geologica/600.css";
 @import "@fontsource/jetbrains-mono/400.css";
 @import "@fontsource/jetbrains-mono/600.css";
+@import "@fontsource/pixelify-sans/400.css";
+@import "@fontsource/pixelify-sans/600.css";
+@import "@fontsource/pt-serif/400.css";
+@import "@fontsource/pt-serif/700.css";
 
 /*
- * Maps Ghostline's runtime tokens (set per `[data-theme]`/`[data-accent]`
- * in themes/*.css) onto Tailwind v4 theme variables, so components use
- * ordinary utilities (`bg-bg`, `text-fg`, `bg-accent`, …) that repaint
- * instantly on theme/accent change — see DESIGN-BRIEF.md §8.2.
- * Literal colors belong in themes/*.css only; nowhere else (enforced by
- * the `no-restricted-syntax` hex-literal rule in eslint.frontend.mjs).
+ * This file (plus src/themes/*.css) is Ghostline's appearance *engine* —
+ * the one place besides src/themes itself allowed to declare raw values
+ * for the font/scale/bubble axes (DESIGN-BRIEF.md §8.1/§8.2); everywhere
+ * else consumes the Tailwind utilities the `@theme` block below maps them
+ * to (`bg-bg`, `text-fg`, `bg-accent`, `rounded-bubble`, `text-msg`, …).
+ * `custom` theme/accent are generated at runtime by
+ * shared/theme/apply-custom-appearance.ts instead of a file here.
  */
+
+/* Font axis — `--gl-font` default is Geologica (sans); mono labels
+ * (timestamps, statuses, usernames) always use --font-mono directly and
+ * don't follow this axis, per DESIGN-BRIEF §3. */
+:root {
+  --gl-font: "Geologica", ui-sans-serif, system-ui, sans-serif;
+  --gl-fs: 15px;
+  --gl-bubble-r: 18px;
+}
+[data-font="mono"] {
+  --gl-font: "JetBrains Mono", ui-monospace, monospace;
+}
+[data-font="pixel"] {
+  --gl-font: "Pixelify Sans", system-ui, sans-serif;
+}
+[data-font="serif"] {
+  --gl-font: "PT Serif", Georgia, serif;
+}
+
+/* Text scale axis — message text size, DESIGN-BRIEF §3. */
+[data-scale="s"] {
+  --gl-fs: 13.5px;
+}
+[data-scale="l"] {
+  --gl-fs: 17.5px;
+}
+
+/* Bubble shape axis — DESIGN-BRIEF §4. */
+[data-bubble="sharp"] {
+  --gl-bubble-r: 5px;
+}
+
 @theme {
   --color-bg: var(--gl-bg);
   --color-bg2: var(--gl-bg2);
@@ -27,8 +73,14 @@
   --color-accent: var(--gl-accent-fill);
   --color-accent-text: var(--gl-accent-text);
   --color-ink: var(--gl-ink);
+  --color-avatar: var(--gl-avatar);
+  --color-avatar-fg: var(--gl-avatar-fg);
 
-  --font-display: "Geologica", ui-sans-serif, system-ui, sans-serif;
+  --radius-bubble: var(--gl-bubble-r);
+  --text-msg: var(--gl-fs);
+  --shadow-glow: var(--gl-glow);
+
+  --font-display: var(--gl-font);
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
@@ -36,4 +88,24 @@ body {
   background-color: var(--gl-bg);
   color: var(--gl-fg);
   font-family: var(--font-display);
+  /* Theme switch transition — DESIGN-BRIEF §8.2/§9. */
+  transition: background-color 300ms;
+}
+
+/* "Typing" dots timing token — DESIGN-BRIEF §5 (900ms cycle, 150ms stagger
+ * applied per-dot via inline animation-delay, the one thing this can't
+ * express as a fixed class). */
+@keyframes gl-typing-dot {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+.animate-typing-dot {
+  animation: gl-typing-dot 900ms ease-in-out infinite;
 }

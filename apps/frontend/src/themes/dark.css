@@ -1,7 +1,8 @@
 /*
- * Theme: Dark (default) — DESIGN-BRIEF.md §2.2.
+ * Theme: Dark (default) — DESIGN-BRIEF.md §2.2/§8.3.
  * Adding a theme means adding one file like this + registering its id in
- * shared/theme/appearance-store.ts's ThemeId union — no component changes.
+ * shared/theme/appearance-store.ts's THEME_IDS — no component changes.
+ * `:root` doubles as this theme's block since it's the default.
  */
 :root,
 [data-theme="dark"] {
@@ -13,4 +14,11 @@
   --gl-mute: #98a09b;
   --gl-in: #1b201d;
   --gl-desk: #050606;
+  --gl-glyph-a: 0.26;
+
+  /* Effect tokens (ThemeManifest.effects — DESIGN-BRIEF §8.3). Terminal is
+   * the only theme that overrides these; everyone else gets this default. */
+  --gl-avatar: var(--gl-bg2);
+  --gl-avatar-fg: var(--gl-fg);
+  --gl-glow: none;
 }

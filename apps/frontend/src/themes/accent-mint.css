@@ -1,0 +1,9 @@
+/* Accent: Mint (Мята) — DESIGN-BRIEF.md §2.3. Gradient fill; text stays solid. */
+[data-accent="mint"] {
+  --gl-accent-fill: linear-gradient(135deg, #c6f25b, #3ce0c0);
+  --gl-accent-text: #9af07a;
+  --gl-ink: #0b0d0c;
+}
+[data-tone="light"][data-accent="mint"] {
+  --gl-accent-text: #2f7a3a;
+}
