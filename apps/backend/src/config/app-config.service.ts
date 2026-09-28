@@ -62,4 +62,8 @@ export class AppConfigService {
       refreshSecret: this.config.get("JWT_REFRESH_SECRET", { infer: true }),
     };
   }
+
+  get mediaMaxFileSizeBytes(): number {
+    return this.config.get("MEDIA_MAX_FILE_SIZE_BYTES", { infer: true });
+  }
 }

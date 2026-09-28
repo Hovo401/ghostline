@@ -101,7 +101,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://valkey:6379
       S3_ENDPOINT: http://seaweedfs:8333
-      S3_PUBLIC_URL: https://${DOMAIN}/s3
+      S3_PUBLIC_URL: https://${DOMAIN}:8333
     depends_on:
       postgres:
         condition: service_healthy
@@ -129,7 +129,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://valkey:6379
       S3_ENDPOINT: http://seaweedfs:8333
-      S3_PUBLIC_URL: https://${DOMAIN}/s3
+      S3_PUBLIC_URL: https://${DOMAIN}:8333
     depends_on:
       postgres:
         condition: service_healthy
@@ -155,11 +155,13 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "8333:8333" # SeaweedFS S3 API — see docker/nginx/prod.conf.template's :8333 server
     volumes:
       - letsencrypt:/etc/letsencrypt:ro
       - certbot-webroot:/var/www/certbot:ro
     depends_on:
       - backend
+      - seaweedfs
 
   # No reload-on-renew hook by design (see docs/REQUIREMENTS.md open
   # questions) — cheapest fix today is a cron on the host running

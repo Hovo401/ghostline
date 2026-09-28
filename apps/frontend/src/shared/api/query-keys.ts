@@ -11,6 +11,10 @@ export function messagesQueryKey(chatId: string) {
   return ["messages", chatId] as const;
 }
 
+export function chatMediaQueryKey(chatId: string) {
+  return ["chats", chatId, "media"] as const;
+}
+
 export function userSearchQueryKey(query: string) {
   return ["users", "search", query] as const;
 }

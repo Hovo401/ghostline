@@ -27,7 +27,7 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
 
-    client_max_body_size 1m; # uploads go straight to S3 via presigned URLs
+    client_max_body_size 1m; # uploads go straight to S3 via presigned URLs — see the :8333 server below
 
     gzip on;
     gzip_types text/css application/javascript application/json image/svg+xml;
@@ -50,16 +50,6 @@ server {
         proxy_read_timeout 1h;
     }
 
-    # Browser-facing S3 endpoint for presigned upload/download URLs — see
-    # StorageService's `publicUrl` (S3_PUBLIC_URL=https://${DOMAIN}/s3).
-    location /s3/ {
-        rewrite ^/s3/(.*)$ /$1 break;
-        proxy_pass http://seaweedfs:8333;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        client_max_body_size 512m;
-    }
-
     location /assets/ {
         root /usr/share/nginx/html;
         expires 1y;
@@ -69,5 +59,33 @@ server {
     location / {
         root /usr/share/nginx/html;
         try_files $uri /index.html;
+    }
+}
+
+# Dedicated 1:1 proxy to SeaweedFS's S3 API — its own port, no path prefix,
+# no rewrite. `StorageService`'s presign client signs the SigV4 canonical
+# request against $S3_PUBLIC_URL's *path* too; a shared port + path-prefix
+# rewrite makes the signed path disagree with the path SeaweedFS actually
+# receives, so every presigned request 403s with SignatureDoesNotMatch —
+# see docs/adr/0008-s3-public-url-needs-its-own-port.md. `S3_PUBLIC_URL`
+# (compose.prod.yaml) must point straight at this port with no path suffix.
+server {
+    listen 8333 ssl;
+    http2 on;
+    server_name ${DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    client_max_body_size 512m;
+
+    location / {
+        proxy_pass http://seaweedfs:8333;
+        proxy_http_version 1.1;
+        # $http_host, NOT $host — see docker/nginx/dev.conf's identical
+        # :8333 server for why (SigV4 signs the Host header verbatim, port
+        # included; $host strips the port and would break the signature).
+        proxy_set_header Host $http_host;
     }
 }

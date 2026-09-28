@@ -119,3 +119,18 @@ body {
 .animate-typing-dot {
   animation: gl-typing-dot 900ms ease-in-out infinite;
 }
+
+/* Recording dot timing token — DESIGN-BRIEF §7.2 "мигающая красная точка"
+ * (voice/video-note recording bar and overlay). */
+@keyframes gl-rec-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+.animate-rec-blink {
+  animation: gl-rec-blink 1000ms ease-in-out infinite;
+}

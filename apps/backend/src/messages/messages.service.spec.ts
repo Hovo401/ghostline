@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type { SendMessageRequest } from "@ghostline/contracts";
-import { ForbiddenException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { Prisma } from "@prisma/client";
 import { describe, expect, it } from "vitest";
@@ -10,6 +10,7 @@ import { ChatsService } from "../chats/chats.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { ChatEventsGateway } from "../realtime/chat-events.gateway";
 import { REDIS_CLIENT } from "../redis/redis.module";
+import { StorageService } from "../storage/storage.service";
 import { UsersService } from "../users/users.service";
 
 import { MessagesService } from "./messages.service";
@@ -36,14 +37,28 @@ interface FakeMessageRow {
   seq: bigint;
   senderId: string | null;
   clientMessageId: string;
-  type: "TEXT";
+  type: string;
   text: string | null;
-  attachmentId: null;
-  durationMs: null;
-  waveform: null;
+  attachmentId: string | null;
+  attachment: FakeAttachmentRow | null;
+  durationMs: number | null;
+  waveform: unknown;
   replyToId: string | null;
   editedAt: Date | null;
   deletedAt: Date | null;
+  createdAt: Date;
+}
+
+interface FakeAttachmentRow {
+  id: string;
+  uploaderId: string;
+  status: "PENDING" | "READY";
+  key: string;
+  mime: string;
+  size: bigint;
+  name: string | null;
+  width: number | null;
+  height: number | null;
   createdAt: Date;
 }
 
@@ -55,7 +70,11 @@ interface FakeMessageRow {
  * increment outside the transaction (a real duplicate `(chatId, seq)`
  * insert would throw, exactly like the `@@unique` constraint would).
  */
-function createFakePrisma(chats: Map<string, FakeChatRow>, members: Map<string, FakeMemberRow>) {
+function createFakePrisma(
+  chats: Map<string, FakeChatRow>,
+  members: Map<string, FakeMemberRow>,
+  attachments: Map<string, FakeAttachmentRow>,
+) {
   const messages = new Map<string, FakeMessageRow>();
   let lock = Promise.resolve();
 
@@ -115,7 +134,7 @@ function createFakePrisma(chats: Map<string, FakeChatRow>, members: Map<string, 
     create: ({
       data,
     }: {
-      data: Omit<FakeMessageRow, "id" | "createdAt" | "editedAt" | "deletedAt">;
+      data: Omit<FakeMessageRow, "id" | "createdAt" | "editedAt" | "deletedAt" | "attachment">;
     }) => {
       const duplicateSeq = [...messages.values()].some(
         (m) => m.chatId === data.chatId && m.seq === data.seq,
@@ -135,6 +154,7 @@ function createFakePrisma(chats: Map<string, FakeChatRow>, members: Map<string, 
         editedAt: null,
         deletedAt: null,
         createdAt: new Date(),
+        attachment: data.attachmentId ? (attachments.get(data.attachmentId) ?? null) : null,
         ...data,
       };
       messages.set(row.id, row);
@@ -165,7 +185,12 @@ function createFakePrisma(chats: Map<string, FakeChatRow>, members: Map<string, 
     findUnique: () => Promise.resolve({ readReceipts: true }),
   };
 
-  const prisma = { chatMember, chat, message, user };
+  const attachment = {
+    findUnique: ({ where }: { where: { id: string } }) =>
+      Promise.resolve(attachments.get(where.id) ?? null),
+  };
+
+  const prisma = { chatMember, chat, message, user, attachment };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test double for a $transaction callback taking the same shape as PrismaService
   (prisma as any).$transaction = async (fn: (tx: typeof prisma) => Promise<unknown>) => {
@@ -189,9 +214,14 @@ function memberKey(chatId: string, userId: string): string {
   return `${chatId}:${userId}`;
 }
 
-async function buildMessagesService(options: { blocked?: boolean } = {}) {
+async function buildMessagesService(
+  options: { blocked?: boolean; attachments?: FakeAttachmentRow[] } = {},
+) {
   const chats = new Map<string, FakeChatRow>();
   const members = new Map<string, FakeMemberRow>();
+  const attachments = new Map<string, FakeAttachmentRow>(
+    (options.attachments ?? []).map((a) => [a.id, a]),
+  );
   const chatId = "chat-1";
   chats.set(chatId, {
     id: chatId,
@@ -215,7 +245,7 @@ async function buildMessagesService(options: { blocked?: boolean } = {}) {
     muted: false,
   });
 
-  const { prisma, messages } = createFakePrisma(chats, members);
+  const { prisma, messages } = createFakePrisma(chats, members, attachments);
 
   const fakeUsers = { isBlockedEitherWay: () => Promise.resolve(options.blocked ?? false) };
   const fakeChats = {
@@ -224,6 +254,7 @@ async function buildMessagesService(options: { blocked?: boolean } = {}) {
   };
   const fakeEvents = { server: { to: () => ({ emit: () => undefined }) } };
   const fakeRedis = { scard: () => Promise.resolve(0) };
+  const fakeStorage = { createDownloadUrl: () => Promise.resolve("http://example.test/signed") };
 
   const moduleRef = await Test.createTestingModule({
     providers: [
@@ -232,6 +263,7 @@ async function buildMessagesService(options: { blocked?: boolean } = {}) {
       { provide: UsersService, useValue: fakeUsers },
       { provide: ChatsService, useValue: fakeChats },
       { provide: ChatEventsGateway, useValue: fakeEvents },
+      { provide: StorageService, useValue: fakeStorage },
       { provide: REDIS_CLIENT, useValue: fakeRedis },
     ],
   }).compile();
@@ -241,6 +273,26 @@ async function buildMessagesService(options: { blocked?: boolean } = {}) {
 
 function sendDto(chatId: string, text: string): SendMessageRequest {
   return { chatId, clientMessageId: randomUUID(), type: "text", text };
+}
+
+function sendImageDto(chatId: string, attachmentId: string): SendMessageRequest {
+  return { chatId, clientMessageId: randomUUID(), type: "image", attachmentId };
+}
+
+function fakeAttachment(overrides: Partial<FakeAttachmentRow> = {}): FakeAttachmentRow {
+  return {
+    id: randomUUID(),
+    uploaderId: "alice",
+    status: "READY",
+    key: "attachments/photo.png",
+    mime: "image/png",
+    size: 2048n,
+    name: "photo.png",
+    width: 800,
+    height: 600,
+    createdAt: new Date(),
+    ...overrides,
+  };
 }
 
 describe("MessagesService", () => {
@@ -279,6 +331,51 @@ describe("MessagesService", () => {
       await expect(service.sendMessage("alice", sendDto(chatId, "hi"))).rejects.toBeInstanceOf(
         ForbiddenException,
       );
+    });
+  });
+
+  describe("sendMessage — media attachments (T-032/F4)", () => {
+    it("404s when the attachment doesn't exist", async () => {
+      const { service, chatId } = await buildMessagesService();
+
+      await expect(
+        service.sendMessage("alice", sendImageDto(chatId, randomUUID())),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("404s when the attachment belongs to someone else", async () => {
+      const attachment = fakeAttachment({ uploaderId: "bob" });
+      const { service, chatId } = await buildMessagesService({ attachments: [attachment] });
+
+      await expect(
+        service.sendMessage("alice", sendImageDto(chatId, attachment.id)),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("409s when the attachment hasn't finished uploading", async () => {
+      const attachment = fakeAttachment({ uploaderId: "alice", status: "PENDING" });
+      const { service, chatId } = await buildMessagesService({ attachments: [attachment] });
+
+      await expect(
+        service.sendMessage("alice", sendImageDto(chatId, attachment.id)),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("sends a media message and embeds the attachment inline", async () => {
+      const attachment = fakeAttachment({ uploaderId: "alice" });
+      const { service, chatId } = await buildMessagesService({ attachments: [attachment] });
+
+      const message = await service.sendMessage("alice", sendImageDto(chatId, attachment.id));
+
+      expect(message.type).toBe("image");
+      expect(message.attachmentId).toBe(attachment.id);
+      expect(message.attachment).toMatchObject({
+        id: attachment.id,
+        mime: "image/png",
+        width: 800,
+        height: 600,
+        url: "http://example.test/signed",
+      });
     });
   });
 });

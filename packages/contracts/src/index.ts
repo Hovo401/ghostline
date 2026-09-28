@@ -77,6 +77,7 @@ export {
   PresignUploadResponseSchema,
   CompleteUploadRequestSchema,
   AttachmentSchema,
+  ChatMediaResponseSchema,
 } from "./attachment/attachment.schema";
 export type {
   AttachmentKind,
@@ -84,6 +85,7 @@ export type {
   PresignUploadResponse,
   CompleteUploadRequest,
   Attachment,
+  ChatMediaResponse,
 } from "./attachment/attachment.schema";
 
 export {

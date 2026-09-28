@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 
-import { type ChatListItem, useMuteChat } from "../../entities/chat";
+import { type Attachment, fileExtension } from "../../entities/attachment";
+import { type ChatListItem, useChatMedia, useMuteChat } from "../../entities/chat";
 import { useBlockUser } from "../../entities/user";
 import { Avatar } from "../../shared/ui/avatar";
 import { IconButton } from "../../shared/ui/icon-button";
@@ -17,6 +18,28 @@ function stagger(step: number): CSSProperties {
   return { transitionDelay: `${(step * 60 + 80).toString()}ms` };
 }
 
+/** One "МЕДИА" grid cell — a real photo thumbnail, or (file/voice/video)
+ * the same extension badge MessageBubble's file chip uses, reusing
+ * `fileExtension` instead of re-deriving it. */
+function MediaGridItem({ attachment }: { attachment: Attachment }) {
+  const isImage = attachment.mime.startsWith("image/");
+  return (
+    <div className="relative flex aspect-square items-end justify-end overflow-hidden rounded-lg bg-panel p-1.5">
+      {isImage ? (
+        <img
+          src={attachment.url}
+          alt={attachment.name ?? "Фото"}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : (
+        <span className="font-mono text-[10px] text-mute">
+          {fileExtension(attachment.name, attachment.mime)}
+        </span>
+      )}
+    </div>
+  );
+}
+
 /** Slide-in panel — DESIGN-BRIEF.md §7.2: 500ms slide + scrim, staggered
  * content fade (80ms step). Groups/leave-group and disappearing messages
  * are out of F3's scope (BACKLOG.md "Отложено"), so the row list here is
@@ -24,6 +47,7 @@ function stagger(step: number): CSSProperties {
 export function ProfilePanel({ chat, open, onClose }: ProfilePanelProps) {
   const muteChat = useMuteChat();
   const blockUser = useBlockUser();
+  const media = useChatMedia(chat.id, open);
   const name = chatDisplayName(chat);
   const peer = chat.peer;
 
@@ -115,22 +139,23 @@ export function ProfilePanel({ chat, open, onClose }: ProfilePanelProps) {
             </div>
           )}
 
-          <div
-            className={fadeClass("flex flex-col gap-1.5 rounded-[14px] bg-bg2 px-4 py-3.5")}
-            style={stagger(2)}
-          >
-            <span className="font-mono text-xs tracking-widest text-mute">МЕДИА</span>
-            <div className="grid grid-cols-3 gap-1">
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  className="flex aspect-square items-end justify-end rounded-lg bg-panel p-1.5"
-                >
-                  <span className="font-mono text-[10px] text-mute">{"// F4"}</span>
-                </div>
-              ))}
+          {media.data && media.data.length > 0 && (
+            // No card treatment here (unlike the notifications/block list
+            // below) — the prototype's "Медиа" section is a plain column
+            // spanning the panel's full content width; a bg2/padding
+            // wrapper would shrink the grid below the prototype's cell size.
+            <div className={fadeClass("flex flex-col gap-2.5")} style={stagger(2)}>
+              <span className="flex items-baseline justify-between">
+                <span className="text-[15px] font-medium">Медиа</span>
+                <span className="font-mono text-xs text-mute">{media.data.length}</span>
+              </span>
+              <div className="grid grid-cols-3 gap-1">
+                {media.data.map((attachment) => (
+                  <MediaGridItem key={attachment.id} attachment={attachment} />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {peer && (
             <div

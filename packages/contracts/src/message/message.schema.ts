@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { AttachmentSchema } from "../attachment/attachment.schema";
+
 /** Message types, delivery status, send request and the wire resource shape. */
 
 export const MessageTypeSchema = z.enum(["text", "image", "file", "voice", "video"]);
@@ -51,6 +53,10 @@ export const MessageSchema = z.object({
   type: MessageTypeSchema,
   text: z.string().nullable(),
   attachmentId: z.string().uuid().nullable(),
+  // Inlined so the frontend gets mime/name/size/dimensions/a fresh
+  // presigned URL with the message itself, instead of a second round trip
+  // to fetch the attachment by `attachmentId`.
+  attachment: AttachmentSchema.nullable(),
   durationMs: z.number().int().nullable(),
   waveform: z.array(z.number().int()).nullable(),
   replyToId: z.string().uuid().nullable(),

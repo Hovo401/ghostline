@@ -34,5 +34,14 @@ export const AttachmentSchema = z.object({
   width: z.number().int().nullable(),
   height: z.number().int().nullable(),
   name: z.string().nullable(),
+  // Computed at read time from `StorageService.createDownloadUrl` — never
+  // persisted (see docs/adr on embedding presigned media URLs). A fresh,
+  // short-lived GET URL every time this is served, so `<img>`/`<audio>`/
+  // `<video>` tags can load it without an `Authorization` header.
+  url: z.string().url(),
 });
 export type Attachment = z.infer<typeof AttachmentSchema>;
+
+/** `GET /chats/:id/media` response — the chat's `ProfilePanel` media grid. */
+export const ChatMediaResponseSchema = z.array(AttachmentSchema);
+export type ChatMediaResponse = z.infer<typeof ChatMediaResponseSchema>;

@@ -53,48 +53,61 @@ export function ChatThreadPanel({ chat, className }: ChatThreadPanelProps) {
         .filter(Boolean)
         .join(" ")}
     >
-      <div className="flex h-17 flex-none items-center gap-3 border-b border-line bg-bg px-4">
-        <button
-          type="button"
-          onClick={closeChat}
-          className="-ml-2 flex h-11 w-11 items-center justify-center text-xl md:hidden"
-          aria-label="Назад к чатам"
-        >
-          {"←"}
-        </button>
-        <button
-          type="button"
-          onClick={openProfilePanel}
-          className="flex min-w-0 flex-1 items-center gap-3 text-left"
-          title="Открыть профиль"
-        >
-          <Avatar name={chatDisplayName(chat)} size={38} />
-          <span className="flex min-w-0 flex-col gap-0.5">
-            <span className="truncate text-[15.5px] font-medium">{chatDisplayName(chat)}</span>
-            <span
-              className={[
-                "font-mono text-[11.5px]",
-                peerTyping ? "text-accent-text" : "text-mute",
-              ].join(" ")}
-            >
-              {statusLine}
+      {/* ProfilePanel itself stays `absolute` (it slides in as an overlay
+       * with its own scrim, DESIGN-BRIEF.md §7.2), but the thread's own
+       * content needs to actually narrow when it's open — on desktop,
+       * reserving its width here so the header/feed/composer reflow inside
+       * the remaining space, rather than keeping their old width and
+       * ending up hidden underneath the now-opaque panel. */}
+      <div
+        className={[
+          "flex min-w-0 flex-1 flex-col transition-[padding-right] duration-500 ease-[cubic-bezier(.2,.8,.2,1)]",
+          profilePanelOpen ? "md:pr-95" : "md:pr-0",
+        ].join(" ")}
+      >
+        <div className="flex h-17 flex-none items-center gap-3 border-b border-line bg-bg px-4">
+          <button
+            type="button"
+            onClick={closeChat}
+            className="-ml-2 flex h-11 w-11 items-center justify-center text-xl md:hidden"
+            aria-label="Назад к чатам"
+          >
+            {"←"}
+          </button>
+          <button
+            type="button"
+            onClick={openProfilePanel}
+            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+            title="Открыть профиль"
+          >
+            <Avatar name={chatDisplayName(chat)} size={38} />
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="truncate text-[15.5px] font-medium">{chatDisplayName(chat)}</span>
+              <span
+                className={[
+                  "font-mono text-[11.5px]",
+                  peerTyping ? "text-accent-text" : "text-mute",
+                ].join(" ")}
+              >
+                {statusLine}
+              </span>
             </span>
-          </span>
-        </button>
+          </button>
+        </div>
+
+        <MessageFeed
+          chatId={chat.id}
+          messages={messages}
+          currentUserId={currentUserId}
+          peerTyping={peerTyping}
+          hasMore={hasNextPage}
+          onLoadMore={() => {
+            void fetchNextPage();
+          }}
+        />
+
+        <Composer chatId={chat.id} />
       </div>
-
-      <MessageFeed
-        chatId={chat.id}
-        messages={messages}
-        currentUserId={currentUserId}
-        peerTyping={peerTyping}
-        hasMore={hasNextPage}
-        onLoadMore={() => {
-          void fetchNextPage();
-        }}
-      />
-
-      <Composer chatId={chat.id} />
 
       <ProfilePanel chat={chat} open={profilePanelOpen} onClose={closeProfilePanel} />
     </div>

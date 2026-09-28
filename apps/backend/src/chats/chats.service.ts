@@ -1,4 +1,4 @@
-import type { ChatListItem, ReadUpdatedPayload } from "@ghostline/contracts";
+import type { ChatListItem, ChatMediaResponse, ReadUpdatedPayload } from "@ghostline/contracts";
 import {
   BadRequestException,
   ForbiddenException,
@@ -9,15 +9,19 @@ import {
 import type { Chat } from "@prisma/client";
 import type Redis from "ioredis";
 
+import { toWireAttachment } from "../attachments/attachment.util";
 import { computePresenceView, isMutuallyVisible } from "../common/visibility.util";
 import { resolveMessageStatus, toWireMessage } from "../messages/message.util";
 import { PrismaService } from "../prisma/prisma.service";
 import { ChatEventsGateway } from "../realtime/chat-events.gateway";
 import { isOnline } from "../realtime/presence.service";
 import { REDIS_CLIENT } from "../redis/redis.module";
+import { StorageService } from "../storage/storage.service";
 import { UsersService } from "../users/users.service";
 
 import { clampReadSeq, computeUnreadCount } from "./unread.util";
+
+const CHAT_MEDIA_LIMIT = 30;
 
 @Injectable()
 export class ChatsService {
@@ -25,6 +29,7 @@ export class ChatsService {
     private readonly prisma: PrismaService,
     private readonly users: UsersService,
     private readonly events: ChatEventsGateway,
+    private readonly storage: StorageService,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
   ) {}
 
@@ -148,6 +153,36 @@ export class ChatsService {
   }
 
   /**
+   * `ProfilePanel`'s "МЕДИА" grid (T-032/F4): the chat's most recent
+   * finished media messages, newest first. `TEXT` messages and attachments
+   * still `PENDING`/being processed are excluded — nothing for the grid to
+   * render for those. Reuses `toWireAttachment` so the shape matches
+   * `Message.attachment` exactly (same mime/name/size/dimensions/URL).
+   */
+  async listMedia(chatId: string, userId: string): Promise<ChatMediaResponse> {
+    await this.assertMember(chatId, userId);
+
+    const rows = await this.prisma.message.findMany({
+      where: {
+        chatId,
+        deletedAt: null,
+        type: { not: "TEXT" },
+        attachment: { is: { status: "READY" } },
+      },
+      orderBy: { seq: "desc" },
+      take: CHAT_MEDIA_LIMIT,
+      include: { attachment: true },
+    });
+
+    return Promise.all(
+      rows
+        .map((row) => row.attachment)
+        .filter((attachment): attachment is NonNullable<typeof attachment> => attachment !== null)
+        .map((attachment) => toWireAttachment(attachment, this.storage)),
+    );
+  }
+
+  /**
    * Builds one user's view of a chat — peer identity/presence, unread
    * count and last-message preview all depend on who's asking, so this
    * can't be cached/shared across members. Used by `listChats` and by
@@ -192,11 +227,12 @@ export class ChatsService {
     const lastMessageRow = await this.prisma.message.findFirst({
       where: { chatId },
       orderBy: { seq: "desc" },
+      include: { attachment: true },
     });
     let lastMessage: ChatListItem["lastMessage"] = null;
     if (lastMessageRow) {
       const status = await resolveMessageStatus(this.prisma, lastMessageRow);
-      lastMessage = toWireMessage(lastMessageRow, status);
+      lastMessage = await toWireMessage(lastMessageRow, status, this.storage);
     }
 
     return {

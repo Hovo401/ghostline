@@ -6,6 +6,7 @@ import type {
 } from "@ghostline/contracts";
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -19,6 +20,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { ChatEventsGateway } from "../realtime/chat-events.gateway";
 import { isOnline } from "../realtime/presence.service";
 import { REDIS_CLIENT } from "../redis/redis.module";
+import { StorageService } from "../storage/storage.service";
 import { UsersService } from "../users/users.service";
 
 import { resolveMessageStatus, toPrismaMessageType, toWireMessage } from "./message.util";
@@ -32,18 +34,12 @@ export class MessagesService {
     private readonly users: UsersService,
     private readonly chats: ChatsService,
     private readonly events: ChatEventsGateway,
+    private readonly storage: StorageService,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
   ) {}
 
-  /** FR-MSG-01/05-08: text-only send — server allocates `seq` atomically per chat. */
+  /** FR-MSG-01/05-08: server allocates `seq` atomically per chat; media types require a `READY` attachment (T-032/F4). */
   async sendMessage(userId: string, dto: SendMessageRequest): Promise<Message> {
-    if (dto.type !== "text") {
-      // TODO(T-032/F4): image/file/voice/video messages need the attachment
-      // pipeline (presigned upload, processing) — reject outright rather
-      // than half-supporting a type nothing can actually populate yet.
-      throw new BadRequestException("only text messages are supported until T-032/F4 lands media");
-    }
-
     const membership = await this.prisma.chatMember.findUnique({
       where: { chatId_userId: { chatId: dto.chatId, userId } },
     });
@@ -51,6 +47,9 @@ export class MessagesService {
       throw new NotFoundException("chat not found");
     }
     await this.assertNotBlockedInChat(dto.chatId, userId);
+
+    const attachmentId =
+      dto.type === "text" ? null : await this.assertUsableAttachment(userId, dto);
 
     let created;
     try {
@@ -72,8 +71,12 @@ export class MessagesService {
             clientMessageId: dto.clientMessageId,
             type: toPrismaMessageType(dto.type),
             text: dto.text ?? null,
+            attachmentId,
+            durationMs: dto.durationMs ?? null,
+            waveform: dto.waveform ?? Prisma.JsonNull,
             replyToId: dto.replyToId ?? null,
           },
+          include: { attachment: true },
         });
         // The sender has trivially "read" and "received" their own
         // message — keeps `unreadCount = chat.lastSeq - lastReadSeq`
@@ -90,7 +93,11 @@ export class MessagesService {
       throw error;
     }
 
-    const wireMessage = toWireMessage(created, await resolveMessageStatus(this.prisma, created));
+    const wireMessage = await toWireMessage(
+      created,
+      await resolveMessageStatus(this.prisma, created),
+      this.storage,
+    );
 
     await this.emitToMembers(dto.chatId, (memberId) =>
       this.events.server.to(`user:${memberId}`).emit("message:new", wireMessage),
@@ -117,8 +124,13 @@ export class MessagesService {
     const updated = await this.prisma.message.update({
       where: { id: messageId },
       data: { text, editedAt: new Date() },
+      include: { attachment: true },
     });
-    const wireMessage = toWireMessage(updated, await resolveMessageStatus(this.prisma, updated));
+    const wireMessage = await toWireMessage(
+      updated,
+      await resolveMessageStatus(this.prisma, updated),
+      this.storage,
+    );
 
     await this.emitToMembers(updated.chatId, (memberId) =>
       this.events.server.to(`user:${memberId}`).emit("message:updated", wireMessage),
@@ -166,17 +178,43 @@ export class MessagesService {
       where,
       orderBy: { seq: catchingUp ? "asc" : "desc" },
       take: HISTORY_PAGE_SIZE,
+      include: { attachment: true },
     });
     // Paging backwards fetches newest-first for a correct `LIMIT`, then
     // flips to chronological order for the client.
     const ordered = catchingUp ? rows : rows.slice().reverse();
 
     const messages = await Promise.all(
-      ordered.map(async (row) => toWireMessage(row, await resolveMessageStatus(this.prisma, row))),
+      ordered.map(async (row) =>
+        toWireMessage(row, await resolveMessageStatus(this.prisma, row), this.storage),
+      ),
     );
 
     await this.markDelivered(query.chatId, userId, messages);
     return messages;
+  }
+
+  /**
+   * FR-MSG-01/T-032: media messages carry an `attachmentId` the client got
+   * from `POST /attachments/presign` + `.../complete` — this is the only
+   * place that trusts it belongs to the sender and finished uploading.
+   * 404 for "doesn't exist or isn't yours" (no existence leak), 409 for
+   * "exists, is yours, but the upload/processing hasn't finished".
+   */
+  private async assertUsableAttachment(userId: string, dto: SendMessageRequest): Promise<string> {
+    if (!dto.attachmentId) {
+      throw new BadRequestException("media messages need an attachmentId");
+    }
+    const attachment = await this.prisma.attachment.findUnique({
+      where: { id: dto.attachmentId },
+    });
+    if (attachment?.uploaderId !== userId) {
+      throw new NotFoundException("attachment not found");
+    }
+    if (attachment.status !== "READY") {
+      throw new ConflictException("attachment is not ready yet");
+    }
+    return attachment.id;
   }
 
   private async assertNotBlockedInChat(chatId: string, userId: string): Promise<void> {
@@ -200,9 +238,10 @@ export class MessagesService {
 
     const existing = await this.prisma.message.findUnique({
       where: { senderId_clientMessageId: { senderId, clientMessageId } },
+      include: { attachment: true },
     });
     if (!existing) return null;
-    return toWireMessage(existing, await resolveMessageStatus(this.prisma, existing));
+    return toWireMessage(existing, await resolveMessageStatus(this.prisma, existing), this.storage);
   }
 
   private async emitToMembers(chatId: string, emit: (userId: string) => void): Promise<void> {

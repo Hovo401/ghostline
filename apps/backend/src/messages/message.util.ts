@@ -1,8 +1,14 @@
 import type { Message, MessageStatus, MessageType } from "@ghostline/contracts";
-import type { Message as PrismaMessage, MessageType as PrismaMessageType } from "@prisma/client";
+import type {
+  Attachment as PrismaAttachment,
+  Message as PrismaMessage,
+  MessageType as PrismaMessageType,
+} from "@prisma/client";
 
+import { toWireAttachment } from "../attachments/attachment.util";
 import { isMutuallyVisible } from "../common/visibility.util";
 import type { PrismaService } from "../prisma/prisma.service";
+import type { StorageService } from "../storage/storage.service";
 
 /**
  * Pure helpers for building the wire `Message` shape and computing its
@@ -111,7 +117,14 @@ export async function resolveMessageStatus(
   });
 }
 
-export function toWireMessage(message: PrismaMessage, status: MessageStatus): Message {
+/** A `Message` row as returned once every query site adds `include: { attachment: true }`. */
+export type PrismaMessageWithAttachment = PrismaMessage & { attachment: PrismaAttachment | null };
+
+export async function toWireMessage(
+  message: PrismaMessageWithAttachment,
+  status: MessageStatus,
+  storage: StorageService,
+): Promise<Message> {
   return {
     id: message.id,
     chatId: message.chatId,
@@ -121,6 +134,7 @@ export function toWireMessage(message: PrismaMessage, status: MessageStatus): Me
     type: toWireMessageType(message.type),
     text: message.text,
     attachmentId: message.attachmentId,
+    attachment: message.attachment ? await toWireAttachment(message.attachment, storage) : null,
     durationMs: message.durationMs,
     waveform: message.waveform as number[] | null,
     replyToId: message.replyToId,

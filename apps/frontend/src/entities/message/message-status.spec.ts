@@ -13,6 +13,7 @@ function makeMessage(overrides: Partial<ChatMessage>): ChatMessage {
     type: "text",
     text: "hi",
     attachmentId: null,
+    attachment: null,
     durationMs: null,
     waveform: null,
     replyToId: null,

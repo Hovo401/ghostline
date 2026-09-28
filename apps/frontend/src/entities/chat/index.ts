@@ -1,6 +1,7 @@
 export * from "./chat.types";
 export * from "./chat-cache";
 export * from "./use-chats";
+export * from "./use-chat-media";
 export * from "./use-open-direct-chat";
 export * from "./use-mute-chat";
 export * from "./use-mark-chat-read";

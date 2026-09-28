@@ -1,5 +1,5 @@
 import type { ChatListItem } from "../../entities/chat";
-import type { MessageType } from "../../entities/message";
+import { formatDuration, type Message } from "../../entities/message";
 
 /** `Избранное` (Saved Messages) has no `peer` — REQUIREMENTS.md §5.4. */
 export function chatDisplayName(chat: ChatListItem): string {
@@ -15,16 +15,20 @@ export function formatChatTime(iso: string): string {
   return date.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
 }
 
-function previewForType(type: MessageType): string {
-  switch (type) {
+function previewForType(message: Message): string {
+  switch (message.type) {
     case "image":
       return "Фото";
     case "file":
-      return "Файл";
+      return message.attachment?.name ? `Файл · ${message.attachment.name}` : "Файл";
     case "voice":
-      return "Голосовое сообщение";
+      return message.durationMs != null
+        ? `Голосовое · ${formatDuration(message.durationMs)}`
+        : "Голосовое";
     case "video":
-      return "Видеосообщение";
+      return message.durationMs != null
+        ? `Видео · ${formatDuration(message.durationMs)}`
+        : "Видеосообщение";
     case "text":
     default:
       return "";
@@ -32,12 +36,12 @@ function previewForType(type: MessageType): string {
 }
 
 /** `Вы: …` / `Олег: …` preview line — DESIGN-BRIEF.md §7.2. Media types get
- * a placeholder label until F4 renders the real bubble. */
+ * a type/duration/name label instead of the raw text (F4). */
 export function chatPreview(chat: ChatListItem, currentUserId: string | null): string {
   const last = chat.lastMessage;
   if (!last) return "";
   if (last.deletedAt) return "Сообщение удалено";
-  const text = last.type === "text" ? (last.text ?? "") : previewForType(last.type);
+  const text = last.type === "text" ? (last.text ?? "") : previewForType(last);
   const mine = last.senderId !== null && last.senderId === currentUserId;
   return mine ? `Вы: ${text}` : text;
 }

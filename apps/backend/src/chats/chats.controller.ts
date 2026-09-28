@@ -1,4 +1,4 @@
-import type { ChatListItem } from "@ghostline/contracts";
+import type { ChatListItem, ChatMediaResponse } from "@ghostline/contracts";
 import {
   Controller,
   Get,
@@ -52,5 +52,13 @@ export class ChatsController {
     @Body() dto: MuteChatDto,
   ): Promise<void> {
     return this.chatsService.setMuted(userId, chatId, dto.muted);
+  }
+
+  @Get(":id/media")
+  listMedia(
+    @CurrentUserId() userId: string,
+    @Param("id", ParseUUIDPipe) chatId: string,
+  ): Promise<ChatMediaResponse> {
+    return this.chatsService.listMedia(chatId, userId);
   }
 }

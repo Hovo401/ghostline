@@ -15,6 +15,7 @@ function makeMessage(overrides: Partial<Message>): Message {
     type: "text",
     text: "Привет",
     attachmentId: null,
+    attachment: null,
     durationMs: null,
     waveform: null,
     replyToId: null,
@@ -73,10 +74,55 @@ describe("chatPreview", () => {
     expect(chatPreview(chat, "me")).toBe("Сообщение удалено");
   });
 
-  it("labels non-text messages by type", () => {
+  it("shows a plain label for a photo", () => {
     const chat = makeChat({
-      lastMessage: makeMessage({ senderId: "peer-1", type: "voice", text: null }),
+      lastMessage: makeMessage({ senderId: "peer-1", type: "image", text: null }),
     });
-    expect(chatPreview(chat, "me")).toBe("Голосовое сообщение");
+    expect(chatPreview(chat, "me")).toBe("Фото");
+  });
+
+  it("shows the file name for a file attachment", () => {
+    const chat = makeChat({
+      lastMessage: makeMessage({
+        senderId: "peer-1",
+        type: "file",
+        text: null,
+        attachment: {
+          id: "a1",
+          key: "k",
+          mime: "application/pdf",
+          size: 100,
+          width: null,
+          height: null,
+          name: "report.pdf",
+          url: "https://s3.example/report.pdf",
+        },
+      }),
+    });
+    expect(chatPreview(chat, "me")).toBe("Файл · report.pdf");
+  });
+
+  it("shows the duration for a voice message", () => {
+    const chat = makeChat({
+      lastMessage: makeMessage({
+        senderId: "peer-1",
+        type: "voice",
+        text: null,
+        durationMs: 12_000,
+      }),
+    });
+    expect(chatPreview(chat, "me")).toBe("Голосовое · 0:12");
+  });
+
+  it("shows the duration for a video note", () => {
+    const chat = makeChat({
+      lastMessage: makeMessage({
+        senderId: "peer-1",
+        type: "video",
+        text: null,
+        durationMs: 5_000,
+      }),
+    });
+    expect(chatPreview(chat, "me")).toBe("Видео · 0:05");
   });
 });
