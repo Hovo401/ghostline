@@ -1,18 +1,5 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [{ "type": "command", "command": "node .claude/hooks/format-file.mjs" }]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [{ "type": "command", "command": "node .claude/hooks/check-changed.mjs" }]
-      }
-    ]
-  },
   "permissions": {
     "allow": [
       "Bash(pnpm *)",
@@ -24,7 +11,15 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git branch *)",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(curl -s http://localhost:5173/dev/ui)",
+      "mcp__playwright__browser_resize",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_run_code_unsafe",
+      "mcp__playwright__browser_console_messages"
     ],
     "deny": [
       "Read(**/node_modules/**)",
@@ -47,6 +42,29 @@
       "Edit(apps/frontend/src/routeTree.gen.ts)",
       "Bash(git push --force*)",
       "Bash(git reset --hard*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/format-file.mjs"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-changed.mjs"
+          }
+        ]
+      }
     ]
   }
 }
