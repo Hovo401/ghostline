@@ -37,6 +37,14 @@
   --gl-font: "Geologica", ui-sans-serif, system-ui, sans-serif;
   --gl-fs: 15px;
   --gl-bubble-r: 18px;
+
+  /* Utility colors (DESIGN-BRIEF §2.4) — fixed across every theme, unlike
+   * the bg/fg/accent axes above, so they live once here rather than
+   * repeated in each src/themes/*.css file: errors, the recording dot,
+   * "Заблокировать", a taken username (`danger`); the "medium" step of the
+   * password strength meter (`warning`). */
+  --gl-danger: #e5484d;
+  --gl-warning: #e8a23b;
 }
 [data-font="mono"] {
   --gl-font: "JetBrains Mono", ui-monospace, monospace;
@@ -75,6 +83,8 @@
   --color-ink: var(--gl-ink);
   --color-avatar: var(--gl-avatar);
   --color-avatar-fg: var(--gl-avatar-fg);
+  --color-danger: var(--gl-danger);
+  --color-warning: var(--gl-warning);
 
   --radius-bubble: var(--gl-bubble-r);
   --text-msg: var(--gl-fs);

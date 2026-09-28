@@ -30,6 +30,11 @@ export const UpdateMeRequestSchema = z.object({
 });
 export type UpdateMeRequest = z.infer<typeof UpdateMeRequestSchema>;
 
+export const UserSearchQuerySchema = z.object({
+  q: z.string().min(1).max(64),
+});
+export type UserSearchQuery = z.infer<typeof UserSearchQuerySchema>;
+
 export const UserSearchResponseSchema = z.array(UserPublicProfileSchema);
 export type UserSearchResponse = z.infer<typeof UserSearchResponseSchema>;
 
@@ -37,3 +42,12 @@ export const UsernameAvailabilityResponseSchema = z.object({
   available: z.boolean(),
 });
 export type UsernameAvailabilityResponse = z.infer<typeof UsernameAvailabilityResponseSchema>;
+
+export const UsernameAvailabilityQuerySchema = z.object({
+  username: z
+    .string()
+    .min(3)
+    .max(32)
+    .regex(/^[a-z0-9_]+$/),
+});
+export type UsernameAvailabilityQuery = z.infer<typeof UsernameAvailabilityQuerySchema>;

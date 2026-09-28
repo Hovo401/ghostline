@@ -1,16 +1,19 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+
+import { ensureSession } from "../entities/session";
+import { Chat } from "../features/chat";
+import { useSessionStore } from "../shared/api/session-store";
 
 // Messenger shell (REQUIREMENTS.md §4/§5.4-§5.6, DESIGN-BRIEF.md §7.2).
-// Chat list / conversation / composer are their own features under
-// src/features once auth exists to protect this route.
 export const Route = createFileRoute("/app")({
-  component: MessengerShell,
+  beforeLoad: async () => {
+    await ensureSession();
+    if (useSessionStore.getState().status !== "authenticated") {
+      // TanStack Router's redirect() is meant to be thrown from `beforeLoad`
+      // — it's a plain routing signal, not an Error subclass.
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      throw redirect({ to: "/login" });
+    }
+  },
+  component: Chat,
 });
-
-function MessengerShell() {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-bg2 text-fg">
-      <p className="font-mono text-sm text-mute">// мессенджер — TODO</p>
-    </main>
-  );
-}

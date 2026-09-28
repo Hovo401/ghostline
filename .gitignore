@@ -33,3 +33,4 @@ apps/frontend/src/routeTree.gen.ts
 
 # misc
 *.local
+.playwright-mcp/

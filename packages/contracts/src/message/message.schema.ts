@@ -24,6 +24,24 @@ export const SendMessageRequestSchema = z
   });
 export type SendMessageRequest = z.infer<typeof SendMessageRequestSchema>;
 
+/** `PATCH /messages/:id` body — text messages only (media is edited by re-sending, F4). */
+export const EditMessageRequestSchema = z.object({
+  text: z.string().min(1).max(4000),
+});
+export type EditMessageRequest = z.infer<typeof EditMessageRequestSchema>;
+
+/**
+ * `GET /messages` query — `beforeSeq` pages older history (scroll-up),
+ * `afterSeq` catches up on reconnect (REQUIREMENTS.md §7.5 / T-015). Passing
+ * both is not meaningful; callers pick one direction per request.
+ */
+export const ListMessagesQuerySchema = z.object({
+  chatId: z.string().uuid(),
+  beforeSeq: z.coerce.bigint().optional(),
+  afterSeq: z.coerce.bigint().optional(),
+});
+export type ListMessagesQuery = z.infer<typeof ListMessagesQuerySchema>;
+
 export const MessageSchema = z.object({
   id: z.string().uuid(),
   chatId: z.string().uuid(),

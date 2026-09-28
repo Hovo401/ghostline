@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import "./common/bigint-json";
 import { NestFactory } from "@nestjs/core";
 import helmet from "helmet";
 import type Redis from "ioredis";

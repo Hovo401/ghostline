@@ -1,5 +1,13 @@
-import type { InputHTMLAttributes } from "react";
+import type { InputHTMLAttributes, ReactNode } from "react";
 import { forwardRef } from "react";
+
+// Hint color — mute by default, accent/danger for live validation states
+// like username availability (DESIGN-BRIEF §7.1: "@имя свободно" / "уже занято").
+const HINT_TONE_CLASS = {
+  mute: "text-mute",
+  accent: "text-accent-text",
+  danger: "text-danger",
+} as const;
 
 /**
  * Text input — DESIGN-BRIEF §4: height 50–52px, radius 12px, `panel`
@@ -7,11 +15,14 @@ import { forwardRef } from "react";
  */
 export interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
-  hint?: string;
+  /** Usually a short string, but accepts markup for composite hints like
+   * the password strength meter (segments + label). */
+  hint?: ReactNode;
+  hintTone?: keyof typeof HINT_TONE_CLASS;
 }
 
 export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextField(
-  { label, hint, id, className, ...props },
+  { label, hint, hintTone = "mute", id, className, ...props },
   ref,
 ) {
   const inputId = id ?? props.name;
@@ -34,7 +45,9 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function T
           .join(" ")}
         {...props}
       />
-      {hint && <span className="font-mono text-xs text-mute">{hint}</span>}
+      {hint && (
+        <div className={["font-mono text-xs", HINT_TONE_CLASS[hintTone]].join(" ")}>{hint}</div>
+      )}
     </div>
   );
 });

@@ -1,7 +1,107 @@
-export * from "./health/health.schema";
-export * from "./auth/auth.schema";
-export * from "./user/user.schema";
-export * from "./chat/chat.schema";
-export * from "./message/message.schema";
-export * from "./attachment/attachment.schema";
-export * from "./ws/events.schema";
+// Named re-exports only — no `export * from` here. `tsc` compiles a wildcard
+// re-export to a runtime `__exportStar` helper under CommonJS, which
+// Rollup's production build (apps/frontend's `vite build`) cannot statically
+// resolve into named exports (it only recognizes direct
+// `Object.defineProperty(exports, "Name", ...)` bindings, which is what an
+// explicit `export { Name } from "..."` compiles to). Add new exports here by
+// name, in both the value and the `export type` list for that module.
+
+export { HealthCheckStatusSchema, HealthResponseSchema } from "./health/health.schema";
+export type { HealthCheckStatus, HealthResponse } from "./health/health.schema";
+
+export {
+  RegisterRequestSchema,
+  LoginRequestSchema,
+  AuthTokenResponseSchema,
+  MeResponseSchema,
+} from "./auth/auth.schema";
+export type {
+  RegisterRequest,
+  LoginRequest,
+  AuthTokenResponse,
+  MeResponse,
+} from "./auth/auth.schema";
+
+export {
+  UserPublicProfileSchema,
+  UpdateMeRequestSchema,
+  UserSearchQuerySchema,
+  UserSearchResponseSchema,
+  UsernameAvailabilityResponseSchema,
+  UsernameAvailabilityQuerySchema,
+} from "./user/user.schema";
+export type {
+  UserPublicProfile,
+  UpdateMeRequest,
+  UserSearchQuery,
+  UserSearchResponse,
+  UsernameAvailabilityResponse,
+  UsernameAvailabilityQuery,
+} from "./user/user.schema";
+
+export {
+  ChatTypeSchema,
+  ChatListItemSchema,
+  OpenDirectRequestSchema,
+  MuteChatRequestSchema,
+  MarkReadRequestSchema,
+} from "./chat/chat.schema";
+export type {
+  ChatType,
+  ChatListItem,
+  OpenDirectRequest,
+  MuteChatRequest,
+  MarkReadRequest,
+} from "./chat/chat.schema";
+
+export {
+  MessageTypeSchema,
+  MessageStatusSchema,
+  SendMessageRequestSchema,
+  EditMessageRequestSchema,
+  ListMessagesQuerySchema,
+  MessageSchema,
+} from "./message/message.schema";
+export type {
+  MessageType,
+  MessageStatus,
+  SendMessageRequest,
+  EditMessageRequest,
+  ListMessagesQuery,
+  Message,
+} from "./message/message.schema";
+
+export {
+  AttachmentKindSchema,
+  PresignUploadRequestSchema,
+  PresignUploadResponseSchema,
+  CompleteUploadRequestSchema,
+  AttachmentSchema,
+} from "./attachment/attachment.schema";
+export type {
+  AttachmentKind,
+  PresignUploadRequest,
+  PresignUploadResponse,
+  CompleteUploadRequest,
+  Attachment,
+} from "./attachment/attachment.schema";
+
+export {
+  typingClientPayloadSchema,
+  typingServerPayloadSchema,
+  presencePayloadSchema,
+  readUpdatedPayloadSchema,
+  chatRemovedPayloadSchema,
+  messageDeletedPayloadSchema,
+} from "./ws/events.schema";
+export type {
+  TypingAction,
+  TypingClientPayload,
+  TypingServerPayload,
+  PresencePayload,
+  ReadUpdatedPayload,
+  ChatRemovedPayload,
+  MessageDeletedPayload,
+  ServerToClientEvents,
+  ClientToServerEvents,
+} from "./ws/events.schema";

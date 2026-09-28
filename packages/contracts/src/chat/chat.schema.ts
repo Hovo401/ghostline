@@ -30,3 +30,14 @@ export const OpenDirectRequestSchema = z.object({
   userId: z.string().uuid(),
 });
 export type OpenDirectRequest = z.infer<typeof OpenDirectRequestSchema>;
+
+export const MuteChatRequestSchema = z.object({
+  muted: z.boolean(),
+});
+export type MuteChatRequest = z.infer<typeof MuteChatRequestSchema>;
+
+/** `POST /chats/:id/read` body. Omit `upToSeq` to mark the whole chat read. */
+export const MarkReadRequestSchema = z.object({
+  upToSeq: z.coerce.bigint().optional(),
+});
+export type MarkReadRequest = z.infer<typeof MarkReadRequestSchema>;
