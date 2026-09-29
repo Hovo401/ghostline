@@ -73,7 +73,7 @@ export function ChatListPanel({ className }: { className?: string }) {
       <div className="flex border-t border-line px-2 pt-2 pb-6 md:hidden">
         <button
           type="button"
-          className="flex flex-1 flex-col items-center justify-center gap-0.5 py-3 text-xs text-fg"
+          className="flex flex-1 flex-col items-center justify-center gap-0.5 py-3 text-xs text-accent-text"
         >
           <span aria-hidden className="font-mono text-base">
             {(chats ?? []).some((c) => c.unreadCount > 0) ? "◉" : "○"}

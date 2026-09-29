@@ -4,11 +4,35 @@ import { describe, expect, it, vi } from "vitest";
 
 import { TokenService } from "../auth/token.service";
 import { AppConfigService } from "../config/app-config.service";
+import { PrismaService } from "../prisma/prisma.service";
 
 import { PresenceService } from "./presence.service";
 import { RealtimeGateway } from "./realtime.gateway";
 
-async function buildGateway() {
+/** In-memory stand-in for the `ChatMember` rows `handleTyping` looks up. */
+function createFakePrisma(membersByChat: Record<string, string[]>) {
+  return {
+    chatMember: {
+      findMany: ({ where }: { where: { chatId: string } }) =>
+        Promise.resolve((membersByChat[where.chatId] ?? []).map((userId) => ({ userId }))),
+    },
+  };
+}
+
+/** Captures every `server.to(room).emit(event, payload)` call the gateway makes. */
+function createFakeServer() {
+  const emitted: { room: string; event: string; payload: unknown }[] = [];
+  return {
+    emitted,
+    server: {
+      to: (room: string) => ({
+        emit: (event: string, payload: unknown) => emitted.push({ room, event, payload }),
+      }),
+    },
+  };
+}
+
+async function buildGateway(prisma: Record<string, unknown> = createFakePrisma({})) {
   const fakeConfig = {
     jwt: { accessSecret: "a".repeat(32), refreshSecret: "b".repeat(32) },
   } as AppConfigService;
@@ -23,6 +47,7 @@ async function buildGateway() {
       JwtService,
       { provide: AppConfigService, useValue: fakeConfig },
       { provide: PresenceService, useValue: fakePresence },
+      { provide: PrismaService, useValue: prisma },
     ],
   }).compile();
 
@@ -33,15 +58,12 @@ async function buildGateway() {
 }
 
 function fakeSocket(token: unknown) {
-  const roomEmit = vi.fn();
   return {
     id: "socket-1",
     handshake: { auth: { token } },
     data: {} as { userId?: string },
     disconnect: vi.fn(),
     join: vi.fn().mockResolvedValue(undefined),
-    broadcast: { to: vi.fn().mockReturnValue({ emit: roomEmit }) },
-    roomEmit,
   };
 }
 
@@ -81,21 +103,51 @@ describe("RealtimeGateway", () => {
   });
 
   describe("handleTyping", () => {
-    it("broadcasts with the socket's authenticated userId, not an empty one", async () => {
-      const { gateway, tokens } = await buildGateway();
+    const chatId = "11111111-1111-1111-1111-111111111111";
+
+    it("relays to each other member's own room, not a room named by chatId", async () => {
+      const prisma = createFakePrisma({ [chatId]: ["user-42", "user-7", "user-9"] });
+      const { gateway, tokens } = await buildGateway(prisma);
+      const { server, emitted } = createFakeServer();
+      gateway.server = server as never;
+
       const token = tokens.signAccessToken("user-42");
       const socket = fakeSocket(token);
       gateway.handleConnection(socket as never);
 
-      const chatId = "11111111-1111-1111-1111-111111111111";
-      gateway.handleTyping({ chatId, action: "typing" }, socket as never);
+      await gateway.handleTyping({ chatId, action: "typing" }, socket as never);
 
-      expect(socket.broadcast.to).toHaveBeenCalledWith(chatId);
-      expect(socket.roomEmit).toHaveBeenCalledWith("typing", {
-        chatId,
-        action: "typing",
-        userId: "user-42",
-      });
+      expect(emitted).toEqual([
+        {
+          room: "user:user-7",
+          event: "typing",
+          payload: { chatId, action: "typing", userId: "user-42" },
+        },
+        {
+          room: "user:user-9",
+          event: "typing",
+          payload: { chatId, action: "typing", userId: "user-42" },
+        },
+      ]);
+      // Never re-notifies the sender's own room, and never a bare-chatId room.
+      expect(emitted.some((e) => e.room === "user:user-42" || e.room === chatId)).toBe(false);
+    });
+
+    it("silently drops the event when the sender isn't a member of that chat", async () => {
+      const prisma = createFakePrisma({ [chatId]: ["user-7", "user-9"] });
+      const { gateway, tokens } = await buildGateway(prisma);
+      const { server, emitted } = createFakeServer();
+      gateway.server = server as never;
+
+      const token = tokens.signAccessToken("user-42");
+      const socket = fakeSocket(token);
+      gateway.handleConnection(socket as never);
+
+      await expect(
+        gateway.handleTyping({ chatId, action: "typing" }, socket as never),
+      ).resolves.toBeUndefined();
+
+      expect(emitted).toEqual([]);
     });
   });
 });

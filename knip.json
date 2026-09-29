@@ -16,6 +16,8 @@
       "ignoreDependencies": [
         "@fontsource/geologica",
         "@fontsource/jetbrains-mono",
+        "@fontsource/pixelify-sans",
+        "@fontsource/pt-serif",
         "tailwindcss",
         "@ghostline/contracts",
         "socket.io-client"

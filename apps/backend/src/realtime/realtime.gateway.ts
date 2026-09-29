@@ -13,6 +13,7 @@ import {
 import type { DefaultEventsMap, Server, Socket } from "socket.io";
 
 import { TokenService } from "../auth/token.service";
+import { PrismaService } from "../prisma/prisma.service";
 
 import { PresenceService } from "./presence.service";
 
@@ -45,6 +46,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   constructor(
     private readonly tokens: TokenService,
     private readonly presence: PresenceService,
+    private readonly prisma: PrismaService,
   ) {}
 
   handleConnection(client: GatewaySocket): void {
@@ -85,9 +87,33 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     }
   }
 
+  /**
+   * No socket ever joins a room named by `chatId` (only `user:${userId}`,
+   * see `handleConnection`) — relay to each other member's own room
+   * instead, the same pattern `MessagesService.emitToMembers` uses. This
+   * also doubles as the membership check every other chat-scoped mutation
+   * has (chats.service.ts, messages.service.ts): a stale/malicious
+   * `chatId` the sender isn't a member of is silently dropped, not thrown.
+   */
   @SubscribeMessage("typing")
-  handleTyping(@MessageBody() body: unknown, @ConnectedSocket() client: GatewaySocket): void {
+  async handleTyping(
+    @MessageBody() body: unknown,
+    @ConnectedSocket() client: GatewaySocket,
+  ): Promise<void> {
     const payload = typingClientPayloadSchema.parse(body);
-    client.broadcast.to(payload.chatId).emit("typing", { ...payload, userId: client.data.userId });
+    const userId = client.data.userId;
+
+    const members = await this.prisma.chatMember.findMany({
+      where: { chatId: payload.chatId },
+      select: { userId: true },
+    });
+    if (!members.some((member) => member.userId === userId)) {
+      return;
+    }
+
+    for (const member of members) {
+      if (member.userId === userId) continue;
+      this.server.to(`user:${member.userId}`).emit("typing", { ...payload, userId });
+    }
   }
 }
