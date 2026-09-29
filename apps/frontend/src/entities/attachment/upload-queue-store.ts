@@ -3,6 +3,7 @@ import { create } from "zustand";
 
 import { apiFetch } from "../../shared/api/http-client";
 
+import { isCacheableMedia, putCachedMedia } from "./media-cache";
 import { uploadAttachment } from "./upload-attachment";
 
 export type UploadStatus = "uploading" | "finalizing" | "failed";
@@ -122,6 +123,12 @@ async function runUpload(clientMessageId: string): Promise<void> {
         });
       },
     });
+
+    // The sender already has the bytes — cache them so their own media
+    // never downloads again (docs/adr/0013).
+    if (isCacheableMedia(attachment.mime, entry.file.size)) {
+      await putCachedMedia(attachment.id, entry.file);
+    }
 
     // The upload succeeded — hand off to the caller (sends the actual
     // message), wait for that to land in the message cache, then drop the

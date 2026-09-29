@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { getSocketClient } from "../../shared/api/socket-client";
 import { useCurrentUserId } from "../user/use-current-user-id";
 
+import { useFreshMessageStore } from "./fresh-message-store";
 import { markReadUpTo, removeMessage, upsertMessage } from "./message-cache";
 import type { ChatMessage } from "./message.types";
 
@@ -22,6 +23,10 @@ export function useMessageRealtime(): void {
     const handleNewOrUpdated = (message: ChatMessage): void => {
       upsertMessage(queryClient, message.chatId, message);
     };
+    const handleNew = (message: ChatMessage): void => {
+      if (message.attachment) useFreshMessageStore.getState().mark(message.id);
+      handleNewOrUpdated(message);
+    };
     const handleDeleted = (payload: MessageDeletedPayload): void => {
       removeMessage(queryClient, payload.chatId, payload.messageId);
     };
@@ -29,12 +34,12 @@ export function useMessageRealtime(): void {
       markReadUpTo(queryClient, payload.chatId, payload.userId, currentUserId, payload.lastReadSeq);
     };
 
-    socket.on("message:new", handleNewOrUpdated);
+    socket.on("message:new", handleNew);
     socket.on("message:updated", handleNewOrUpdated);
     socket.on("message:deleted", handleDeleted);
     socket.on("read:updated", handleReadUpdated);
     return () => {
-      socket.off("message:new", handleNewOrUpdated);
+      socket.off("message:new", handleNew);
       socket.off("message:updated", handleNewOrUpdated);
       socket.off("message:deleted", handleDeleted);
       socket.off("read:updated", handleReadUpdated);

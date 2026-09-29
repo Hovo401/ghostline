@@ -43,13 +43,14 @@ describe("MediaViewer", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("renders the dialog with the current image and a 1-based counter", () => {
+  it("renders the dialog with the current image and a 1-based counter", async () => {
     useMediaViewerStore.getState().open(items, 1);
     render(<MediaViewer />);
 
     expect(screen.getByRole("dialog", { name: "Просмотр изображения" })).toBeInTheDocument();
     expect(screen.getByText("2 / 3")).toBeInTheDocument();
-    expect(screen.getByRole("img")).toHaveAttribute("src", items[1]?.url);
+    // Not in the media cache (jsdom has no Cache Storage) → the plain URL.
+    expect(await screen.findByRole("img")).toHaveAttribute("src", items[1]?.url);
   });
 
   it("Escape closes the viewer", () => {

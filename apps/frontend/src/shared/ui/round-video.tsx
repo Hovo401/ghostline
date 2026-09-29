@@ -11,6 +11,9 @@ export interface RoundVideoProps {
   durationMs?: number;
   formatTime: (ms: number) => string;
   autoPlay?: boolean;
+  /** "none" in the chat feed for a remote src — otherwise the browser may
+   * pull every video note in full just by rendering the feed. */
+  preload?: "none" | "metadata" | "auto";
   /** Extra overlay inside the circle (e.g. an upload progress overlay). */
   children?: ReactNode;
 }
@@ -25,6 +28,7 @@ export function RoundVideo({
   durationMs,
   formatTime,
   autoPlay = false,
+  preload = "metadata",
   children,
 }: RoundVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -91,6 +95,7 @@ export function RoundVideo({
           ref={videoRef}
           src={src}
           playsInline
+          preload={preload}
           autoPlay={autoPlay}
           className={[
             "h-full w-full object-cover transition-opacity",

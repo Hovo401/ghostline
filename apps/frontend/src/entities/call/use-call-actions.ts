@@ -5,7 +5,7 @@ import {
   type Call,
   type CallJoin,
 } from "@ghostline/contracts";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
 import { ApiError, apiFetch } from "../../shared/api/http-client";
@@ -164,6 +164,7 @@ export function useCallActions() {
  */
 export function useActiveCallQuery() {
   const applyActiveCall = useCallStore((state) => state.applyActiveCall);
+  const queryClient = useQueryClient();
 
   const query = useQuery<ActiveCall | null>({
     queryKey: CALL_ACTIVE_QUERY_KEY,
@@ -178,7 +179,10 @@ export function useActiveCallQuery() {
   useEffect(() => {
     if (!query.data) return;
     applyActiveCall(query.data);
-  }, [query.data, applyActiveCall]);
+    // One-shot resume signal: consume it, or a later remount of `Chat.tsx`
+    // (e.g. back from Settings) would re-apply this long-ended call.
+    queryClient.setQueryData(CALL_ACTIVE_QUERY_KEY, null);
+  }, [query.data, applyActiveCall, queryClient]);
 
   return query;
 }

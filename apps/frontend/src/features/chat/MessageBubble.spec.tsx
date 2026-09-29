@@ -1,10 +1,22 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { useMediaViewerStore } from "../../entities/attachment";
 import type { ChatMessage } from "../../entities/message";
 
 import { MessageBubble } from "./MessageBubble";
+
+// Photos now render from the media cache (docs/adr/0013) — serve every
+// attachment from it so no spec hits the network.
+vi.mock("../../entities/attachment/media-cache", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  getCachedMedia: () => Promise.resolve(new Blob(["x"], { type: "image/png" })),
+}));
+
+beforeAll(() => {
+  URL.createObjectURL = () => "blob:cached";
+  URL.revokeObjectURL = () => undefined;
+});
 
 function makeMessage(overrides: Partial<ChatMessage>): ChatMessage {
   return {
@@ -34,7 +46,7 @@ afterEach(() => {
 });
 
 describe("MessageBubble", () => {
-  it("renders the real photo for an image message", () => {
+  it("renders the real photo for an image message", async () => {
     const message = makeMessage({
       type: "image",
       text: null,
@@ -59,11 +71,11 @@ describe("MessageBubble", () => {
       />,
     );
 
-    const img = screen.getByRole("img", { name: "photo.png" });
-    expect(img).toHaveAttribute("src", "https://s3.example/photo.png");
+    const img = await screen.findByRole("img", { name: "photo.png" });
+    expect(img).toHaveAttribute("src", "blob:cached");
   });
 
-  it("clicking an image message opens the fullscreen viewer for that message", () => {
+  it("clicking an image message opens the fullscreen viewer for that message", async () => {
     const onOpenImage = vi.fn();
     const message = makeMessage({
       id: "m-photo",
@@ -91,7 +103,7 @@ describe("MessageBubble", () => {
       />,
     );
 
-    screen.getByRole("button", { name: "Открыть фото" }).click();
+    (await screen.findByRole("button", { name: "Открыть фото" })).click();
     expect(onOpenImage).toHaveBeenCalledWith("m-photo");
   });
 

@@ -1,6 +1,12 @@
 import type { CSSProperties } from "react";
 
-import { type Attachment, fileExtension, useMediaViewerStore } from "../../entities/attachment";
+import {
+  type Attachment,
+  fileExtension,
+  shouldAutoDownload,
+  useMediaSource,
+  useMediaViewerStore,
+} from "../../entities/attachment";
 import { type ChatListItem, useChatMedia } from "../../entities/chat";
 import { Avatar } from "../../shared/ui/avatar";
 import { Backdrop } from "../../shared/ui/backdrop";
@@ -25,19 +31,32 @@ function stagger(step: number): CSSProperties {
  * clickable (file/voice/video already play/download inline). */
 function MediaGridItem({ attachment, onOpen }: { attachment: Attachment; onOpen?: () => void }) {
   const isImage = attachment.mime.startsWith("image/");
+  // Same cache + policy as the feed (docs/adr/0013): small photos load as
+  // they scroll into view, big ones stay a plate — tapping opens the viewer.
+  const media = useMediaSource(isImage ? attachment : null, {
+    autoDownload: isImage && shouldAutoDownload("image", attachment, false),
+  });
   if (isImage) {
     return (
       <button
+        ref={media.ref}
         type="button"
         onClick={onOpen}
         aria-label="Открыть фото"
         className="relative flex aspect-square cursor-zoom-in items-end justify-end overflow-hidden rounded-lg bg-panel p-1.5"
       >
-        <img
-          src={attachment.url}
-          alt={attachment.name ?? "Фото"}
-          className="absolute inset-0 h-full w-full object-cover"
-        />
+        {media.src ? (
+          <img
+            src={media.src}
+            alt={attachment.name ?? "Фото"}
+            decoding="async"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : (
+          <span className="relative font-mono text-[10px] text-mute">
+            {fileExtension(attachment.name, attachment.mime)}
+          </span>
+        )}
       </button>
     );
   }

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { downloadAttachment, useMediaViewerStore } from "../../entities/attachment";
+import { downloadAttachment, useMediaSource, useMediaViewerStore } from "../../entities/attachment";
 import { formatDuration } from "../../entities/message";
 import { IconButton } from "../../shared/ui/icon-button";
 import { RoundVideo } from "../../shared/ui/round-video";
@@ -156,6 +156,11 @@ export function MediaViewer() {
     mode === "gallery" ? attachment !== null : mode === "text" && textAttachment !== null;
   const dialogRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  // A copy the chat already cached opens instantly and offline; otherwise
+  // the plain URL — the browser renders/streams it progressively.
+  const cached = useMediaSource(attachment, { autoDownload: false, observe: false });
+  const mediaSrc =
+    cached.status === "checking" ? undefined : (cached.src ?? attachment?.url ?? undefined);
   const { scale, x, y, reset, handlers } = useZoomPan({ onSwipeLeft: next, onSwipeRight: prev });
 
   useEffect(() => {
@@ -266,7 +271,7 @@ export function MediaViewer() {
             >
               <RoundVideo
                 key={current.id}
-                src={current.url}
+                src={mediaSrc}
                 size={Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.8)}
                 formatTime={formatDuration}
                 autoPlay
@@ -276,7 +281,7 @@ export function MediaViewer() {
             <video
               ref={videoRef}
               key={current.id}
-              src={current.url}
+              src={mediaSrc}
               controls
               autoPlay
               playsInline
@@ -287,7 +292,7 @@ export function MediaViewer() {
             />
           ) : (
             <img
-              src={current.url}
+              src={mediaSrc}
               alt={current.name ?? "Фото"}
               draggable={false}
               onClick={(event) => {

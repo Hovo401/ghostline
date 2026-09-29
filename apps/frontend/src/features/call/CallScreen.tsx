@@ -276,7 +276,12 @@ export function CallScreen({ session }: CallScreenProps) {
 
       <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
         {showRemoteVideo ? (
-          <video ref={remoteVideoRef} playsInline autoPlay className="h-full w-full object-cover" />
+          <video
+            ref={remoteVideoRef}
+            playsInline
+            autoPlay
+            className="h-full w-full object-contain"
+          />
         ) : (
           <div className="flex flex-col items-center gap-4">
             <span

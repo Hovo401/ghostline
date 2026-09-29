@@ -249,4 +249,24 @@ describe("useActiveCallQuery", () => {
     });
     expect(useCallStore.getState().call?.id).toBe("55555555-5555-4555-8555-555555555555");
   });
+
+  it("does not re-apply an ended call when remounted (e.g. back from Settings)", async () => {
+    const active = { call: call({ status: "active" }), livekitUrl: "wss://lk", token: "tok" };
+    vi.mocked(apiFetch).mockResolvedValue(active);
+    const { queryClient, unmount } = renderWithClient(() => useActiveCallQuery());
+
+    await waitFor(() => {
+      expect(useCallStore.getState().phase).toBe("connecting");
+    });
+    unmount();
+    useCallStore.setState(RESET_STATE);
+
+    renderHook(() => useActiveCallQuery(), {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      ),
+    });
+    expect(useCallStore.getState().phase).toBe("idle");
+    expect(apiFetch).toHaveBeenCalledTimes(1);
+  });
 });

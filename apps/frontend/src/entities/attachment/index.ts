@@ -1,7 +1,10 @@
 export * from "./attachment.types";
+export * from "./auto-download-policy";
 export * from "./file-extension";
 export * from "./format-file-size";
 export * from "./is-text-previewable";
+export * from "./media-cache";
+export * from "./media-loader";
 export * from "./media-viewer-store";
 export * from "./read-media-dimensions";
 export * from "./read-video-duration";
@@ -11,5 +14,6 @@ export * from "./upload-file";
 export * from "./upload-limits";
 export * from "./upload-queue-store";
 export * from "./use-attachment-actions";
+export * from "./use-media-source";
 export * from "./use-upload-attachment";
 export * from "./validate-files";

@@ -6,12 +6,21 @@ import {
   fileExtension,
   formatFileSize,
   isTextPreviewable,
+  shouldAutoDownload,
+  useMediaSource,
   useMediaViewerStore,
   useUploadQueueStore,
+  type MediaSource,
 } from "../../entities/attachment";
-import { formatDuration, formatMessageMeta, type ChatMessage } from "../../entities/message";
+import {
+  formatDuration,
+  formatMessageMeta,
+  useFreshMessageStore,
+  type ChatMessage,
+} from "../../entities/message";
 import { PhoneIcon, VideoCameraIcon } from "../../shared/ui/call-icons";
 import { PauseIcon, PlayIcon } from "../../shared/ui/media-icons";
+import { MediaBackdrop, MediaPlaceholder } from "../../shared/ui/media-placeholder";
 import { ProgressRing } from "../../shared/ui/progress-ring";
 import { RoundVideo } from "../../shared/ui/round-video";
 import { Scramble } from "../../shared/ui/scramble";
@@ -133,6 +142,30 @@ function UploadOverlay({ clientMessageId }: { clientMessageId: string }) {
   );
 }
 
+/** Cache → auto-download policy → `useMediaSource` for one media bubble
+ * (docs/adr/0013). A message that just arrived over the socket loads first. */
+function useBubbleMedia(message: ChatMessage): MediaSource {
+  const attachment = message.attachment;
+  const isFresh = useFreshMessageStore((state) => state.ids[message.id] === true);
+  return useMediaSource(attachment, {
+    autoDownload: !!attachment && shouldAutoDownload(message.type, attachment, isFresh),
+    priority: isFresh ? "high" : "low",
+  });
+}
+
+function placeholderProps(media: MediaSource) {
+  return {
+    status: media.status === "ready" ? ("checking" as const) : media.status,
+    percent: media.total > 0 ? (media.loaded / media.total) * 100 : 0,
+    label:
+      media.status === "loading"
+        ? `${formatFileSize(media.loaded)} / ${formatFileSize(media.total)}`
+        : formatFileSize(media.total),
+    onStart: media.start,
+    onCancel: media.cancel,
+  };
+}
+
 /** DESIGN-BRIEF.md §7.2: 300px 4:3 card, real photo, optional caption.
  * Clickable — opens the fullscreen viewer (T-033) on the feed's gallery at
  * this message's photo. Shows the local `previewUrl` from the upload queue
@@ -148,15 +181,18 @@ function ImageBubble({
 }) {
   const attachment = message.attachment;
   const queueEntry = useUploadQueueStore((state) => state.entries[message.clientMessageId]);
-  const src = attachment?.url ?? queueEntry?.previewUrl;
+  const media = useBubbleMedia(message);
+  const src = media.src ?? queueEntry?.previewUrl;
   return (
     <div
+      ref={media.ref}
       className={[
         "relative w-[300px] max-w-[82%] overflow-hidden rounded-bubble",
         isOwn ? "[background:var(--color-accent)] text-ink" : "border border-line bg-in text-fg",
       ].join(" ")}
     >
-      <div className="aspect-[4/3] bg-bg2">
+      <div className="relative aspect-[4/3] bg-bg2">
+        {!src && attachment && <MediaPlaceholder {...placeholderProps(media)} />}
         {src && (
           <button
             type="button"
@@ -172,6 +208,7 @@ function ImageBubble({
             <img
               src={src}
               alt={attachment?.name ?? "Фото"}
+              decoding="async"
               className="block h-full w-full object-cover"
             />
           </button>
@@ -199,8 +236,17 @@ function VideoBubble({
 }) {
   const attachment = message.attachment;
   const queueEntry = useUploadQueueStore((state) => state.entries[message.clientMessageId]);
-  const src = attachment?.url ?? queueEntry?.previewUrl;
+  // Never auto-downloaded: only a local/cached copy gets a poster frame,
+  // otherwise a plate — the viewer streams it on tap (docs/adr/0013).
+  const media = useMediaSource(attachment, { autoDownload: false, observe: false });
+  const src = media.src ?? queueEntry?.previewUrl;
   const durationMs = message.durationMs ?? 0;
+  const badge = [
+    durationMs > 0 ? formatDuration(durationMs) : null,
+    !src && attachment ? formatFileSize(attachment.size) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div
@@ -216,7 +262,7 @@ function VideoBubble({
         }}
         aria-label="Открыть видео"
         className={[
-          "relative block aspect-[4/3] w-full bg-bg2",
+          "group relative block aspect-[4/3] w-full overflow-hidden bg-bg2",
           attachment ? "cursor-pointer" : "cursor-default",
         ].join(" ")}
       >
@@ -231,20 +277,34 @@ function VideoBubble({
             className="block h-full w-full object-cover"
           />
         )}
+        {!src && attachment && (
+          <>
+            <MediaBackdrop icon="video" />
+            <span
+              aria-hidden
+              className="absolute top-2.5 left-2.5 rounded-md bg-black/55 px-2 py-0.5 font-mono text-[10.5px] font-medium tracking-wide text-white backdrop-blur-sm"
+            >
+              {fileExtension(attachment.name, attachment.mime)}
+            </span>
+          </>
+        )}
         {attachment && (
           <span
             aria-hidden
-            className="absolute top-1/2 left-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white"
+            className={[
+              "absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full transition-transform group-hover:scale-105 [&>svg]:h-5 [&>svg]:w-5",
+              src ? "h-12 w-12 bg-black/55 text-white" : "h-14 w-14 bg-accent text-ink shadow-glow",
+            ].join(" ")}
           >
             <PlayIcon />
           </span>
         )}
-        {durationMs > 0 && (
+        {badge && (
           <span
             aria-hidden
-            className="absolute right-2 bottom-2 rounded-full bg-black/60 px-2 py-0.5 font-mono text-[11px] text-white"
+            className="absolute right-2.5 bottom-2.5 rounded-full bg-black/55 px-2.5 py-0.5 font-mono text-[11px] text-white backdrop-blur-sm"
           >
-            {formatDuration(durationMs)}
+            {badge}
           </span>
         )}
       </button>
@@ -330,6 +390,7 @@ function FileBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolean }
  * plus a small download affordance (T-032 §4.4). */
 function VoiceBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolean }) {
   const attachment = message.attachment;
+  const media = useBubbleMedia(message);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -375,12 +436,15 @@ function VoiceBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolean 
 
   return (
     <div
+      ref={media.ref}
       className={[
         "relative flex w-[270px] max-w-[82%] items-center gap-2.5 rounded-bubble py-2 pr-3 pl-2",
         isOwn ? "[background:var(--color-accent)] text-ink" : "border border-line bg-in text-fg",
       ].join(" ")}
     >
-      {attachment && <audio ref={audioRef} src={attachment.url} preload="metadata" />}
+      {/* preload="none": the duration is already on the message — nothing is
+          fetched until play, unless the policy already cached it. */}
+      {attachment && <audio ref={audioRef} src={media.src ?? attachment.url} preload="none" />}
       <button
         type="button"
         onClick={togglePlay}
@@ -438,11 +502,14 @@ function VideoNoteBubble({ message }: { message: ChatMessage }) {
   const attachment = message.attachment;
   const queueEntry = useUploadQueueStore((state) => state.entries[message.clientMessageId]);
   const openViewer = useMediaViewerStore((state) => state.open);
+  const media = useBubbleMedia(message);
+  const localSrc = media.src ?? queueEntry?.previewUrl;
 
   return (
-    <div className="flex items-start gap-2">
+    <div ref={media.ref} className="flex items-start gap-2">
       <RoundVideo
-        src={attachment?.url ?? queueEntry?.previewUrl}
+        src={localSrc ?? attachment?.url}
+        preload={localSrc ? "metadata" : "none"}
         size={210}
         durationMs={message.durationMs ?? undefined}
         formatTime={formatDuration}

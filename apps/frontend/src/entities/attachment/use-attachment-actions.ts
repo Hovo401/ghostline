@@ -12,6 +12,12 @@ function triggerAnchorDownload(href: string, filename: string): void {
   anchor.remove();
 }
 
+/** Re-fetches an attachment for a fresh presigned `url` — the one embedded
+ * in a message expires after ~10 minutes (docs/adr/0007). */
+export async function refreshAttachment(id: string): Promise<Attachment> {
+  return AttachmentSchema.parse(await apiFetch(`/attachments/${id}`));
+}
+
 /**
  * Downloads an attachment via a plain `<a download>` navigation instead of
  * fetching the bytes into a `blob:` URL first — the old
@@ -30,8 +36,7 @@ function triggerAnchorDownload(href: string, filename: string): void {
  */
 export async function downloadAttachment(attachment: Attachment): Promise<void> {
   try {
-    const fresh = await apiFetch(`/attachments/${attachment.id}`);
-    const parsed = AttachmentSchema.parse(fresh);
+    const parsed = await refreshAttachment(attachment.id);
     triggerAnchorDownload(parsed.url, parsed.name ?? attachment.id);
   } catch {
     // The refresh failed (network blip, or the caller's URL is still

@@ -1,11 +1,23 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useMediaViewerStore } from "../../entities/attachment";
 import type { ChatMessage } from "../../entities/message";
 
 import { MessageFeed } from "./MessageFeed";
+
+// Photos now render from the media cache (docs/adr/0013) — serve every
+// attachment from it so no spec hits the network.
+vi.mock("../../entities/attachment/media-cache", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  getCachedMedia: () => Promise.resolve(new Blob(["x"], { type: "image/png" })),
+}));
+
+beforeAll(() => {
+  URL.createObjectURL = () => "blob:cached";
+  URL.revokeObjectURL = () => undefined;
+});
 
 function makeImageMessage(id: string, attachmentId: string): ChatMessage {
   return {
@@ -63,7 +75,7 @@ afterEach(() => {
 });
 
 describe("MessageFeed", () => {
-  it("clicking an image message opens the viewer with the full gallery at the right index", () => {
+  it("clicking an image message opens the viewer with the full gallery at the right index", async () => {
     const messages = [
       makeImageMessage("m1", "a1"),
       makeImageMessage("m2", "a2"),
@@ -71,7 +83,7 @@ describe("MessageFeed", () => {
     ];
     renderFeed(messages);
 
-    const buttons = screen.getAllByRole("button", { name: "Открыть фото" });
+    const buttons = await screen.findAllByRole("button", { name: "Открыть фото" });
     buttons[1]?.click();
 
     const state = useMediaViewerStore.getState();
