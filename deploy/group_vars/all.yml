@@ -36,4 +36,4 @@ certbot_webroot: /var/www/certbot
 letsencrypt_email: ""
 
 # Public half of the key GitHub Actions deploys with; empty = skip.
-deploy_ssh_public_key: ""
+deploy_ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGtJbT8KlgXJrGvuWEZiOrsBKwveeL20QSrzQrIm0OSY ghostline-deploy"
