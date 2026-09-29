@@ -49,7 +49,7 @@ export function ChatThreadPanel({ chat, className }: ChatThreadPanelProps) {
 
   return (
     <div
-      className={["relative flex min-w-0 flex-1 flex-col bg-bg2", className]
+      className={["relative flex min-h-0 min-w-0 flex-1 flex-col bg-bg2", className]
         .filter(Boolean)
         .join(" ")}
     >
@@ -61,7 +61,7 @@ export function ChatThreadPanel({ chat, className }: ChatThreadPanelProps) {
        * ending up hidden underneath the now-opaque panel. */}
       <div
         className={[
-          "flex min-w-0 flex-1 flex-col transition-[padding-right] duration-500 ease-[cubic-bezier(.2,.8,.2,1)]",
+          "flex min-h-0 min-w-0 flex-1 flex-col transition-[padding-right] duration-500 ease-[cubic-bezier(.2,.8,.2,1)]",
           profilePanelOpen ? "md:pr-95" : "md:pr-0",
         ].join(" ")}
       >

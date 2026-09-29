@@ -44,7 +44,10 @@ export function MessageFeed({
   }, [messages.length, chatId, peerTyping]);
 
   return (
-    <div ref={scrollRef} className="flex flex-1 flex-col gap-1.5 overflow-y-auto px-4.5 py-5">
+    <div
+      ref={scrollRef}
+      className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-4.5 py-5"
+    >
       {hasMore && (
         <button
           type="button"
