@@ -4,7 +4,9 @@ import Redis from "ioredis";
 
 import { AppConfigService } from "../config/app-config.service";
 
+import { CALLS_QUEUE } from "./calls.processor";
 import { MEDIA_QUEUE } from "./media.processor";
+import { NOTIFICATIONS_QUEUE } from "./notifications.processor";
 
 /**
  * Queue *registration* only — safe to import from the HTTP app (to enqueue
@@ -25,6 +27,8 @@ import { MEDIA_QUEUE } from "./media.processor";
       inject: [AppConfigService],
     }),
     BullModule.registerQueue({ name: MEDIA_QUEUE }),
+    BullModule.registerQueue({ name: CALLS_QUEUE }),
+    BullModule.registerQueue({ name: NOTIFICATIONS_QUEUE }),
   ],
   exports: [BullModule],
 })

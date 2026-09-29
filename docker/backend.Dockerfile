@@ -6,6 +6,10 @@
 # root (needed for the pnpm workspace + turbo).
 
 FROM node:24-slim AS base
+# prisma CLI (the `migrate` service runs from this stage) needs openssl to detect its engine
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
 RUN corepack enable
 WORKDIR /repo
 
@@ -45,8 +49,13 @@ RUN --mount=type=cache,id=pnpm-backend,target=/root/.local/share/pnpm/store \
 COPY --from=pruner /repo/out/full/ .
 RUN pnpm --filter @ghostline/backend run db:generate
 RUN pnpm exec turbo run build --filter=@ghostline/backend
-RUN pnpm --filter=@ghostline/backend --prod deploy /deploy
+# --legacy: pnpm v10's default deploy requires inject-workspace-packages,
+# which rewrites workspace deps as `file:` in the lockfile and breaks
+# `turbo prune` (it then drops packages/config from the pruned context).
+RUN pnpm --filter=@ghostline/backend --prod deploy --legacy /deploy
 WORKDIR /repo/apps/backend
+# deploy reinstalls node_modules, so the client generated above isn't in /deploy
+RUN pnpm exec prisma generate --schema=/deploy/prisma/schema.prisma
 
 # ---- prod: minimal runtime. ffmpeg/sharp are here (not only in a
 #      hypothetical worker-only image) because backend and worker share
@@ -60,4 +69,5 @@ WORKDIR /app
 COPY --from=build /deploy ./
 USER node
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+# nest's SWC builder keeps the `src/` segment in its output path
+CMD ["node", "dist/src/main.js"]

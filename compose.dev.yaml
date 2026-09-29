@@ -89,6 +89,33 @@ services:
     ports:
       - "127.0.0.1:8025:8025" # web UI — http://localhost:8025
 
+  # Self-hosted LiveKit SFU (docs/adr/0009), dev mode — no TURN/TLS of its
+  # own since nginx's `/rtc` already fronts signaling with a real (if
+  # self-signed) cert. Runs off livekit.dev.yaml (not the bare `--dev` CLI
+  # flag) so the LiveKit→backend webhook is registered here too — otherwise
+  # a closed/crashed tab in dev never told the backend a call ended until
+  # `departure_timeout` caught up.
+  livekit:
+    image: livekit/livekit-server:latest
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    environment:
+      CONFIG_SRC: /etc/livekit/livekit.dev.yaml
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+      LAN_IP: ${LAN_IP:-127.0.0.1}
+    volumes:
+      - ./docker/livekit/livekit.dev.yaml:/etc/livekit/livekit.dev.yaml:ro
+      - ./docker/livekit/entrypoint.sh:/entrypoint.sh:ro
+    ports:
+      - "127.0.0.1:7880:7880" # backend's REST calls (token/room admin) + local debugging; clients go through nginx's /rtc
+      - "7881:7881" # TURN/TCP fallback — reachable from the LAN (a phone's ICE candidates)
+      - "7882:7882/udp" # RTC media — reachable from the LAN
+    # No depends_on backend here — backend already depends_on livekit
+    # (below), and a webhook POST failing before backend is up is harmless:
+    # LiveKit doesn't retry it, but nothing relies on that first delivery
+    # (worker's ring-timeout/departure_timeout still clean up any call).
+
   backend:
     build:
       context: .
@@ -100,7 +127,8 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://valkey:6379
       S3_ENDPOINT: http://seaweedfs:8333
-      S3_PUBLIC_URL: http://localhost/s3
+      S3_PUBLIC_URL: http://localhost:8333
+      LIVEKIT_API_URL: http://livekit:7880 # container-to-container — .env.example's value is for running the backend directly on the host
     ports:
       - "127.0.0.1:3000:3000" # direct API access for debugging; the app uses it via nginx
     depends_on:
@@ -110,6 +138,8 @@ services:
         condition: service_healthy
       seaweedfs:
         condition: service_healthy
+      livekit:
+        condition: service_started
     develop:
       watch:
         - action: sync
@@ -135,7 +165,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://valkey:6379
       S3_ENDPOINT: http://seaweedfs:8333
-      S3_PUBLIC_URL: http://localhost/s3
+      S3_PUBLIC_URL: http://localhost:8333
     depends_on:
       postgres:
         condition: service_healthy
@@ -174,17 +204,43 @@ services:
         - action: rebuild
           path: ./pnpm-lock.yaml
 
+  # One-shot: generates the self-signed dev TLS cert nginx's `:443` server
+  # uses, SAN'd for the current `LAN_IP` — see docker/nginx/gen-dev-cert.sh
+  # and docs/adr/0009's LAN-dev addendum. Writes into the `devcerts` volume,
+  # which nginx mounts read-only; only regenerates when the existing cert
+  # doesn't already cover `LAN_IP`, so this is a no-op on every `pnpm dev`
+  # after the first on a given network.
+  devcert:
+    image: alpine:3.20
+    entrypoint: ["/bin/sh", "-c", "apk add --no-cache openssl >/dev/null && /gen-dev-cert.sh"]
+    environment:
+      LAN_IP: ${LAN_IP:-127.0.0.1}
+    volumes:
+      - devcerts:/certs
+      - ./docker/nginx/gen-dev-cert.sh:/gen-dev-cert.sh:ro
+    restart: "no"
+
   nginx:
     image: nginx:1.27-alpine
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
+      - "127.0.0.1:8333:8333" # SeaweedFS S3 API — see docker/nginx/dev.conf's :8333 server
     volumes:
       - ./docker/nginx/dev.conf:/etc/nginx/conf.d/default.conf:ro
+      - devcerts:/etc/nginx/certs:ro
     depends_on:
-      - backend
-      - frontend
+      backend:
+        condition: service_started
+      frontend:
+        condition: service_started
+      seaweedfs:
+        condition: service_started
+      devcert:
+        condition: service_completed_successfully
 
 volumes:
   postgres-data:
   seaweedfs-data:
+  devcerts:

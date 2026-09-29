@@ -1,0 +1,31 @@
+---
+- name: Detect an existing certificate
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ domain }}/fullchain.pem"
+  register: cert_stat
+
+- name: Set TLS state
+  ansible.builtin.set_fact:
+    tls_enabled: "{{ cert_stat.stat.exists }}"
+
+- name: Deploy the vhost (phase 1)
+  ansible.builtin.include_tasks: deploy_vhost.yml
+
+- name: Obtain a Let's Encrypt certificate
+  ansible.builtin.command: >
+    certbot certonly --webroot -w {{ certbot_webroot }} -d {{ domain }}
+    --non-interactive --agree-tos
+    {{ ('--email ' + letsencrypt_email) if letsencrypt_email else '--register-unsafely-without-email' }}
+  args:
+    creates: "/etc/letsencrypt/live/{{ domain }}/fullchain.pem"
+  when: not tls_enabled
+
+- name: Deploy the vhost with TLS (phase 2)
+  when: not tls_enabled
+  block:
+    - name: Mark TLS as enabled
+      ansible.builtin.set_fact:
+        tls_enabled: true
+
+    - name: Deploy the TLS vhost
+      ansible.builtin.include_tasks: deploy_vhost.yml

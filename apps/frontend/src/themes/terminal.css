@@ -1,0 +1,25 @@
+/*
+ * Theme: Terminal — DESIGN-BRIEF.md §2.2/§8.3. The one theme whose
+ * `ThemeManifest.effects` are non-default: avatars are filled with the
+ * current accent (`avatarFilled`) and outgoing bubbles glow with it
+ * (`outgoingGlow`) — both read `--gl-accent-fill`/`--gl-accent-text`,
+ * which are set by whichever `[data-accent]` file is active alongside
+ * this one on the same root element.
+ */
+[data-theme="terminal"] {
+  --gl-bg: #06080b;
+  --gl-bg2: #0a0e12;
+  --gl-panel: #0c1116;
+  --gl-line: #16343d;
+  --gl-fg: #d4eef2;
+  --gl-mute: #7fa3ab;
+  --gl-in: #0e151a;
+  --gl-desk: #020304;
+  --gl-glyph-a: 0.3;
+
+  --gl-avatar: var(--gl-accent-fill);
+  --gl-avatar-fg: var(--gl-ink);
+  --gl-glow:
+    0 0 0 1px color-mix(in oklab, var(--gl-accent-text) 55%, transparent),
+    0 0 22px color-mix(in oklab, var(--gl-accent-text) 30%, transparent);
+}

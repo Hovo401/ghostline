@@ -8,10 +8,25 @@ import {
   OnGatewayDisconnect,
   SubscribeMessage,
   WebSocketGateway,
+  WebSocketServer,
 } from "@nestjs/websockets";
-import type { Socket } from "socket.io";
+import type { DefaultEventsMap, Server, Socket } from "socket.io";
 
-type GatewaySocket = Socket<ClientToServerEvents, ServerToClientEvents>;
+import { TokenService } from "../auth/token.service";
+import { PrismaService } from "../prisma/prisma.service";
+
+import { PresenceService } from "./presence.service";
+
+interface GatewaySocketData {
+  userId: string;
+}
+
+type GatewaySocket = Socket<
+  ClientToServerEvents,
+  ServerToClientEvents,
+  DefaultEventsMap,
+  GatewaySocketData
+>;
 
 /**
  * Server → client push (message:new, presence, …) belongs to the feature
@@ -25,6 +40,15 @@ type GatewaySocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(RealtimeGateway.name);
 
+  @WebSocketServer()
+  server!: Server<ClientToServerEvents, ServerToClientEvents>;
+
+  constructor(
+    private readonly tokens: TokenService,
+    private readonly presence: PresenceService,
+    private readonly prisma: PrismaService,
+  ) {}
+
   handleConnection(client: GatewaySocket): void {
     // socket.io types `handshake.auth` as `any` — narrow it explicitly
     // rather than propagating that through the rest of this method.
@@ -35,22 +59,61 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
       return;
     }
 
-    // TODO(auth): verify the access token and join `user:${userId}` so
-    // every device of that user receives the same events (REQUIREMENTS.md
-    // §7.3/§7.5). Disconnecting unauthenticated sockets is intentional —
-    // every WS event must be scoped to a real, checked user.
-    this.logger.debug(`socket ${client.id} connected (auth not yet verified)`);
+    // Disconnecting unauthenticated/invalid sockets is intentional — every
+    // WS event must be scoped to a real, checked user (REQUIREMENTS.md
+    // §7.3/§7.5).
+    let userId: string;
+    try {
+      userId = this.tokens.verifyAccessToken(token).sub;
+    } catch {
+      client.disconnect(true);
+      return;
+    }
+
+    client.data.userId = userId;
+    void client.join(`user:${userId}`);
+    this.logger.debug(`socket ${client.id} connected as user ${userId}`);
+    // FR-USER-03/04, FR-RT-03: this is this user's first-seen-online signal
+    // for every device — `PresenceService` only broadcasts when it's their
+    // first live socket, so a second tab/device doesn't re-announce it.
+    void this.presence.handleConnect(this.server, userId, client.id);
   }
 
   handleDisconnect(client: GatewaySocket): void {
     this.logger.debug(`socket ${client.id} disconnected`);
+    const userId = client.data.userId;
+    if (userId) {
+      void this.presence.handleDisconnect(this.server, userId, client.id);
+    }
   }
 
+  /**
+   * No socket ever joins a room named by `chatId` (only `user:${userId}`,
+   * see `handleConnection`) — relay to each other member's own room
+   * instead, the same pattern `MessagesService.emitToMembers` uses. This
+   * also doubles as the membership check every other chat-scoped mutation
+   * has (chats.service.ts, messages.service.ts): a stale/malicious
+   * `chatId` the sender isn't a member of is silently dropped, not thrown.
+   */
   @SubscribeMessage("typing")
-  handleTyping(@MessageBody() body: unknown, @ConnectedSocket() client: GatewaySocket): void {
+  async handleTyping(
+    @MessageBody() body: unknown,
+    @ConnectedSocket() client: GatewaySocket,
+  ): Promise<void> {
     const payload = typingClientPayloadSchema.parse(body);
-    // TODO(auth): resolve the authenticated userId for `client` instead of
-    // broadcasting anonymously once the connection above verifies a token.
-    client.broadcast.to(payload.chatId).emit("typing", { ...payload, userId: "" });
+    const userId = client.data.userId;
+
+    const members = await this.prisma.chatMember.findMany({
+      where: { chatId: payload.chatId },
+      select: { userId: true },
+    });
+    if (!members.some((member) => member.userId === userId)) {
+      return;
+    }
+
+    for (const member of members) {
+      if (member.userId === userId) continue;
+      this.server.to(`user:${member.userId}`).emit("typing", { ...payload, userId });
+    }
   }
 }

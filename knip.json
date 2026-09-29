@@ -11,16 +11,18 @@
       "ignoreDependencies": ["pino-pretty"]
     },
     "apps/frontend": {
-      "entry": ["src/app/main.tsx", "src/routes/**/*.{ts,tsx}"],
+      "entry": ["src/app/main.tsx", "src/routes/**/*.{ts,tsx}", "src/sw.ts"],
       "project": ["src/**/*.{ts,tsx}"],
       "ignoreDependencies": [
         "@fontsource/geologica",
         "@fontsource/jetbrains-mono",
+        "@fontsource/pixelify-sans",
+        "@fontsource/pt-serif",
         "tailwindcss",
         "@ghostline/contracts",
         "socket.io-client"
       ],
-      "ignore": ["src/shared/api/socket-client.ts"]
+      "ignore": ["src/shared/api/socket-client.ts", "src/sw-notification-options.d.ts"]
     },
     "packages/contracts": {
       "entry": ["src/index.ts"],
@@ -28,5 +30,6 @@
     },
     "packages/config": {}
   },
+  "ignoreBinaries": ["prisma"],
   "exclude": ["exports", "types"]
 }

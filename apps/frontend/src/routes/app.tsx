@@ -1,16 +1,68 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
-// Messenger shell (REQUIREMENTS.md §4/§5.4-§5.6, DESIGN-BRIEF.md §7.2).
-// Chat list / conversation / composer are their own features under
-// src/features once auth exists to protect this route.
-export const Route = createFileRoute("/app")({
-  component: MessengerShell,
-});
+import { selectHasActiveUploads, useUploadQueueStore } from "../entities/attachment";
+import { ensureSession } from "../entities/session";
+import { CallMiniBar, CallRoot } from "../features/call";
+import { Chat } from "../features/chat";
+import { MediaViewer } from "../features/media-viewer";
+import { useSessionStore } from "../shared/api/session-store";
+import { useBeforeUnload } from "../shared/lib/use-before-unload";
+import { Toaster } from "../shared/ui/toast";
 
-function MessengerShell() {
+/** Messenger shell (REQUIREMENTS.md §4/§5.4-§5.6, DESIGN-BRIEF.md §7.2),
+ * plus the fullscreen media viewer (T-033), the toast stack and the call
+ * overlay (calls plan) mounted once here — `routes` can import sibling
+ * features, `features/chat` can't import `features/media-viewer`/
+ * `features/call` directly (apps/frontend/CLAUDE.md layering). `CallRoot`
+ * owns the LiveKit session for as long as the app shell is mounted and
+ * renders nothing unless `call-store` says a call applies.
+ *
+ * `useBeforeUnload` is gated on `upload-queue-store` having any active
+ * upload (T-032) — closing the tab mid a multi-hundred-MB upload should
+ * warn instead of silently losing it.
+ */
+function AppShell() {
+  const hasActiveUploads = useUploadQueueStore(selectHasActiveUploads);
+  useBeforeUnload(hasActiveUploads);
+
   return (
-    <main className="flex min-h-screen items-center justify-center bg-bg2 text-fg">
-      <p className="font-mono text-sm text-mute">// мессенджер — TODO</p>
-    </main>
+    <>
+      <div className="flex h-dvh flex-col">
+        <CallMiniBar />
+        <div className="min-h-0 flex-1">
+          <Chat />
+        </div>
+      </div>
+      <MediaViewer />
+      <CallRoot />
+      <Toaster />
+    </>
   );
 }
+
+/** `?chat=`/`?call=&answer=1` — a notification-click deep link `sw.ts`
+ * attaches when it opened a fresh tab (calls plan §Фаза 5 doc T-068);
+ * `features/chat/use-notification-deep-link.ts` consumes and clears them. */
+interface AppSearch {
+  chat?: string;
+  call?: string;
+  answer?: string;
+}
+
+export const Route = createFileRoute("/app")({
+  validateSearch: (search: Record<string, unknown>): AppSearch => ({
+    chat: typeof search.chat === "string" ? search.chat : undefined,
+    call: typeof search.call === "string" ? search.call : undefined,
+    answer: typeof search.answer === "string" ? search.answer : undefined,
+  }),
+  beforeLoad: async () => {
+    await ensureSession();
+    if (useSessionStore.getState().status !== "authenticated") {
+      // TanStack Router's redirect() is meant to be thrown from `beforeLoad`
+      // — it's a plain routing signal, not an Error subclass.
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      throw redirect({ to: "/login" });
+    }
+  },
+  component: AppShell,
+});

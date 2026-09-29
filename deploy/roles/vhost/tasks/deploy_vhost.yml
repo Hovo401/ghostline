@@ -1,0 +1,49 @@
+---
+# nginx.conf and the other apps' conf.d files are never touched. A config
+# that fails `nginx -t` is rolled back immediately: left on disk, it would
+# make the next reload by *any* project on this host fail.
+- name: Write and validate the vhost
+  block:
+    - name: Write the vhost
+      ansible.builtin.template:
+        src: vhost.conf.j2
+        dest: "/etc/nginx/conf.d/{{ domain }}.conf"
+        mode: "0644"
+        backup: true
+      register: vhost_file
+
+    - name: Validate the full nginx config
+      ansible.builtin.command: nginx -t
+      changed_when: false
+      when: vhost_file.changed
+
+  rescue:
+    - name: Restore the previous vhost
+      ansible.builtin.copy:
+        src: "{{ vhost_file.backup_file }}"
+        dest: "/etc/nginx/conf.d/{{ domain }}.conf"
+        remote_src: true
+        mode: "0644"
+      when: vhost_file.backup_file is defined
+
+    - name: Remove the new vhost (there was no previous one)
+      ansible.builtin.file:
+        path: "/etc/nginx/conf.d/{{ domain }}.conf"
+        state: absent
+      when: vhost_file.backup_file is not defined
+
+    - name: Stop after rolling back
+      ansible.builtin.fail:
+        msg: "nginx -t rejected the Ghostline vhost; it was rolled back and nginx was not reloaded."
+
+- name: Reload nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: reloaded
+  when: vhost_file.changed
+
+- name: Remove the vhost backup
+  ansible.builtin.file:
+    path: "{{ vhost_file.backup_file }}"
+    state: absent
+  when: vhost_file.backup_file is defined

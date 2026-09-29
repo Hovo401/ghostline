@@ -1,0 +1,9 @@
+/* Accent: Ember (Искра) — DESIGN-BRIEF.md §2.3. See accent-signal.css for the pattern. */
+[data-accent="ember"] {
+  --gl-accent-fill: #ff9152;
+  --gl-accent-text: #ff9152;
+  --gl-ink: #0b0d0c;
+}
+[data-tone="light"][data-accent="ember"] {
+  --gl-accent-text: #a8420c;
+}

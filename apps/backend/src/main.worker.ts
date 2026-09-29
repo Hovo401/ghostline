@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import "./common/bigint-json";
 import { NestFactory } from "@nestjs/core";
 import { Logger } from "nestjs-pino";
 

@@ -1,0 +1,53 @@
+---
+- name: Install rsync (GitHub Actions ships releases with it)
+  ansible.builtin.apt:
+    name: rsync
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Authorize the GitHub Actions deploy key
+  ansible.posix.authorized_key:
+    user: "{{ ansible_user }}"
+    key: "{{ deploy_ssh_public_key }}"
+    comment: ghostline-deploy
+    state: present
+  when: deploy_ssh_public_key | length > 0
+
+- name: Create the application directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ app_dir }}", mode: "0755" }
+    - { path: "{{ app_dir }}/releases", mode: "0755" }
+    - { path: "{{ app_dir }}/shared", mode: "0750" }
+    # Owned by the deploy user so CI can rsync without sudo; nginx only reads.
+    - { path: "{{ frontend_static_dir }}", mode: "0755" }
+
+- name: Deploy the runtime environment file
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ app_dir }}/shared/.env"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+  no_log: true
+  notify: restart ghostline
+
+- name: Deploy the pm2 ecosystem config
+  ansible.builtin.template:
+    src: ecosystem.config.js.j2
+    dest: "{{ app_dir }}/ecosystem.config.js"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  notify: restart ghostline
+
+- name: Check whether a release has been deployed yet
+  ansible.builtin.stat:
+    path: "{{ app_dir }}/current"
+  register: current_release

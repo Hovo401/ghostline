@@ -12,6 +12,13 @@ const validConfig = {
   S3_PUBLIC_URL: "http://localhost:8333",
   JWT_ACCESS_SECRET: "a".repeat(32),
   JWT_REFRESH_SECRET: "b".repeat(32),
+  LIVEKIT_URL: "wss://rtc.example.com",
+  LIVEKIT_API_URL: "http://livekit:7880",
+  LIVEKIT_API_KEY: "key",
+  LIVEKIT_API_SECRET: "secret",
+  VAPID_PUBLIC_KEY: "pub",
+  VAPID_PRIVATE_KEY: "priv",
+  VAPID_SUBJECT: "mailto:admin@example.com",
 };
 
 describe("validateEnv", () => {
@@ -20,6 +27,7 @@ describe("validateEnv", () => {
     expect(env.PORT).toBe(3000);
     expect(env.NODE_ENV).toBe("development");
     expect(env.S3_FORCE_PATH_STYLE).toBe(true);
+    expect(env.MEDIA_MAX_FILE_SIZE_BYTES).toBe(1_073_741_824);
   });
 
   it("throws with a readable message when a required var is missing", () => {

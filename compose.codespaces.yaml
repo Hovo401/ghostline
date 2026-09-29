@@ -1,0 +1,29 @@
+# Test-prod on GitHub Codespaces: layered over compose.prod.yaml, without
+# certbot and self-hosted livekit (use LiveKit Cloud in .env). Public URLs
+# come from Codespaces' own env vars. Usage:
+#   docker compose -f compose.prod.yaml -f compose.codespaces.yaml up -d --build \
+#     postgres valkey seaweedfs s3-init migrate backend worker nginx
+# then set ports 80 and 8333 to Public in the Ports tab.
+
+x-app-url: &app-url https://${CODESPACE_NAME}-80.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}
+x-s3-url: &s3-url https://${CODESPACE_NAME}-8333.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}
+
+services:
+  seaweedfs:
+    environment:
+      CORS_ORIGIN: *app-url
+
+  backend:
+    environment:
+      CORS_ORIGIN: *app-url
+      S3_PUBLIC_URL: *s3-url
+
+  worker:
+    environment:
+      S3_PUBLIC_URL: *s3-url
+
+  nginx:
+    environment:
+      S3_PUBLIC_HOST: ${CODESPACE_NAME}-8333.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}
+    volumes:
+      - ./docker/nginx/codespaces.conf.template:/etc/nginx/templates/ghostline.conf.template:ro

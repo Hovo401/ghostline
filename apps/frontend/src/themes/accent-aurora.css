@@ -1,0 +1,9 @@
+/* Accent: Aurora — DESIGN-BRIEF.md §2.3. Gradient fill; text stays solid. */
+[data-accent="aurora"] {
+  --gl-accent-fill: linear-gradient(135deg, #22d3ee, #d946ef);
+  --gl-accent-text: #5ee6f0;
+  --gl-ink: #0b0d0c;
+}
+[data-tone="light"][data-accent="aurora"] {
+  --gl-accent-text: #0a6e7c;
+}

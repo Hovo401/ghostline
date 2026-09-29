@@ -1,0 +1,17 @@
+{
+  "extends": "@ghostline/config/tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "WebWorker"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "types": []
+  },
+  "include": [
+    "src/sw.ts",
+    "src/sw-notifications.ts",
+    "src/sw-notifications.spec.ts",
+    "src/sw-notification-options.d.ts"
+  ]
+}

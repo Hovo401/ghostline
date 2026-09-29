@@ -1,20 +1,74 @@
 @import "tailwindcss";
 @import "../../themes/dark.css";
 @import "../../themes/light.css";
+@import "../../themes/midnight.css";
+@import "../../themes/paper.css";
+@import "../../themes/terminal.css";
 @import "../../themes/accent-signal.css";
+@import "../../themes/accent-ion.css";
+@import "../../themes/accent-ember.css";
+@import "../../themes/accent-violet.css";
+@import "../../themes/accent-aurora.css";
+@import "../../themes/accent-sunset.css";
+@import "../../themes/accent-mint.css";
 @import "@fontsource/geologica/500.css";
 @import "@fontsource/geologica/600.css";
 @import "@fontsource/jetbrains-mono/400.css";
 @import "@fontsource/jetbrains-mono/600.css";
+@import "@fontsource/pixelify-sans/400.css";
+@import "@fontsource/pixelify-sans/600.css";
+@import "@fontsource/pt-serif/400.css";
+@import "@fontsource/pt-serif/700.css";
 
 /*
- * Maps Ghostline's runtime tokens (set per `[data-theme]`/`[data-accent]`
- * in themes/*.css) onto Tailwind v4 theme variables, so components use
- * ordinary utilities (`bg-bg`, `text-fg`, `bg-accent`, …) that repaint
- * instantly on theme/accent change — see DESIGN-BRIEF.md §8.2.
- * Literal colors belong in themes/*.css only; nowhere else (enforced by
- * the `no-restricted-syntax` hex-literal rule in eslint.frontend.mjs).
+ * This file (plus src/themes/*.css) is Ghostline's appearance *engine* —
+ * the one place besides src/themes itself allowed to declare raw values
+ * for the font/scale/bubble axes (DESIGN-BRIEF.md §8.1/§8.2); everywhere
+ * else consumes the Tailwind utilities the `@theme` block below maps them
+ * to (`bg-bg`, `text-fg`, `bg-accent`, `rounded-bubble`, `text-msg`, …).
+ * `custom` theme/accent are generated at runtime by
+ * shared/theme/apply-custom-appearance.ts instead of a file here.
  */
+
+/* Font axis — `--gl-font` default is Geologica (sans); mono labels
+ * (timestamps, statuses, usernames) always use --font-mono directly and
+ * don't follow this axis, per DESIGN-BRIEF §3. */
+:root {
+  --gl-font: "Geologica", ui-sans-serif, system-ui, sans-serif;
+  --gl-fs: 15px;
+  --gl-bubble-r: 18px;
+
+  /* Utility colors (DESIGN-BRIEF §2.4) — fixed across every theme, unlike
+   * the bg/fg/accent axes above, so they live once here rather than
+   * repeated in each src/themes/*.css file: errors, the recording dot,
+   * "Заблокировать", a taken username (`danger`); the "medium" step of the
+   * password strength meter (`warning`). */
+  --gl-danger: #e5484d;
+  --gl-warning: #e8a23b;
+}
+[data-font="mono"] {
+  --gl-font: "JetBrains Mono", ui-monospace, monospace;
+}
+[data-font="pixel"] {
+  --gl-font: "Pixelify Sans", system-ui, sans-serif;
+}
+[data-font="serif"] {
+  --gl-font: "PT Serif", Georgia, serif;
+}
+
+/* Text scale axis — message text size, DESIGN-BRIEF §3. */
+[data-scale="s"] {
+  --gl-fs: 13.5px;
+}
+[data-scale="l"] {
+  --gl-fs: 17.5px;
+}
+
+/* Bubble shape axis — DESIGN-BRIEF §4. */
+[data-bubble="sharp"] {
+  --gl-bubble-r: 5px;
+}
+
 @theme {
   --color-bg: var(--gl-bg);
   --color-bg2: var(--gl-bg2);
@@ -27,13 +81,168 @@
   --color-accent: var(--gl-accent-fill);
   --color-accent-text: var(--gl-accent-text);
   --color-ink: var(--gl-ink);
+  --color-avatar: var(--gl-avatar);
+  --color-avatar-fg: var(--gl-avatar-fg);
+  --color-danger: var(--gl-danger);
+  --color-warning: var(--gl-warning);
 
-  --font-display: "Geologica", ui-sans-serif, system-ui, sans-serif;
+  --radius-bubble: var(--gl-bubble-r);
+  --text-msg: var(--gl-fs);
+  --shadow-glow: var(--gl-glow);
+
+  --font-display: var(--gl-font);
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* Tailwind emits the @theme vars on :root only, so their `var(--gl-*)` is
+ * resolved once at <html> — a nested `data-theme`/`data-accent` (the
+ * settings previews) would otherwise inherit the root's resolved colors
+ * instead of its own. Re-declaring them here re-resolves per scope. */
+[data-theme],
+[data-accent],
+[data-tone] {
+  --color-bg: var(--gl-bg);
+  --color-bg2: var(--gl-bg2);
+  --color-panel: var(--gl-panel);
+  --color-line: var(--gl-line);
+  --color-fg: var(--gl-fg);
+  --color-mute: var(--gl-mute);
+  --color-in: var(--gl-in);
+  --color-desk: var(--gl-desk);
+  --color-accent: var(--gl-accent-fill);
+  --color-accent-text: var(--gl-accent-text);
+  --color-ink: var(--gl-ink);
+  --color-avatar: var(--gl-avatar);
+  --color-avatar-fg: var(--gl-avatar-fg);
+  --shadow-glow: var(--gl-glow);
+}
+
+/* Scrollbars follow the active theme instead of the browser's default
+ * light bar. `scrollbar-color` covers Firefox/modern Chromium; the
+ * ::-webkit-* rules cover older WebKit/Chromium. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--gl-line) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--gl-line);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gl-mute);
+}
+::-webkit-scrollbar-button {
+  display: none;
 }
 
 body {
   background-color: var(--gl-bg);
   color: var(--gl-fg);
   font-family: var(--font-display);
+  /* Theme switch transition — DESIGN-BRIEF §8.2/§9. */
+  transition: background-color 300ms;
+}
+
+/* Tailwind v4 preflight drops the browser default `cursor: pointer` on
+ * interactive elements — restore it so clickable UI (buttons, links, list
+ * items, form controls) shows a pointer instead of the text/arrow cursor. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  label[for],
+  select,
+  summary,
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="file"] {
+    cursor: pointer;
+  }
+  :disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
+/* "Typing" dots timing token — DESIGN-BRIEF §5 (900ms cycle, 150ms stagger
+ * applied per-dot via inline animation-delay, the one thing this can't
+ * express as a fixed class). */
+@keyframes gl-typing-dot {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+.animate-typing-dot {
+  animation: gl-typing-dot 900ms ease-in-out infinite;
+}
+
+/* Recording dot timing token — DESIGN-BRIEF §7.2 "мигающая красная точка"
+ * (voice/video-note recording bar and overlay). */
+@keyframes gl-rec-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+.animate-rec-blink {
+  animation: gl-rec-blink 1000ms ease-in-out infinite;
+}
+
+/* Toast enter/exit — shared/ui/toast.tsx. */
+@keyframes gl-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes gl-toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+.animate-toast-in {
+  animation: gl-toast-in 200ms ease-out;
+}
+.animate-toast-out {
+  animation: gl-toast-out 160ms ease-in forwards;
+}
+
+/* AttachPreviewDialog appear/disappear — features/chat/AttachPreviewDialog.tsx. */
+@keyframes gl-dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.animate-dialog-in {
+  animation: gl-dialog-in 160ms ease-out;
 }

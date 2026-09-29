@@ -23,8 +23,25 @@ export const envSchema = z.object({
   S3_FORCE_PATH_STYLE: z.coerce.boolean().default(true),
   S3_PUBLIC_URL: z.string().url(),
 
+  // FR-MEDIA-04: default 100 MB.
+  MEDIA_MAX_FILE_SIZE_BYTES: z.coerce.number().int().positive().default(1_073_741_824),
+
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),
+
+  // Self-hosted LiveKit SFU (docs/adr/0009) — 1:1 call media. `LIVEKIT_URL` is
+  // the public wss:// the frontend connects to; `LIVEKIT_API_URL` is the
+  // internal http(s) address `CallsService` calls to mint tokens/rooms.
+  LIVEKIT_URL: z.string().url(),
+  LIVEKIT_API_URL: z.string().url(),
+  LIVEKIT_API_KEY: z.string().min(1),
+  LIVEKIT_API_SECRET: z.string().min(1),
+
+  // Web Push (docs/adr/0010) — VAPID keypair, generate with
+  // `npx web-push generate-vapid-keys`.
+  VAPID_PUBLIC_KEY: z.string().min(1),
+  VAPID_PRIVATE_KEY: z.string().min(1),
+  VAPID_SUBJECT: z.string().min(1),
 });
 
 export type Env = z.infer<typeof envSchema>;

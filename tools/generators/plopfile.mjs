@@ -6,7 +6,10 @@
 // it's cheaper (in tokens, in review time) than writing each by hand —
 // see docs/CLAUDE.md's "prefer a generator over hand-written boilerplate".
 
+import { fileURLToPath } from "node:url";
+
 const TEMPLATES = new URL("./templates/", import.meta.url);
+const templatePath = (relative) => fileURLToPath(new URL(relative, TEMPLATES));
 
 /** @param {import('plop').NodePlopAPI} plop */
 export default function (plop) {
@@ -24,22 +27,22 @@ export default function (plop) {
       {
         type: "add",
         path: "apps/backend/src/{{dashCase name}}/{{dashCase name}}.module.ts",
-        templateFile: new URL("backend-module/module.ts.hbs", TEMPLATES).pathname,
+        templateFile: templatePath("backend-module/module.ts.hbs"),
       },
       {
         type: "add",
         path: "apps/backend/src/{{dashCase name}}/{{dashCase name}}.service.ts",
-        templateFile: new URL("backend-module/service.ts.hbs", TEMPLATES).pathname,
+        templateFile: templatePath("backend-module/service.ts.hbs"),
       },
       {
         type: "add",
         path: "apps/backend/src/{{dashCase name}}/{{dashCase name}}.service.spec.ts",
-        templateFile: new URL("backend-module/service.spec.ts.hbs", TEMPLATES).pathname,
+        templateFile: templatePath("backend-module/service.spec.ts.hbs"),
       },
       {
         type: "add",
         path: "apps/backend/src/{{dashCase name}}/{{dashCase name}}.controller.ts",
-        templateFile: new URL("backend-module/controller.ts.hbs", TEMPLATES).pathname,
+        templateFile: templatePath("backend-module/controller.ts.hbs"),
       },
       (answers) =>
         `Next: import ${plop.getHelper("pascalCase")(answers.name)}Module into ` +
@@ -61,17 +64,17 @@ export default function (plop) {
       {
         type: "add",
         path: "apps/frontend/src/features/{{dashCase name}}/index.ts",
-        templateFile: new URL("frontend-feature/index.ts.hbs", TEMPLATES).pathname,
+        templateFile: templatePath("frontend-feature/index.ts.hbs"),
       },
       {
         type: "add",
         path: "apps/frontend/src/features/{{dashCase name}}/{{pascalCase name}}.tsx",
-        templateFile: new URL("frontend-feature/Component.tsx.hbs", TEMPLATES).pathname,
+        templateFile: templatePath("frontend-feature/Component.tsx.hbs"),
       },
       {
         type: "add",
         path: "apps/frontend/src/features/{{dashCase name}}/{{pascalCase name}}.spec.tsx",
-        templateFile: new URL("frontend-feature/Component.spec.tsx.hbs", TEMPLATES).pathname,
+        templateFile: templatePath("frontend-feature/Component.spec.tsx.hbs"),
       },
     ],
   });
@@ -90,17 +93,17 @@ export default function (plop) {
       {
         type: "add",
         path: "apps/frontend/src/entities/{{dashCase name}}/index.ts",
-        templateFile: new URL("entity/index.ts.hbs", TEMPLATES).pathname,
+        templateFile: templatePath("entity/index.ts.hbs"),
       },
       {
         type: "add",
         path: "apps/frontend/src/entities/{{dashCase name}}/{{dashCase name}}.types.ts",
-        templateFile: new URL("entity/types.ts.hbs", TEMPLATES).pathname,
+        templateFile: templatePath("entity/types.ts.hbs"),
       },
       {
         type: "add",
         path: "apps/frontend/src/entities/{{dashCase name}}/use-{{dashCase name}}.ts",
-        templateFile: new URL("entity/use-entity.ts.hbs", TEMPLATES).pathname,
+        templateFile: templatePath("entity/use-entity.ts.hbs"),
       },
     ],
   });
@@ -119,7 +122,7 @@ export default function (plop) {
       {
         type: "add",
         path: "packages/contracts/src/{{dashCase name}}/{{dashCase name}}.schema.ts",
-        templateFile: new URL("contract/schema.ts.hbs", TEMPLATES).pathname,
+        templateFile: templatePath("contract/schema.ts.hbs"),
       },
       {
         type: "append",
@@ -151,7 +154,7 @@ export default function (plop) {
       {
         type: "add",
         path: "apps/frontend/src/themes/{{dashCase id}}.css",
-        templateFile: new URL("theme/theme.css.hbs", TEMPLATES).pathname,
+        templateFile: templatePath("theme/theme.css.hbs"),
       },
       {
         type: "append",

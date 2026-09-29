@@ -1,0 +1,12 @@
+/* Theme: Paper (Бумага) — DESIGN-BRIEF.md §2.2. See dark.css for the pattern. */
+[data-theme="paper"] {
+  --gl-bg: #f4ede1;
+  --gl-bg2: #ebe2d3;
+  --gl-panel: #fbf7f0;
+  --gl-line: #d8ccb8;
+  --gl-fg: #2a2118;
+  --gl-mute: #6b5d4d;
+  --gl-in: #fbf7f0;
+  --gl-desk: #d9cfbe;
+  --gl-glyph-a: 0.34;
+}

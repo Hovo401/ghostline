@@ -1,0 +1,71 @@
+name: Deploy (dev server)
+
+# Builds here and ships over rsync — the 560 MiB dev server can't build.
+# One-time setup: deploy/README.md.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+env:
+  TURBO_TELEMETRY_DISABLED: "1"
+  DEPLOY_HOST: diotek.pp.ua
+  DEPLOY_USER: hovo
+  APP_DIR: /opt/ghostline
+  STATIC_DIR: /var/www/ghostline
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: build backend + frontend
+        run: |
+          pnpm --filter @ghostline/backend run db:generate
+          pnpm exec turbo run build --filter=@ghostline/backend --filter=@ghostline/frontend
+
+      # Same steps as docker/backend.Dockerfile's build stage.
+      - name: package backend
+        run: |
+          pnpm --filter=@ghostline/backend --prod deploy --legacy "$PWD/out/backend"
+          cd apps/backend
+          pnpm exec prisma generate --schema="$GITHUB_WORKSPACE/out/backend/prisma/schema.prisma"
+          node -p "require('prisma/package.json').version" > "$GITHUB_WORKSPACE/out/backend/PRISMA_VERSION"
+
+      - name: configure ssh
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: upload backend release
+        run: |
+          rsync -az --link-dest="$APP_DIR/current/" -e "ssh -i ~/.ssh/id_deploy" \
+            out/backend/ "$DEPLOY_USER@$DEPLOY_HOST:$APP_DIR/releases/$GITHUB_SHA/"
+
+      - name: migrate + activate release
+        run: |
+          ssh -i ~/.ssh/id_deploy "$DEPLOY_USER@$DEPLOY_HOST" 'bash -s' -- "$GITHUB_SHA" \
+            < deploy/remote/activate-release.sh
+
+      - name: upload frontend
+        run: |
+          rsync -az --delete -e "ssh -i ~/.ssh/id_deploy" \
+            apps/frontend/dist/ "$DEPLOY_USER@$DEPLOY_HOST:$STATIC_DIR/"

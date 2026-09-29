@@ -1,0 +1,9 @@
+bind 127.0.0.1
+port {{ redis_port }}
+protected-mode yes
+dir /var/lib/ghostline-redis
+appendonly yes
+save ""
+maxmemory {{ redis_maxmemory }}
+# BullMQ requires noeviction — evicting a job key silently loses the job.
+maxmemory-policy noeviction

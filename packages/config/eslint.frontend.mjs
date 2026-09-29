@@ -60,8 +60,28 @@ export function createFrontendConfig(tsconfigRootDir) {
     },
     {
       // Theme token definitions are the one place allowed to declare raw
-      // color literals — everything else must consume them.
-      files: ["src/themes/**/*.ts"],
+      // color literals — everything else must consume them. This also
+      // covers shared/theme's runtime pieces (the `custom` theme/accent
+      // generator, its color math, and their tests), which do the same job
+      // as a themes/*.css file but for the one axis that can't be a static
+      // file, and the ghost-field WebGL scene, whose default uniforms and
+      // canvas-atlas draw colors aren't design tokens at all (they're
+      // overwritten from CSS custom properties at runtime — see
+      // readColors()) — see DESIGN-BRIEF §8.2/§8.3, §6.2.
+      files: [
+        "src/themes/**/*.ts",
+        "src/shared/theme/**/*.ts",
+        "src/shared/ui/ghost-field/ghost-field-element.ts",
+      ],
+      rules: { "no-restricted-syntax": "off" },
+    },
+    {
+      // The PWA manifest's `theme_color`/`background_color` are OS-level
+      // metadata (browser chrome, splash screen) baked into a static JSON
+      // manifest at build time — there's no CSS custom property to read at
+      // that point, so, like the theme token files above, this is a
+      // legitimate place for a literal.
+      files: ["pwa.config.ts"],
       rules: { "no-restricted-syntax": "off" },
     },
     {

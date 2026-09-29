@@ -1,0 +1,67 @@
+---
+- name: Check whether redis-server was already installed
+  ansible.builtin.command: dpkg-query -W -f='${Status}' redis-server
+  register: redis_pkg
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Install redis-server
+  ansible.builtin.apt:
+    name: redis-server
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# Ghostline runs its own instance below. The package's default instance on
+# :6379 is only switched off when this run is what installed it — if it was
+# already there, another app may depend on it.
+- name: Disable the package's default instance we just installed
+  ansible.builtin.systemd:
+    name: redis-server
+    state: stopped
+    enabled: false
+  when: "'install ok installed' not in redis_pkg.stdout"
+
+- name: Create the Ghostline Redis config directory
+  ansible.builtin.file:
+    path: /etc/ghostline
+    state: directory
+    owner: root
+    group: redis
+    mode: "0750"
+
+- name: Create the Ghostline Redis data directory
+  ansible.builtin.file:
+    path: /var/lib/ghostline-redis
+    state: directory
+    owner: redis
+    group: redis
+    mode: "0750"
+
+- name: Deploy the Ghostline Redis config
+  ansible.builtin.template:
+    src: redis.conf.j2
+    dest: /etc/ghostline/redis.conf
+    owner: root
+    group: redis
+    mode: "0640"
+  notify: restart ghostline-redis
+
+- name: Deploy the Ghostline Redis systemd unit
+  ansible.builtin.template:
+    src: ghostline-redis.service.j2
+    dest: /etc/systemd/system/ghostline-redis.service
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart ghostline-redis
+
+- name: Apply pending Redis changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Ensure Ghostline Redis is enabled and running
+  ansible.builtin.systemd:
+    name: ghostline-redis
+    enabled: true
+    state: started

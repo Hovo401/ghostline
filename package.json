@@ -9,12 +9,16 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "docker compose -f compose.dev.yaml up --watch",
+    "dev": "node tools/dev.mjs",
     "dev:down": "docker compose -f compose.dev.yaml down",
     "dev:logs": "docker compose -f compose.dev.yaml logs -f",
     "prod:build": "docker compose -f compose.prod.yaml build",
     "prod:up": "docker compose -f compose.prod.yaml up -d",
     "prod:down": "docker compose -f compose.prod.yaml down",
+    "cs:up": "(sudo iptables-legacy -P FORWARD ACCEPT || true) && docker compose -f compose.prod.yaml -f compose.codespaces.yaml up -d --build postgres valkey seaweedfs s3-init migrate backend worker nginx",
+    "cs:ps": "docker compose -f compose.prod.yaml -f compose.codespaces.yaml ps -a",
+    "cs:logs": "docker compose -f compose.prod.yaml -f compose.codespaces.yaml logs -f --tail=50",
+    "cs:down": "docker compose -f compose.prod.yaml -f compose.codespaces.yaml down",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
@@ -29,7 +33,7 @@
     "format:check": "prettier --check .",
     "db:migrate": "pnpm --filter @ghostline/backend run db:migrate",
     "db:studio": "pnpm --filter @ghostline/backend run db:studio",
-    "gen": "plop --plopfile tools/generators/plopfile.mjs",
+    "gen": "plop --plopfile tools/generators/plopfile.mjs --dest .",
     "prepare": "lefthook install || true"
   },
   "devDependencies": {

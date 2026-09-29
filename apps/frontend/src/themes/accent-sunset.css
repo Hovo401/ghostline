@@ -1,0 +1,9 @@
+/* Accent: Sunset (Закат) — DESIGN-BRIEF.md §2.3. Gradient fill; text stays solid. */
+[data-accent="sunset"] {
+  --gl-accent-fill: linear-gradient(135deg, #ffb14a, #ff4d8d);
+  --gl-accent-text: #ff8a5c;
+  --gl-ink: #0b0d0c;
+}
+[data-tone="light"][data-accent="sunset"] {
+  --gl-accent-text: #b03a1a;
+}

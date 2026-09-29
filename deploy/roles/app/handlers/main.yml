@@ -1,0 +1,8 @@
+---
+# Before the first CI deploy there is nothing to start yet.
+- name: restart ghostline
+  become: true
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.shell: >-
+    pm2 startOrRestart {{ app_dir }}/ecosystem.config.js --update-env && pm2 save
+  when: current_release.stat.exists

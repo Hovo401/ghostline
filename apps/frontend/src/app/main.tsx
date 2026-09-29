@@ -1,15 +1,21 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { createRouter, RouterProvider } from "@tanstack/react-router";
+import { createRouter, RouterProvider, useRouterState } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import "../shared/theme/theme.css";
+import { registerServiceWorker } from "../entities/notification";
 import { routeTree } from "../routeTree.gen";
 import { useApplyAppearance } from "../shared/theme/use-apply-appearance";
 
 const router = createRouter({ routeTree });
+
+// Registers `src/sw.ts` for Web Push (calls plan §Фаза 5) — a no-op where
+// service workers aren't supported at all; safe to call unconditionally at
+// boot since it doesn't itself request notification permission or subscribe.
+registerServiceWorker();
 
 declare module "@tanstack/react-router" {
   interface Register {
@@ -19,8 +25,13 @@ declare module "@tanstack/react-router" {
 
 const queryClient = new QueryClient();
 
+/** Public pages keep the default look — appearance settings style the app
+ * only. Mirrored in index.html's inline script. */
+const PUBLIC_PATHS = new Set(["/", "/login"]);
+
 function AppRoot() {
-  useApplyAppearance();
+  const pathname = useRouterState({ router, select: (state) => state.location.pathname });
+  useApplyAppearance(!PUBLIC_PATHS.has(pathname));
   return (
     <>
       <RouterProvider router={router} />

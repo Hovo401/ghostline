@@ -1,0 +1,18 @@
+---
+# Copy to vault.yml, fill in, then encrypt: .\run.ps1 vault encrypt group_vars/vault.yml
+# vault.yml is gitignored either way.
+
+# Letters/digits only — it's embedded in DATABASE_URL. Generate: openssl rand -hex 24
+db_password: ""
+# MinIO secret key for the `ghostline` user, >= 8 chars. Generate: openssl rand -hex 24
+s3_secret_key: ""
+# >= 32 chars each, different from each other. Generate: openssl rand -hex 32
+jwt_access_secret: ""
+jwt_refresh_secret: ""
+
+livekit_api_key: ""
+livekit_api_secret: ""
+
+# npx web-push generate-vapid-keys
+vapid_public_key: ""
+vapid_private_key: ""

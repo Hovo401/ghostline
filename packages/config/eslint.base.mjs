@@ -35,6 +35,15 @@ export function createBaseConfig(tsconfigRootDir) {
               "*.config.ts",
               "*.config.mts",
               "prisma.config.ts",
+              // apps/frontend's service worker: it runs in a WebWorker
+              // scope, not the page's DOM, so it's excluded from
+              // tsconfig.json's `include` and built separately with
+              // tsconfig.sw.json (see that file, and apps/frontend/CLAUDE.md)
+              // — `projectService` only auto-discovers files named
+              // `tsconfig.json`, so it can't pick that one up on its own.
+              "src/sw.ts",
+              "src/sw-notifications.ts",
+              "src/sw-notifications.spec.ts",
             ],
           },
           tsconfigRootDir,

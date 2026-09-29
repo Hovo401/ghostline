@@ -1,0 +1,12 @@
+/* Theme: Midnight (Полночь) — DESIGN-BRIEF.md §2.2. See dark.css for the pattern. */
+[data-theme="midnight"] {
+  --gl-bg: #0d1220;
+  --gl-bg2: #121931;
+  --gl-panel: #161e38;
+  --gl-line: #253057;
+  --gl-fg: #e6e9f5;
+  --gl-mute: #9aa3c2;
+  --gl-in: #1a2340;
+  --gl-desk: #070a14;
+  --gl-glyph-a: 0.28;
+}

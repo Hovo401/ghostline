@@ -1,13 +1,14 @@
 // Ghostline — Prisma schema.
 //
-// Scaffold note: only `User` and `Session` are modeled here, enough to
-// migrate and exercise auth end-to-end. The rest of the domain
-// (Invite, Chat, ChatMember, Message, Attachment, Reaction, Block,
-// UserSettings — see docs/REQUIREMENTS.md §7.4) is added module by module,
-// each behind its own migration, not in one big upfront schema.
+// MVP build (docs/tasks/BACKLOG.md's M0-M5, tracked in docs/tasks/PROGRESS.md).
+// Groups, invites, reactions, disappearing messages and the recovery phrase
+// are out of scope for this build (see BACKLOG.md's "Отложено") and their
+// fields/models are intentionally absent.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // node:24-slim build stage has no openssl, so "native" misdetects 1.1.x
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -16,19 +17,33 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(uuid()) @db.Uuid
-  username     String    @unique
-  displayName  String
-  email        String?   @unique
-  passwordHash String
-  recoveryHash String
-  bio          String?
-  role         UserRole  @default(USER)
-  lastSeenAt   DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id            String    @id @default(uuid()) @db.Uuid
+  username      String    @unique
+  displayName   String
+  email         String?   @unique
+  passwordHash  String
+  recoveryHash  String
+  avatarKey     String?
+  bio           String?
+  role          UserRole  @default(USER)
+  showOnline    Boolean   @default(true)
+  readReceipts  Boolean   @default(true)
+  notifyMessages Boolean  @default(true)
+  notifyCalls    Boolean  @default(true)
+  notifyPreview  Boolean  @default(true)
+  lastSeenAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  sessions Session[]
+  sessions          Session[]
+  chatMemberships   ChatMember[]
+  messages          Message[]
+  attachments       Attachment[]
+  blocksMade        Block[]           @relation("BlockedBy")
+  blocksReceived    Block[]           @relation("Blocked")
+  callsMade         Call[]            @relation("CallCaller")
+  callsReceived     Call[]            @relation("CallCallee")
+  pushSubscriptions PushSubscription[]
 
   @@map("users")
 }
@@ -54,4 +69,182 @@ model Session {
   @@index([userId])
   @@index([familyId])
   @@map("sessions")
+}
+
+model Chat {
+  id            String    @id @default(uuid()) @db.Uuid
+  type          ChatType
+  directKey     String?   @unique
+  lastSeq       BigInt    @default(0)
+  lastMessageAt DateTime?
+  createdAt     DateTime  @default(now())
+
+  members  ChatMember[]
+  messages Message[]
+  calls    Call[]
+
+  @@map("chats")
+}
+
+enum ChatType {
+  DIRECT
+  SAVED
+}
+
+model ChatMember {
+  chatId           String    @db.Uuid
+  userId           String    @db.Uuid
+  lastReadSeq      BigInt    @default(0)
+  lastDeliveredSeq BigInt    @default(0)
+  muted            Boolean   @default(false)
+  joinedAt         DateTime  @default(now())
+
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([chatId, userId])
+  @@index([userId])
+  @@map("chat_members")
+}
+
+model Message {
+  id              String    @id @default(uuid()) @db.Uuid
+  chatId          String    @db.Uuid
+  seq             BigInt
+  senderId        String?   @db.Uuid
+  clientMessageId String    @db.Uuid
+  type            MessageType
+  text            String?
+  attachmentId    String?   @unique @db.Uuid
+  durationMs      Int?
+  waveform        Json?
+  replyToId       String?   @db.Uuid
+  // Set only on `type: CALL` rows — the call whose outcome this history
+  // entry reports (docs/adr/0009).
+  callId          String?   @unique @db.Uuid
+  editedAt        DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  chat       Chat        @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender     User?       @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  attachment Attachment? @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
+  call       Call?       @relation(fields: [callId], references: [id], onDelete: SetNull)
+
+  @@unique([chatId, seq])
+  @@unique([senderId, clientMessageId])
+  @@map("messages")
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  VOICE
+  VIDEO
+  VIDEO_NOTE
+  CALL
+}
+
+/** 1:1 audio/video calls (docs/adr/0009). Media runs on LiveKit; this is the lifecycle record. */
+model Call {
+  id         String     @id @default(uuid()) @db.Uuid
+  chatId     String     @db.Uuid
+  callerId   String     @db.Uuid
+  calleeId   String     @db.Uuid
+  video      Boolean
+  status     CallStatus
+  endReason  String?
+  createdAt  DateTime   @default(now())
+  answeredAt DateTime?
+  endedAt    DateTime?
+
+  chat    Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  caller  User     @relation("CallCaller", fields: [callerId], references: [id], onDelete: Cascade)
+  callee  User     @relation("CallCallee", fields: [calleeId], references: [id], onDelete: Cascade)
+  message Message?
+
+  @@index([calleeId, status])
+  @@index([callerId, status])
+  @@map("calls")
+}
+
+enum CallStatus {
+  RINGING
+  ACTIVE
+  ENDED
+  MISSED
+  DECLINED
+  CANCELLED
+  BUSY
+  FAILED
+}
+
+model Attachment {
+  id         String   @id @default(uuid()) @db.Uuid
+  uploaderId String   @db.Uuid
+  status     UploadStatus @default(PENDING)
+  // What the presigned upload was for (REQUIREMENTS.md §7.6) — `UsersService`
+  // checks this is `AVATAR` before letting `PATCH /me` adopt it, so an
+  // attachment meant for a chat message can't be repurposed as a profile
+  // photo (or vice versa).
+  kind       AttachmentKind
+  key        String
+  mime       String
+  size       BigInt
+  name       String?
+  width      Int?
+  height     Int?
+  // Set only while a multipart upload is in progress (REQUIREMENTS.md
+  // §7.6) — the S3 multipart upload id, needed to presign further parts,
+  // complete, or abort it.
+  uploadId   String?
+  createdAt  DateTime @default(now())
+
+  uploader User     @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  message  Message?
+
+  @@map("attachments")
+}
+
+enum UploadStatus {
+  PENDING
+  READY
+}
+
+enum AttachmentKind {
+  IMAGE
+  FILE
+  VOICE
+  VIDEO
+  AVATAR
+}
+
+model Block {
+  userId    String   @db.Uuid
+  blockedId String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  user    User @relation("BlockedBy", fields: [userId], references: [id], onDelete: Cascade)
+  blocked User @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@id([userId, blockedId])
+  @@map("blocks")
+}
+
+/** Web Push (VAPID) subscription, one row per browser/device (docs/adr/0010). */
+model PushSubscription {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @db.Uuid
+  endpoint      String    @unique
+  p256dh        String
+  auth          String
+  userAgent     String?
+  createdAt     DateTime  @default(now())
+  lastSuccessAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }

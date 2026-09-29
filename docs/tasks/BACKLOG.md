@@ -15,7 +15,7 @@ check it off. Don't load the rest of this file into context beyond the stage you
 - Recovery phrase (T-002): registration is one step
 - Safety code / verification
 - Media processing: thumbnails, EXIF strip, WebM↔MP4 transcoding (T-031, T-042)
-- Invites (T-003), session list/revoke UI, Web Push
+- Invites (T-003), session list/revoke UI
 
 ## M0 — Foundation
 
@@ -66,9 +66,13 @@ skeletons, `User`/`Session` Prisma models, health checks. What's left:
       two-client pattern — reuse it, don't add a third). REQUIREMENTS §7.6.
 - [ ] T-031 — Media processor: thumbnails, EXIF strip, poster frames (extend
       `apps/backend/src/jobs/media.processor.ts` — currently a stub with a `TODO(media)`).
-- [ ] T-032 — Photo/video/file messages in the composer and the feed, attachment preview before
+- [x] T-032 — Photo/video/file messages in the composer and the feed, attachment preview before
       send, progress/cancel/retry. FR-MEDIA-01–09.
-- [ ] T-033 — Fullscreen media viewer. FR-MEDIA-09.
+- [x] T-033 — Fullscreen media viewer. FR-MEDIA-09. "Перейти к сообщению" split out to T-033b
+      (needs `messageId` on `Attachment`).
+- [ ] T-033b — Media viewer "перейти к сообщению": `messageId` on the `Attachment` contract,
+      `GET /chats/:id/media` carrying it, and a feed scroll-to-message action wired from
+      `MediaViewer`. Split out of T-033.
 
 ## M4 — Voice and video notes
 
@@ -88,10 +92,47 @@ skeletons, `User`/`Session` Prisma models, health checks. What's left:
 
 ## M6 — v1
 
-Web Push + PWA, reactions, forward, pinned messages, in-chat message search, admin UI (stats;
-invites/users CRUD already partly in M0), remaining settings sections. FR IDs: see
-REQUIREMENTS.md's "v1" priority rows — not broken into tasks yet, do that when M1–M5 are done
-enough to know what's actually still missing.
+1:1 calls (LiveKit) + Web Push are broken into tasks below (docs/adr/0009, 0010, 0011). The rest
+of M6 — reactions, forward, pinned messages, in-chat message search, admin UI (stats;
+invites/users CRUD already partly in M0), remaining settings sections — isn't broken into tasks
+yet; do that when this wave is done. FR IDs: see REQUIREMENTS.md's "v1" priority rows.
+
+### Calls (FR-CALL-01–09, FR-NOTIF-06)
+
+- [x] T-060 — `packages/contracts`: `Call`/`CallStatus`/`StartCallBody`/`CallJoin` schemas,
+      `call:incoming`/`call:updated` WS events, `Message.type: "call"` + `MessageCallInfo`. Done.
+- [x] T-061 — Prisma: `Call`, `PushSubscription` models, `MessageType.CALL` + `Message.callId`,
+      `User.notifyMessages/notifyCalls/notifyPreview`. Done.
+- [x] T-062 — Backend `calls` module: state machine (ringing/active/ended/missed/declined/
+      cancelled/busy/failed), busy-lock + glare handling, LiveKit token minting, ring-timeout via
+      BullMQ, LiveKit webhook finalization, call-outcome history message. Depends on T-060, T-061.
+- [x] T-063 — LiveKit infra: `docker/livekit/livekit.yaml`, `compose.dev.yaml`/`compose.prod.yaml`
+      services, nginx `rtc.${DOMAIN}` proxy + TURN-over-443 SNI routing, certbot domains.
+- [x] T-064 — Frontend `entities/call` + `features/call`: call store, realtime hook, IncomingCall/
+      CallScreen/CallMiniBar, LiveKit room wired for bad-network resilience (adaptive
+      stream/simulcast/reconnect, connection-quality banner). Depends on T-060, T-062.
+- [x] T-065 — Chat integration: call buttons in `ChatThreadPanel`, call history row in
+      `MessageBubble`. Depends on T-064.
+
+### Web Push notifications (FR-NOTIF-04/06, FR-SET-13)
+
+- [x] T-066 — Backend `notifications` module: VAPID key endpoint, subscription CRUD, settings,
+      push-send queue (message + call payloads), subscription cleanup on 404/410. Depends on
+      T-060, T-061.
+- [x] T-067 — Frontend service worker (`vite-plugin-pwa`, `injectManifest`) + `entities/
+      notification`: push subscribe/unsubscribe flow, `NotificationsTab` in Settings, in-app vs.
+      system-notification routing (docs/adr/0010). Depends on T-060, T-066.
+- [x] T-068 — Closed-browser reachability follow-ups: `call:incoming` push re-sent every ~4s while
+      `RINGING` (stand-in for a ringtone browsers can't play in the background), `call:closed`
+      always shows a content-bearing (silent) replacement notification instead of a bare dismiss,
+      "Ответить"/notification click on message or call opens/focuses the right chat or call
+      (`?chat=`/`?call=&answer=1` deep link when no tab is open), per-platform hint in
+      `NotificationsTab` (iOS install-to-Home-Screen / Android background permission / desktop
+      background-apps setting), `call:missed` push TTL raised to 1 day. Depends on T-067.
+- [ ] T-069 — Add a logout action (no "Выйти" UI exists yet — `entities/session`'s `clearSession`
+      is only called from a failed silent-refresh) that also unsubscribes this device's push
+      subscription (`usePushSubscription().unsubscribe()`) before clearing the session, for
+      privacy on a shared device. Depends on T-067.
 
 ## M7 — Open source
 

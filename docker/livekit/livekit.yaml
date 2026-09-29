@@ -1,0 +1,45 @@
+# Prod-only LiveKit SFU config (docs/adr/0009) — dev uses the image's
+# built-in `--dev` mode instead (compose.dev.yaml), which needs no config
+# file. Mounted read-only into the `livekit` service (compose.prod.yaml) as
+# a *template*: livekit-server has no env-var templating of its own (unlike
+# nginx's envsubst), so `docker/livekit/entrypoint.sh` substitutes
+# `${DOMAIN}` with `sed` before handing this off to the real binary — same
+# reasoning as docker/certbot/renew-loop.sh hand-rolling its own bootstrap
+# logic instead of assuming one comes free with the image.
+port: 7880
+
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 60000
+  use_external_ip: true
+
+# Give reconnects across a network blip (Wi-Fi <-> 4G, a dropped tab) a
+# real grace window instead of ending the call outright — REQUIREMENTS.md's
+# call reliability goals / this feature's Phase 4.
+room:
+  empty_timeout: 30
+  departure_timeout: 30
+
+# Built-in TURN so calls still connect from behind strict NATs/firewalls;
+# `tls_port` is what nginx's `stream {}` SNI passthrough
+# (docker/nginx/stream.conf.stream-template) routes `turn.${DOMAIN}` to,
+# giving TURN-over-443 as a last-resort fallback when only 443 is open.
+turn:
+  enabled: true
+  udp_port: 3478
+  tls_port: 5349
+  domain: turn.${DOMAIN}
+
+# CallsService (apps/backend/src/calls) finalizes ended/missed calls from
+# these events — see `POST /calls/livekit-webhook`. The backend container
+# publishes 127.0.0.1:3000 in compose.prod.yaml specifically so this
+# `network_mode: host` service (no Docker DNS, "backend" doesn't resolve
+# for it) can reach it over loopback.
+webhook:
+  api_key: ${LIVEKIT_API_KEY}
+  urls:
+    - http://127.0.0.1:3000/api/v1/calls/livekit-webhook
+
+keys:
+  ${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}

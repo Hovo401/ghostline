@@ -1,0 +1,35 @@
+/**
+ * Query key builders shared across `entities/*` — entities can't import
+ * each other (see apps/frontend/CLAUDE.md's layering table), but
+ * `use-block-user.ts` (entities/user) still needs to invalidate the same
+ * `["chats"]` cache `entities/chat` owns. Keeping the keys here instead of
+ * duplicating the literal in both places is the one shared source of truth.
+ */
+export const CHATS_QUERY_KEY = ["chats"] as const;
+
+/** `entities/session`'s `useMe`/`useUpdateMe` and `useMeRealtime` all key
+ * off this one constant, same reasoning as `CHATS_QUERY_KEY` above. */
+export const ME_QUERY_KEY = ["me"] as const;
+
+export function messagesQueryKey(chatId: string) {
+  return ["messages", chatId] as const;
+}
+
+export function chatMediaQueryKey(chatId: string) {
+  return ["chats", chatId, "media"] as const;
+}
+
+export function userSearchQueryKey(query: string) {
+  return ["users", "search", query] as const;
+}
+
+export function usernameAvailabilityQueryKey(username: string) {
+  return ["users", "availability", username] as const;
+}
+
+/** `entities/call`'s `useActiveCallQuery` — `GET /calls/active`, fired once
+ * on mount to resume a call across a page reload. */
+export const CALL_ACTIVE_QUERY_KEY = ["calls", "active"] as const;
+
+/** `entities/notification`'s `useNotificationSettings`/`useUpdateNotificationSettings`. */
+export const NOTIFICATION_SETTINGS_QUERY_KEY = ["notifications", "settings"] as const;
