@@ -6,6 +6,10 @@
 # root (needed for the pnpm workspace + turbo).
 
 FROM node:24-slim AS base
+# prisma CLI (the `migrate` service runs from this stage) needs openssl to detect its engine
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
 RUN corepack enable
 WORKDIR /repo
 
