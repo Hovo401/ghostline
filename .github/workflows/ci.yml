@@ -29,6 +29,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: generate prisma client
+        run: pnpm --filter @ghostline/backend run db:generate
+
       - name: turbo (lint, typecheck, test, build)
         run: pnpm turbo run lint typecheck test build
 
@@ -59,6 +62,13 @@ jobs:
           S3_PUBLIC_URL=http://localhost/s3
           JWT_ACCESS_SECRET=ci-only-ci-only-ci-only-ci-only-ci-only
           JWT_REFRESH_SECRET=ci-only-ci-only-ci-only-ci-only-ci-only
+          LIVEKIT_URL=ws://localhost
+          LIVEKIT_API_URL=http://localhost:7880
+          LIVEKIT_API_KEY=ci-only
+          LIVEKIT_API_SECRET=ci-only-ci-only-ci-only-ci-only-ci
+          VAPID_PUBLIC_KEY=ci-only
+          VAPID_PRIVATE_KEY=ci-only
+          VAPID_SUBJECT=mailto:ci@example.com
           EOF
 
       - name: start infra (postgres, valkey, seaweedfs)
