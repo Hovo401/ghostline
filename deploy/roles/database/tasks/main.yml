@@ -1,0 +1,38 @@
+---
+- name: Find the active pg_hba.conf
+  ansible.builtin.find:
+    paths: /etc/postgresql
+    patterns: pg_hba.conf
+    recurse: true
+  register: pg_hba_search
+
+- name: Allow the Ghostline role to connect over loopback
+  community.postgresql.postgresql_pg_hba:
+    dest: "{{ pg_hba_search.files[0].path }}"
+    contype: host
+    address: 127.0.0.1/32
+    databases: "{{ db_name }}"
+    users: "{{ db_user }}"
+    method: scram-sha-256
+  notify: reload postgresql
+
+- name: Apply pending pg_hba changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Create the Ghostline database role
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_user:
+    name: "{{ db_user }}"
+    password: "{{ db_password }}"
+    state: present
+  no_log: true
+
+# Owned by the app role (not postgres) because since PG 15 only the owner may
+# create objects in `public`, and Prisma migrations do.
+- name: Create the Ghostline database
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_db:
+    name: "{{ db_name }}"
+    owner: "{{ db_user }}"

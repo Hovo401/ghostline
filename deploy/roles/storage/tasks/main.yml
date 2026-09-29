@@ -1,0 +1,45 @@
+---
+# Uses the `local` mc alias homelab-infra's minio role configures for root.
+- name: Ensure the Ghostline bucket exists
+  ansible.builtin.command:
+    cmd: "mc mb --ignore-existing local/{{ s3_bucket }}"
+  register: mc_mb
+  changed_when: "'created successfully' in mc_mb.stdout"
+
+# Media is only ever served through presigned URLs; anonymous access would
+# expose every user's files.
+- name: Keep the Ghostline bucket private
+  ansible.builtin.command:
+    cmd: "mc anonymous set none local/{{ s3_bucket }}"
+  changed_when: false
+
+- name: Create or update the Ghostline MinIO user
+  ansible.builtin.command:
+    cmd: "mc admin user add local {{ s3_user }} {{ s3_secret_key }}"
+  changed_when: false
+  no_log: true
+
+- name: Render the bucket-scoped policy
+  ansible.builtin.template:
+    src: policy.json.j2
+    dest: "/tmp/minio-policy-{{ s3_user }}.json"
+    mode: "0600"
+
+- name: Create or update the bucket-scoped policy
+  ansible.builtin.command:
+    cmd: "mc admin policy create local {{ s3_user }}-policy /tmp/minio-policy-{{ s3_user }}.json"
+  changed_when: false
+
+- name: Attach the policy to the Ghostline user
+  ansible.builtin.command:
+    cmd: "mc admin policy attach local {{ s3_user }}-policy --user={{ s3_user }}"
+  register: mc_policy_attach
+  changed_when: "'attached to user' in mc_policy_attach.stdout"
+  failed_when: >-
+    mc_policy_attach.rc != 0 and
+    'already attached' not in (mc_policy_attach.stderr + mc_policy_attach.stdout)
+
+- name: Remove the rendered policy
+  ansible.builtin.file:
+    path: "/tmp/minio-policy-{{ s3_user }}.json"
+    state: absent

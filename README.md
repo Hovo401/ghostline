@@ -65,6 +65,9 @@ Postgres at `localhost:5432` (credentials from `.env`).
 
 ## Quickstart — production (self-hosting)
 
+(The shared dev server, `ghostline.diotek.pp.ua`, doesn't use this — it's deployed natively
+with Ansible next to other apps; see [deploy/README.md](deploy/README.md).)
+
 You need a domain pointed at the server before starting — nginx's prod config needs a
 certificate to bind `:443`, and certbot needs the domain to issue one.
 

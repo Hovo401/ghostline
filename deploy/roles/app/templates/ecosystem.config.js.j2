@@ -1,0 +1,22 @@
+// Managed by deploy/ (Ansible). Both apps read {{ app_dir }}/current/.env,
+// a symlink to shared/.env that deploy/remote/activate-release.sh creates.
+module.exports = {
+  apps: [
+    {
+      name: "ghostline-backend",
+      cwd: "{{ app_dir }}/current",
+      script: "dist/src/main.js",
+      node_args: "--max-old-space-size={{ backend_heap_mb }}",
+      max_memory_restart: "{{ backend_max_memory }}",
+      env: { NODE_ENV: "production" },
+    },
+    {
+      name: "ghostline-worker",
+      cwd: "{{ app_dir }}/current",
+      script: "dist/src/main.worker.js",
+      node_args: "--max-old-space-size={{ worker_heap_mb }}",
+      max_memory_restart: "{{ worker_max_memory }}",
+      env: { NODE_ENV: "production" },
+    },
+  ],
+};

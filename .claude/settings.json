@@ -218,7 +218,15 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost/src/entities/attachment/upload-file.ts)",
       "Bash(python -)",
       "Bash(npx jest *)",
-      "PowerShell(pnpm check:changed 2>&1)"
+      "PowerShell(pnpm check:changed 2>&1)",
+      "Bash(rm -rf C:/Users/Lenovo/AppData/Local/Temp/claude/c--Users-Lenovo-Diotek-data-my-project-chat/d30732c4-4c08-415d-ba48-71451befc22a/scratchpad/deploy-check)",
+      "Bash(cp -r deploy C:/Users/Lenovo/AppData/Local/Temp/claude/c--Users-Lenovo-Diotek-data-my-project-chat/d30732c4-4c08-415d-ba48-71451befc22a/scratchpad/deploy-check)",
+      "Bash(pwd -W)",
+      "Bash(MSYS_NO_PATHCONV=1 docker run --rm -v \"$\\(pwd -W\\):/work\" -w /work willhallonline/ansible:2.18-ubuntu-24.04 sh -c \"ansible-playbook --syntax-check -i inventory.ini site.yml && ansible-galaxy collection list 2>/dev/null | grep -E 'ansible.posix|community.postgresql'\")",
+      "Bash(MSYS_NO_PATHCONV=1 docker run --rm -v __CMDSUB_OUTPUT__/rendered:/r:ro nginx:1.28-alpine sh -c ' *)",
+      "Bash(MSYS_NO_PATHCONV=1 docker run --rm -v \"$\\(pwd -W\\)/rendered:/r:ro\" redis:7.0-alpine sh -c 'mkdir -p /var/lib/ghostline-redis && chown redis /var/lib/ghostline-redis; \\(redis-server /r/redis.conf --daemonize yes >/dev/null\\) ; sleep 1; redis-cli -p 6380 CONFIG GET maxmemory-policy | tail -1; redis-cli -p 6380 CONFIG GET maxmemory | tail -1; redis-cli -p 6380 CONFIG GET bind | tail -1')",
+      "Bash(git ls-remote *)",
+      "Bash(gh repo *)"
     ],
     "deny": [
       "Read(**/node_modules/**)",

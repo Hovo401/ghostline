@@ -5,6 +5,7 @@ node_modules/
 # build output
 dist/
 build/
+out/
 .turbo/
 *.tsbuildinfo
 
@@ -12,6 +13,7 @@ build/
 .env
 .env.*
 !.env.example
+deploy/group_vars/vault.yml
 
 # logs
 *.log

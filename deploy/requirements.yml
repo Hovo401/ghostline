@@ -1,0 +1,6 @@
+---
+# Bundled in the willhallonline/ansible image run.ps1 uses; install explicitly
+# for a bare control machine: ansible-galaxy collection install -r requirements.yml
+collections:
+  - name: ansible.posix
+  - name: community.postgresql

@@ -1,0 +1,19 @@
+---
+- name: Deploy Ghostline onto the shared dev server
+  hosts: web
+  become: true
+  vars_files:
+    - group_vars/vault.yml
+  roles:
+    - role: preflight
+      tags: [always]
+    - role: database
+      tags: [database, db]
+    - role: storage
+      tags: [storage, s3]
+    - role: redis
+      tags: [redis]
+    - role: app
+      tags: [app]
+    - role: vhost
+      tags: [vhost, nginx, tls]

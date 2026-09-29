@@ -1,0 +1,62 @@
+---
+- name: Validate secrets from vault.yml
+  ansible.builtin.assert:
+    that:
+      - db_password is match('^[A-Za-z0-9]{16,}$')
+      - s3_secret_key | length >= 8
+      - jwt_access_secret | length >= 32
+      - jwt_refresh_secret | length >= 32
+      - jwt_access_secret != jwt_refresh_secret
+      - livekit_api_key | length > 0
+      - livekit_api_secret | length > 0
+      - vapid_public_key | length > 0
+      - vapid_private_key | length > 0
+    fail_msg: >-
+      group_vars/vault.yml is incomplete — see vault.example.yml. db_password
+      must be >= 16 letters/digits (it goes into DATABASE_URL unescaped).
+    quiet: true
+  no_log: true
+
+# This project only adds to a host homelab-infra already provisioned — it
+# never installs or reconfigures the shared services below.
+- name: Check the shared services homelab-infra provides
+  ansible.builtin.command: "{{ item.cmd }}"
+  changed_when: false
+  register: shared_service_check
+  failed_when: false
+  loop:
+    - { name: nginx, cmd: "nginx -v" }
+    - { name: certbot, cmd: "certbot --version" }
+    - { name: postgresql, cmd: "systemctl is-active postgresql" }
+    - { name: minio, cmd: "systemctl is-active minio" }
+    - { name: mc alias `local`, cmd: "mc alias list local" }
+    - { name: node, cmd: "node -p process.versions.node" }
+    - { name: pm2, cmd: "pm2 --version" }
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Fail if a shared service is missing
+  ansible.builtin.fail:
+    msg: >-
+      {{ item.item.name }} is missing or not running on this host — run
+      homelab-infra's site.yml first.
+  when: item.rc != 0
+  loop: "{{ shared_service_check.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Require Node.js 24+
+  ansible.builtin.assert:
+    that:
+      - shared_service_check.results[5].stdout.split('.')[0] | int >= 24
+    fail_msg: "Ghostline needs Node.js >= 24, found {{ shared_service_check.results[5].stdout }}"
+
+- name: Check the ACME webroot certbot uses
+  ansible.builtin.stat:
+    path: "{{ certbot_webroot }}"
+  register: certbot_webroot_stat
+
+- name: Fail if the ACME webroot is missing
+  ansible.builtin.fail:
+    msg: "{{ certbot_webroot }} does not exist — run homelab-infra's webserver role first."
+  when: not certbot_webroot_stat.stat.exists

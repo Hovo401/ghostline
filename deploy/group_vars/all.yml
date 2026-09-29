@@ -1,0 +1,39 @@
+---
+domain: ghostline.diotek.pp.ua
+app_dir: /opt/ghostline
+frontend_static_dir: /var/www/ghostline
+
+# Taken on this host: 8000 paidemail, 8001 diotek, 5678 n8n, 9000/9001 MinIO, 6379 default redis
+backend_port: 8002
+redis_port: 6380
+redis_maxmemory: 48mb
+
+db_name: ghostline
+db_user: ghostline
+# Postgres allows 20 connections for the whole host (homelab-infra); backend
+# and worker each open this many.
+db_connection_limit: 2
+
+s3_bucket: ghostline-media
+s3_user: ghostline
+s3_internal_endpoint: http://127.0.0.1:9000
+# Browser-facing; homelab-infra's MinIO vhost proxies the S3 API at its root
+# with no path rewrite, which presigned URLs require (docs/adr/0008).
+s3_public_url: https://minio.diotek.pp.ua
+
+livekit_url: wss://gostline-9i249vpi.livekit.cloud
+livekit_api_url: https://gostline-9i249vpi.livekit.cloud
+
+vapid_subject: mailto:admin@diotek.pp.ua
+
+# The box has ~560 MiB RAM; keep both Node processes small.
+backend_heap_mb: 160
+backend_max_memory: 260M
+worker_heap_mb: 128
+worker_max_memory: 220M
+
+certbot_webroot: /var/www/certbot
+letsencrypt_email: ""
+
+# Public half of the key GitHub Actions deploys with; empty = skip.
+deploy_ssh_public_key: ""
