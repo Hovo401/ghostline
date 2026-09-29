@@ -1,5 +1,3 @@
-import { useEffect, useRef, useState } from "react";
-
 import {
   describeUploadError,
   downloadAttachment,
@@ -7,6 +5,7 @@ import {
   formatFileSize,
   isTextPreviewable,
   shouldAutoDownload,
+  useAudioPlayerStore,
   useMediaSource,
   useMediaViewerStore,
   useUploadQueueStore,
@@ -18,6 +17,7 @@ import {
   useFreshMessageStore,
   type ChatMessage,
 } from "../../entities/message";
+import { useSeekPointer } from "../../shared/lib/use-seek-pointer";
 import { PhoneIcon, VideoCameraIcon } from "../../shared/ui/call-icons";
 import { PauseIcon, PlayIcon } from "../../shared/ui/media-icons";
 import { MediaBackdrop, MediaPlaceholder } from "../../shared/ui/media-placeholder";
@@ -39,6 +39,9 @@ interface MessageBubbleProps {
   /** Starts a new call back into this chat, in the same mode (audio/video)
    * — only meaningful for `type === "call"`, ignored otherwise. */
   onCallBack?: (message: ChatMessage) => void;
+  /** Starts/toggles this voice message in the shared player (or jumps to
+   * `startFraction` of it) — only meaningful for `type === "voice"`. */
+  onPlayVoice?: (message: ChatMessage, startFraction?: number) => void;
 }
 
 function DownloadIcon() {
@@ -387,52 +390,40 @@ function FileBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolean }
 }
 
 /** DESIGN-BRIEF.md §7.2: 270px pill, play button, 28-bar waveform, duration,
- * plus a small download affordance (T-032 §4.4). */
-function VoiceBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolean }) {
+ * plus a small download affordance (T-032 §4.4). Playback goes through the
+ * app-wide `audio-player-store` (one voice message at a time, mirrored in
+ * the chat's top bar); the waveform doubles as a click/drag seek slider. */
+function VoiceBubble({
+  message,
+  isOwn,
+  onPlayVoice,
+}: {
+  message: ChatMessage;
+  isOwn: boolean;
+  onPlayVoice?: (message: ChatMessage, startFraction?: number) => void;
+}) {
   const attachment = message.attachment;
+  // Keeps the bubble's download/auto-download behaviour — the player reads
+  // the bytes back from the same cache.
   const media = useBubbleMedia(message);
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [playing, setPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const isCurrent = useAudioPlayerStore((state) => state.track?.messageId === message.id);
+  const playing = useAudioPlayerStore(
+    (state) => state.track?.messageId === message.id && state.playing,
+  );
+  const progress = useAudioPlayerStore((state) =>
+    state.track?.messageId === message.id && state.durationMs > 0
+      ? Math.min(1, state.positionMs / state.durationMs)
+      : 0,
+  );
+  const seekBy = useAudioPlayerStore((state) => state.seekBy);
   const durationMs = message.durationMs ?? 0;
   const bars = message.waveform && message.waveform.length > 0 ? message.waveform : DEFAULT_BARS;
+  const canPlay = !!attachment && !!onPlayVoice;
+  const seekPointer = useSeekPointer((fraction) => {
+    if (canPlay) onPlayVoice(message, fraction);
+  });
 
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const onTimeUpdate = (): void => {
-      if (audio.duration) setProgress(audio.currentTime / audio.duration);
-    };
-    const onPlay = (): void => {
-      setPlaying(true);
-    };
-    const onPause = (): void => {
-      setPlaying(false);
-    };
-    const onEnded = (): void => {
-      setPlaying(false);
-      setProgress(0);
-    };
-    audio.addEventListener("timeupdate", onTimeUpdate);
-    audio.addEventListener("play", onPlay);
-    audio.addEventListener("pause", onPause);
-    audio.addEventListener("ended", onEnded);
-    return () => {
-      audio.removeEventListener("timeupdate", onTimeUpdate);
-      audio.removeEventListener("play", onPlay);
-      audio.removeEventListener("pause", onPause);
-      audio.removeEventListener("ended", onEnded);
-    };
-  }, []);
-
-  const togglePlay = (): void => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (audio.paused) void audio.play();
-    else audio.pause();
-  };
-
-  const displayMs = progress > 0 ? progress * durationMs : durationMs;
+  const displayMs = isCurrent ? progress * durationMs : durationMs;
 
   return (
     <div
@@ -442,12 +433,11 @@ function VoiceBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolean 
         isOwn ? "[background:var(--color-accent)] text-ink" : "border border-line bg-in text-fg",
       ].join(" ")}
     >
-      {/* preload="none": the duration is already on the message — nothing is
-          fetched until play, unless the policy already cached it. */}
-      {attachment && <audio ref={audioRef} src={media.src ?? attachment.url} preload="none" />}
       <button
         type="button"
-        onClick={togglePlay}
+        onClick={() => {
+          if (canPlay) onPlayVoice(message);
+        }}
         aria-label={playing ? "Пауза" : "Воспроизвести"}
         className={[
           "flex h-9.5 w-9.5 flex-none items-center justify-center rounded-full outline-none",
@@ -456,17 +446,37 @@ function VoiceBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolean 
       >
         {playing ? <PauseIcon /> : <PlayIcon />}
       </button>
-      <div className="flex h-7.5 flex-1 items-center gap-0.5">
+      <div
+        role="slider"
+        tabIndex={canPlay ? 0 : -1}
+        aria-label="Перемотка"
+        aria-valuemin={0}
+        aria-valuemax={Math.round(durationMs / 1000)}
+        aria-valuenow={Math.round(displayMs / 1000)}
+        aria-valuetext={formatDuration(isCurrent ? displayMs : 0)}
+        {...(canPlay ? seekPointer : {})}
+        onKeyDown={(event) => {
+          if (!isCurrent) return;
+          if (event.key === "ArrowRight") seekBy(SEEK_STEP_MS);
+          else if (event.key === "ArrowLeft") seekBy(-SEEK_STEP_MS);
+          else return;
+          event.preventDefault();
+        }}
+        className={[
+          "flex h-7.5 flex-1 touch-none items-center gap-0.5 outline-none",
+          canPlay ? "cursor-pointer" : "",
+        ].join(" ")}
+      >
         {bars.map((level, index) => {
           const heightPct = Math.max(15, Math.round((level / 255) * 100));
-          const played = bars.length > 0 && index / bars.length < progress;
+          const played = isCurrent && index / bars.length < progress;
           return (
             <span
               key={index}
               style={{ height: `${heightPct.toFixed(0)}%` }}
               className={[
-                "min-w-0.5 flex-1 rounded-full bg-current",
-                played ? "opacity-100" : playing ? "opacity-35" : "opacity-55",
+                "pointer-events-none min-w-0.5 flex-1 rounded-full bg-current",
+                played ? "opacity-100" : isCurrent ? "opacity-35" : "opacity-55",
               ].join(" ")}
             />
           );
@@ -494,6 +504,9 @@ function VoiceBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolean 
     </div>
   );
 }
+
+/** ←/→ on a focused waveform — same step as Telegram's. */
+const SEEK_STEP_MS = 5_000;
 
 /** DESIGN-BRIEF.md §7.2: 210px circle, accent conic progress ring, center
  * play — the recorder's round video note (`type: "video_note"`), distinct
@@ -611,6 +624,7 @@ export function MessageBubble({
   onRetry,
   onOpenImage,
   onCallBack,
+  onPlayVoice,
 }: MessageBubbleProps) {
   const meta = formatMessageMeta(message, isOwn, isLastOutgoing);
 
@@ -635,7 +649,9 @@ export function MessageBubble({
         <VideoBubble message={message} isOwn={isOwn} onOpenImage={onOpenImage} />
       )}
       {message.type === "file" && <FileBubble message={message} isOwn={isOwn} />}
-      {message.type === "voice" && <VoiceBubble message={message} isOwn={isOwn} />}
+      {message.type === "voice" && (
+        <VoiceBubble message={message} isOwn={isOwn} onPlayVoice={onPlayVoice} />
+      )}
       {message.type === "video_note" && <VideoNoteBubble message={message} />}
       {message.type === "call" && (
         <CallBubble message={message} isOwn={isOwn} onCallBack={onCallBack} />

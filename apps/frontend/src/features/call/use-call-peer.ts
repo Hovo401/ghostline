@@ -5,6 +5,7 @@ import { useCurrentUserId } from "../../entities/user";
 export interface CallPeer {
   id: string;
   displayName: string;
+  avatarUrl?: string;
 }
 
 /**
@@ -23,7 +24,12 @@ export function useCallPeer(chatId: string | null, call: Call | null = null): Ca
 
   if (!chatId) return null;
   const chat = chats?.find((c) => c.id === chatId);
-  if (chat?.peer) return { id: chat.peer.id, displayName: chat.peer.displayName };
+  if (chat?.peer)
+    return {
+      id: chat.peer.id,
+      displayName: chat.peer.displayName,
+      avatarUrl: chat.peer.avatarUrl ?? undefined,
+    };
   if (!call) return null;
   const peerId = call.callerId === currentUserId ? call.calleeId : call.callerId;
   return { id: peerId, displayName: "Абонент" };

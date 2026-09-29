@@ -6,7 +6,7 @@ import { useCallStore, type Call } from "../../entities/call";
 import { CallMiniBar } from "./CallMiniBar";
 
 vi.mock("./use-call-peer", () => ({
-  useCallPeer: () => ({ id: "peer-1", displayName: "Тест Пир" }),
+  useCallPeer: () => ({ id: "peer-1", displayName: "Тест Пир", avatarUrl: "/a.png" }),
 }));
 
 function call(overrides: Partial<Call> = {}): Call {
@@ -60,6 +60,7 @@ describe("CallMiniBar", () => {
 
     expect(screen.getByText("Тест Пир")).toBeInTheDocument();
     expect(screen.getByText("Аудио")).toBeInTheDocument();
+    expect(document.querySelector("img")).toHaveAttribute("src", "/a.png");
   });
 
   it("restores the call screen on click", () => {

@@ -59,7 +59,7 @@ export function IncomingCall() {
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-6 sm:items-center"
     >
       <div className="flex w-full max-w-90 flex-col items-center gap-6 rounded-3xl border border-line bg-bg2 p-7 text-center shadow-glow">
-        <Avatar name={peer?.displayName ?? "Абонент"} size={92} />
+        <Avatar name={peer?.displayName ?? "Абонент"} src={peer?.avatarUrl} size={92} />
         <div className="flex flex-col gap-1.5">
           <span className="text-lg font-medium">{peer?.displayName ?? "Абонент"}</span>
           <span className="font-mono text-xs text-mute">

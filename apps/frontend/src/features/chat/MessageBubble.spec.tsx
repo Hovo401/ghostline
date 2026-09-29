@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { useMediaViewerStore } from "../../entities/attachment";
+import { useAudioPlayerStore, useMediaViewerStore } from "../../entities/attachment";
 import type { ChatMessage } from "../../entities/message";
 
 import { MessageBubble } from "./MessageBubble";
@@ -193,6 +193,87 @@ describe("MessageBubble", () => {
 
     expect(screen.getByRole("button", { name: "Воспроизвести" })).toBeInTheDocument();
     expect(screen.getByText("0:12")).toBeInTheDocument();
+  });
+
+  it("the voice play button hands the message to the shared player", () => {
+    const onPlayVoice = vi.fn();
+    const message = makeMessage({
+      type: "voice",
+      text: null,
+      durationMs: 12_000,
+      attachment: {
+        id: "a1",
+        key: "k",
+        mime: "audio/webm",
+        size: 1000,
+        width: null,
+        height: null,
+        name: null,
+        url: "https://s3.example/voice.webm",
+      },
+    });
+    render(
+      <MessageBubble
+        message={message}
+        isOwn={false}
+        isLastOutgoing={false}
+        scrambleDelay={0}
+        onRetry={vi.fn()}
+        onPlayVoice={onPlayVoice}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Воспроизвести" }));
+    expect(onPlayVoice).toHaveBeenCalledWith(message);
+
+    const slider = screen.getByRole("slider", { name: "Перемотка" });
+    vi.spyOn(slider, "getBoundingClientRect").mockReturnValue({ left: 0, width: 100 } as DOMRect);
+    // jsdom has no PointerEvent — a MouseEvent carries `clientX` just the same.
+    fireEvent(slider, new MouseEvent("pointerdown", { bubbles: true, clientX: 75 }));
+    expect(onPlayVoice).toHaveBeenLastCalledWith(message, 0.75);
+  });
+
+  it("the voice bubble that is playing shows pause and its position", () => {
+    useAudioPlayerStore.setState({
+      track: {
+        messageId: "m1",
+        attachmentId: "a1",
+        url: "https://s3.example/voice.webm",
+        title: "Олег",
+        createdAt: "2026-09-27T00:47:00.000Z",
+        durationMs: 12_000,
+      },
+      playing: true,
+      positionMs: 3_000,
+      durationMs: 12_000,
+    });
+    render(
+      <MessageBubble
+        message={makeMessage({
+          type: "voice",
+          text: null,
+          durationMs: 12_000,
+          attachment: {
+            id: "a1",
+            key: "k",
+            mime: "audio/webm",
+            size: 1000,
+            width: null,
+            height: null,
+            name: null,
+            url: "https://s3.example/voice.webm",
+          },
+        })}
+        isOwn={false}
+        isLastOutgoing={false}
+        scrambleDelay={0}
+        onRetry={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Пауза" })).toBeInTheDocument();
+    expect(screen.getByText("0:03")).toBeInTheDocument();
+    useAudioPlayerStore.setState({ track: null, playing: false, positionMs: 0, durationMs: 0 });
   });
 
   it("renders a round play control and duration for a video note", () => {

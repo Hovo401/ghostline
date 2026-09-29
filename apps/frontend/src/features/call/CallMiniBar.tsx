@@ -37,12 +37,12 @@ export function CallMiniBar() {
       type="button"
       onClick={restore}
       aria-label="Развернуть звонок"
-      className="fixed inset-x-3 bottom-3 z-40 flex items-center gap-3 rounded-2xl border border-line bg-bg2 px-3.5 py-2.5 text-left shadow-glow sm:inset-x-auto sm:left-auto sm:w-80"
+      className="flex w-full shrink-0 items-center gap-3 border-b border-line bg-bg2 px-4 py-1.5 text-left"
     >
-      <Avatar name={peer?.displayName ?? "Абонент"} size={40} />
-      <span className="flex min-w-0 flex-1 flex-col">
+      <Avatar name={peer?.displayName ?? "Абонент"} src={peer?.avatarUrl} size={24} />
+      <span className="flex min-w-0 flex-1 items-baseline gap-2">
         <span className="truncate text-sm font-medium">{peer?.displayName ?? "Абонент"}</span>
-        <span className="font-mono text-xs text-mute">{statusLabel}</span>
+        <span className="shrink-0 font-mono text-xs text-mute">{statusLabel}</span>
       </span>
       <span aria-hidden className="font-mono text-xs text-accent-text">
         {call.video ? "Видео" : "Аудио"}

@@ -217,7 +217,8 @@
       "Bash(curl -s http://localhost/src/entities/attachment/upload-attachment.ts)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost/src/entities/attachment/upload-file.ts)",
       "Bash(python -)",
-      "Bash(npx jest *)"
+      "Bash(npx jest *)",
+      "PowerShell(pnpm check:changed 2>&1)"
     ],
     "deny": [
       "Read(**/node_modules/**)",

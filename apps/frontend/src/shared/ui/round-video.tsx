@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import { claimPlayback } from "../lib/exclusive-playback";
+
 import { PauseIcon, PlayIcon } from "./media-icons";
 import { ProgressRing } from "./progress-ring";
 
@@ -48,6 +50,7 @@ export function RoundVideo({
       if (Number.isFinite(video.duration)) setMetaMs(video.duration * 1000);
     };
     const onPlay = (): void => {
+      claimPlayback(video);
       setPlaying(true);
     };
     const onPause = (): void => {

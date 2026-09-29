@@ -2,7 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { selectHasActiveUploads, useUploadQueueStore } from "../entities/attachment";
 import { ensureSession } from "../entities/session";
-import { CallRoot } from "../features/call";
+import { CallMiniBar, CallRoot } from "../features/call";
 import { Chat } from "../features/chat";
 import { MediaViewer } from "../features/media-viewer";
 import { useSessionStore } from "../shared/api/session-store";
@@ -27,7 +27,12 @@ function AppShell() {
 
   return (
     <>
-      <Chat />
+      <div className="flex h-dvh flex-col">
+        <CallMiniBar />
+        <div className="min-h-0 flex-1">
+          <Chat />
+        </div>
+      </div>
       <MediaViewer />
       <CallRoot />
       <Toaster />

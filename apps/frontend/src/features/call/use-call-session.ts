@@ -145,9 +145,19 @@ export function useCallSession(): CallSessionHandle {
         setRemoteAudioTrack((current) => (current === track ? null : current));
       }
     };
+    // The source of truth for "is my camera/mic actually on": livekit-client's
+    // `set*Enabled()` can reject ("publishing rejected as engine not connected
+    // within timeout" on a weak mobile link) while the publish itself is not
+    // cancelled and still completes once the engine reconnects — so a late
+    // publish here must undo the error/disabled state the rejection left.
     const handleLocalTrackPublished = (publication: TrackPublicationLike): void => {
       if (publication.kind === Track.Kind.Video && publication.track) {
         setLocalVideoTrack(publication.track);
+        setCameraEnabled(true);
+        setMediaError((prev) => ({ ...prev, camera: null }));
+      } else if (publication.kind === Track.Kind.Audio) {
+        setMicEnabled(true);
+        setMediaError((prev) => ({ ...prev, microphone: null }));
       }
     };
     const handleLocalTrackUnpublished = (publication: TrackPublicationLike): void => {
@@ -187,6 +197,7 @@ export function useCallSession(): CallSessionHandle {
         try {
           await nextRoom.localParticipant.setMicrophoneEnabled(true);
         } catch (error) {
+          if (roomRef.current !== nextRoom) return;
           setMediaError((prev) => ({ ...prev, microphone: (error as Error).message }));
           setMicEnabled(false);
         }
@@ -195,6 +206,7 @@ export function useCallSession(): CallSessionHandle {
           try {
             await nextRoom.localParticipant.setCameraEnabled(true);
           } catch (error) {
+            if (roomRef.current !== nextRoom) return;
             setMediaError((prev) => ({ ...prev, camera: (error as Error).message }));
             setCameraEnabled(false);
           }

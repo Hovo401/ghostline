@@ -1,5 +1,4 @@
 import { CallEnded } from "./CallEnded";
-import { CallMiniBar } from "./CallMiniBar";
 import { CallScreen } from "./CallScreen";
 import { IncomingCall } from "./IncomingCall";
 import { useCallSession } from "./use-call-session";
@@ -21,7 +20,6 @@ export function CallRoot() {
       <IncomingCall />
       <CallEnded />
       <CallScreen session={session} />
-      <CallMiniBar />
     </>
   );
 }

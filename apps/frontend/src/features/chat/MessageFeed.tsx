@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef } from "react";
 
-import { useMediaViewerStore, type Attachment } from "../../entities/attachment";
+import {
+  useAudioPlayerStore,
+  useMediaViewerStore,
+  type Attachment,
+  type AudioTrack,
+} from "../../entities/attachment";
 import { useCallActions } from "../../entities/call";
 import {
   type ChatMessage,
@@ -22,6 +27,8 @@ interface MessageFeedProps {
   chatId: string;
   messages: ChatMessage[];
   currentUserId: string | null;
+  /** Sender label for the peer's voice messages in the audio top bar. */
+  peerName: string;
   peerTyping: boolean;
   hasMore: boolean;
   onLoadMore: () => void;
@@ -31,6 +38,7 @@ export function MessageFeed({
   chatId,
   messages,
   currentUserId,
+  peerName,
   peerTyping,
   hasMore,
   onLoadMore,
@@ -70,6 +78,35 @@ export function MessageFeed({
     openViewer(attachments, index);
   };
 
+  // Voice playlist for the shared player — every voice message in the
+  // loaded feed, in feed order, so ⏭ and autoplay continue with the next
+  // (newer) one, like Telegram.
+  const playAudio = useAudioPlayerStore((state) => state.play);
+  const voiceTracks = useMemo(
+    () =>
+      messages.flatMap((message): AudioTrack[] =>
+        message.type === "voice" && message.attachment
+          ? [
+              {
+                messageId: message.id,
+                attachmentId: message.attachment.id,
+                url: message.attachment.url,
+                title:
+                  message.senderId !== null && message.senderId === currentUserId ? "Вы" : peerName,
+                createdAt: message.createdAt,
+                durationMs: message.durationMs ?? 0,
+              },
+            ]
+          : [],
+      ),
+    [messages, currentUserId, peerName],
+  );
+
+  const playVoice = (message: ChatMessage, startFraction?: number): void => {
+    const track = voiceTracks.find((item) => item.messageId === message.id);
+    if (track) playAudio(track, voiceTracks, startFraction);
+  };
+
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -103,6 +140,7 @@ export function MessageFeed({
               onRetry={retry}
               onOpenImage={openImageMessage}
               onCallBack={callBack}
+              onPlayVoice={playVoice}
             />
           </div>
         );

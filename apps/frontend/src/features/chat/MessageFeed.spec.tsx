@@ -58,6 +58,7 @@ function renderFeed(messages: ChatMessage[]) {
         chatId="chat-1"
         messages={messages}
         currentUserId="user-a"
+        peerName="Олег"
         peerTyping={false}
         hasMore={false}
         onLoadMore={vi.fn()}

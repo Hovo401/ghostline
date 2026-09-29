@@ -162,6 +162,8 @@ export function Composer({ chatId }: { chatId: string }) {
     const video = videoPreviewRef.current;
     if (!video) return;
     video.srcObject = recorder.previewStream;
+    // Mobile browsers don't always auto-start a stream attached after mount.
+    if (recorder.previewStream) void video.play().catch(() => undefined);
   }, [recorder.previewStream]);
 
   const submit = (): void => {
@@ -322,13 +324,15 @@ export function Composer({ chatId }: { chatId: string }) {
 
       {recordingVideo && (
         <div className="absolute inset-x-0 top-17 bottom-0 z-10 flex flex-col items-center justify-center gap-5.5 bg-bg/88 backdrop-blur-[8px]">
-          <div className="relative flex h-65 w-65 items-center justify-center overflow-hidden rounded-full border border-line bg-bg2">
+          <div className="relative isolate flex h-65 w-65 transform-gpu items-center justify-center overflow-hidden rounded-full border border-line bg-bg2">
             <video
               ref={videoPreviewRef}
               autoPlay
               muted
               playsInline
-              className="h-full w-full object-cover"
+              // Own GPU layer + own rounded clip: Chrome on Android otherwise
+              // paints only part of a live stream under a backdrop-blur ancestor.
+              className="h-full w-full -scale-x-100 transform-gpu rounded-full object-cover"
             />
             <ProgressRing
               percent={(recorder.elapsedMs / VIDEO_NOTE_MAX_MS) * 100}

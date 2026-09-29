@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ConnectionQuality, ConnectionState } from "livekit-client";
+import type { Track } from "livekit-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useCallStore, type Call } from "../../entities/call";
@@ -138,5 +139,29 @@ describe("CallScreen", () => {
     });
     render(<CallScreen session={fakeSession()} />);
     expect(screen.getByText("Соединение…")).toBeInTheDocument();
+  });
+
+  // Regression: the local `<video>` mounts only once the camera is on, often
+  // with a track that was already published earlier — it must still get
+  // attached (was a black self-preview on mobile).
+  it("attaches an already-known track to a <video> that mounts later", () => {
+    useCallStore.setState({ call: call(), livekitUrl: "wss://lk", token: "tok", phase: "active" });
+    const attach = vi.fn();
+    const detach = vi.fn();
+    const track = { attach, detach } as unknown as Track;
+
+    const { rerender, container } = render(
+      <CallScreen session={fakeSession({ localVideoTrack: track, cameraEnabled: false })} />,
+    );
+    expect(attach).not.toHaveBeenCalled();
+
+    rerender(<CallScreen session={fakeSession({ localVideoTrack: track, cameraEnabled: true })} />);
+    const video = container.querySelector("video");
+    expect(attach).toHaveBeenCalledWith(video);
+
+    rerender(
+      <CallScreen session={fakeSession({ localVideoTrack: track, cameraEnabled: false })} />,
+    );
+    expect(detach).toHaveBeenCalledWith(video);
   });
 });

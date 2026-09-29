@@ -7,23 +7,7 @@ import {
   validateFiles,
 } from "../../entities/attachment";
 import { IconButton } from "../../shared/ui/icon-button";
-
-function CloseIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      aria-hidden
-    >
-      <path d="M5 5l14 14M19 5L5 19" />
-    </svg>
-  );
-}
+import { CloseIcon } from "../../shared/ui/media-icons";
 
 interface PendingItem {
   file: File;

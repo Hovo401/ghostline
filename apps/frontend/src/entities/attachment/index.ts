@@ -1,4 +1,5 @@
 export * from "./attachment.types";
+export * from "./audio-player-store";
 export * from "./auto-download-policy";
 export * from "./file-extension";
 export * from "./format-file-size";

@@ -9,6 +9,7 @@ import { Avatar } from "../../shared/ui/avatar";
 import { PhoneIcon, VideoCameraIcon } from "../../shared/ui/call-icons";
 import { IconButton } from "../../shared/ui/icon-button";
 
+import { AudioPlayerBar } from "./AudioPlayerBar";
 import { useChatUiStore } from "./chat-ui-store";
 import { Composer } from "./Composer";
 import { chatDisplayName } from "./format";
@@ -126,10 +127,13 @@ export function ChatThreadPanel({ chat, className }: ChatThreadPanelProps) {
           )}
         </div>
 
+        <AudioPlayerBar />
+
         <MessageFeed
           chatId={chat.id}
           messages={messages}
           currentUserId={currentUserId}
+          peerName={chatDisplayName(chat)}
           peerTyping={peerTyping}
           hasMore={hasNextPage}
           onLoadMore={() => {

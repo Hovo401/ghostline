@@ -1,6 +1,6 @@
 import { ConnectionQuality, ConnectionState } from "livekit-client";
 import type { Track } from "livekit-client";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect } from "react";
 
 import { playRingback, useCallActions, useCallStore } from "../../entities/call";
 import { formatDuration } from "../../entities/message";
@@ -35,18 +35,23 @@ function mapQuality(quality: ConnectionQuality): CallConnectionQuality {
 /** Attaches/detaches a LiveKit `Track` to a real `<video>`/`<audio>` element
  * imperatively (the SDK's own attach model) instead of guessing at
  * `@livekit/components-react`'s `TrackReference` prop shape — see
- * `use-call-session.ts`'s doc comment for why. */
-function useTrackAttach<T extends HTMLMediaElement>(track: Track | null) {
-  const ref = useRef<T>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!track || !el) return;
-    track.attach(el);
-    return () => {
-      track.detach(el);
-    };
-  }, [track]);
-  return ref;
+ * `use-call-session.ts`'s doc comment for why.
+ *
+ * A callback ref, not `useRef` + `useEffect([track])`: the `<video>` is
+ * rendered conditionally (camera toggled, screen minimized → restored), so
+ * the element can remount while `track` stays the same — an effect keyed on
+ * `track` alone would never attach to the new element (black video). */
+function useTrackAttach(track: Track | null) {
+  return useCallback(
+    (el: HTMLMediaElement | null) => {
+      if (!track || !el) return;
+      track.attach(el);
+      return () => {
+        track.detach(el);
+      };
+    },
+    [track],
+  );
 }
 
 function MicIcon({ off }: { off: boolean }) {
@@ -133,10 +138,12 @@ function MinimizeIcon() {
 function OutgoingCallScreen({
   video,
   peerName,
+  peerAvatar,
   onCancel,
 }: {
   video: boolean;
   peerName: string;
+  peerAvatar?: string;
   onCancel: () => void;
 }) {
   useEffect(() => {
@@ -151,7 +158,7 @@ function OutgoingCallScreen({
       aria-label="Звонок"
       className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-desk text-white"
     >
-      <Avatar name={peerName} size={140} />
+      <Avatar name={peerName} src={peerAvatar} size={140} />
       <div className="flex flex-col items-center gap-1.5">
         <span className="text-lg font-medium">{peerName}</span>
         <span className="font-mono text-xs text-white/70">
@@ -226,9 +233,9 @@ export function CallScreen({ session }: CallScreenProps) {
     flipCamera,
   } = session;
 
-  const localVideoRef = useTrackAttach<HTMLVideoElement>(localVideoTrack);
-  const remoteVideoRef = useTrackAttach<HTMLVideoElement>(remoteVideoTrack);
-  const remoteAudioRef = useTrackAttach<HTMLAudioElement>(remoteAudioTrack);
+  const localVideoRef = useTrackAttach(localVideoTrack);
+  const remoteVideoRef = useTrackAttach(remoteVideoTrack);
+  const remoteAudioRef = useTrackAttach(remoteAudioTrack);
 
   if (minimized) return null;
 
@@ -237,6 +244,7 @@ export function CallScreen({ session }: CallScreenProps) {
       <OutgoingCallScreen
         video={call?.video ?? draft?.video ?? false}
         peerName={peerName}
+        peerAvatar={peer?.avatarUrl}
         onCancel={cancel}
       />
     );
@@ -290,7 +298,7 @@ export function CallScreen({ session }: CallScreenProps) {
                 remoteSpeaking ? "shadow-[0_0_0_6px_var(--color-accent)]" : "",
               ].join(" ")}
             >
-              <Avatar name={peerName} size={140} />
+              <Avatar name={peerName} src={peer?.avatarUrl} size={140} />
             </span>
             <span className="text-sm text-white/70">
               {call.video ? "Камера собеседника выключена" : "Аудиозвонок"}

@@ -15,6 +15,14 @@ export function formatChatTime(iso: string): string {
   return date.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
 }
 
+/** "27 сентября в 0:47" — the voice message's send time, Telegram-style. */
+export function formatTrackDate(iso: string): string {
+  const date = new Date(iso);
+  const day = date.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+  const time = date.toLocaleTimeString("ru-RU", { hour: "numeric", minute: "2-digit" });
+  return `${day} в ${time}`;
+}
+
 function previewForType(message: Message): string {
   switch (message.type) {
     case "image":

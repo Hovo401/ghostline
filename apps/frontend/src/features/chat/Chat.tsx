@@ -39,7 +39,7 @@ export function Chat() {
   const selectedChat = chats?.find((c) => c.id === selectedChatId) ?? null;
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-bg text-fg">
+    <div className="flex h-full w-full overflow-hidden bg-bg text-fg">
       <ChatListPanel className={selectedChatId ? "hidden md:flex" : "flex"} />
 
       {selectedChat ? (
