@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
 import {
@@ -47,7 +47,12 @@ const STRENGTH_LABEL_TONE_CLASS = {
  * FR-AUTH-01 — "Отображаемое имя заполняется потом в профиле").
  */
 export function Auth() {
-  const [tab, setTab] = useState<AuthTab>("login");
+  // `strict: false` reads the `/login` route's `tab` search param without
+  // requiring this component to be mounted at that exact route — needed
+  // for Auth.spec.tsx's minimal single-root-route test setup.
+  const search = useSearch({ strict: false });
+  const initialTab = search.tab === "register" ? "register" : "login";
+  const [tab, setTab] = useState<AuthTab>(initialTab);
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">

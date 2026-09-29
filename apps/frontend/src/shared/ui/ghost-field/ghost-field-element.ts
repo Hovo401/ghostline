@@ -386,8 +386,35 @@ export class GhostFieldElement extends HTMLElement {
     if (!Number.isNaN(al)) this.u.uAlpha.value = al;
   }
 
+  // The nearest scrollable ancestor of the closest `[data-morph-track]`
+  // wrapper — resolved once and cached, mirroring ghost-scene.js's
+  // `targetMorph`. Landing (F6) sticks the scene under a `data-morph-track`
+  // div and scrolls the document itself, so this falls through to
+  // `document.scrollingElement`.
+  private scrollParent?: Element | null;
+
   private targetMorph(): number {
-    return Number(this.getAttribute("morph")) || 0;
+    const track = this.closest("[data-morph-track]");
+    if (!track) return Number(this.getAttribute("morph")) || 0;
+    if (this.scrollParent === undefined) {
+      let p: Element | null = track.parentElement;
+      while (p && p !== document.body) {
+        const overflowY = getComputedStyle(p).overflowY;
+        if (overflowY === "auto" || overflowY === "scroll") break;
+        p = p.parentElement;
+      }
+      this.scrollParent = p && p !== document.body ? p : document.scrollingElement;
+    }
+    const sp = this.scrollParent;
+    if (!sp) return 0;
+    const top = sp === document.scrollingElement ? 0 : sp.getBoundingClientRect().top;
+    const usableSpan = (track as HTMLElement).offsetHeight - sp.clientHeight;
+    if (usableSpan <= 0) return 0;
+    const progress = Math.min(
+      1,
+      Math.max(0, (top - track.getBoundingClientRect().top) / usableSpan),
+    );
+    return progress * 3;
   }
 
   private start(): void {
