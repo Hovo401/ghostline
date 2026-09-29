@@ -76,7 +76,7 @@ describe("NotificationsProcessor", () => {
     const { processor } = await buildProcessor([]);
 
     await processor.process(
-      job({ userId: "alice", payload: { kind: "call:closed", callId: "call-1" } }),
+      job({ userId: "alice", payload: { kind: "call:closed", callId: "call-1", reason: "ended" } }),
     );
 
     expect(sendNotification).not.toHaveBeenCalled();
@@ -89,7 +89,7 @@ describe("NotificationsProcessor", () => {
     sendNotification.mockResolvedValueOnce({ statusCode: 201, body: "", headers: {} });
 
     await processor.process(
-      job({ userId: "alice", payload: { kind: "call:closed", callId: "call-1" } }),
+      job({ userId: "alice", payload: { kind: "call:closed", callId: "call-1", reason: "ended" } }),
     );
 
     expect(sendNotification).toHaveBeenCalledTimes(1);
@@ -108,10 +108,44 @@ describe("NotificationsProcessor", () => {
     sendNotification.mockRejectedValueOnce(new WebPushError("gone", 410));
 
     await processor.process(
-      job({ userId: "alice", payload: { kind: "call:closed", callId: "call-1" } }),
+      job({ userId: "alice", payload: { kind: "call:closed", callId: "call-1", reason: "ended" } }),
     );
 
     expect(pushSubscription.delete).toHaveBeenCalledWith({ where: { id: "sub-1" } });
+  });
+
+  it("gives a missed call a full day TTL (so it still arrives late)", async () => {
+    const { processor } = await buildProcessor([
+      { id: "sub-1", userId: "alice", endpoint: "https://push.example/1", p256dh: "p", auth: "a" },
+    ]);
+    sendNotification.mockResolvedValueOnce({ statusCode: 201, body: "", headers: {} });
+
+    await processor.process(
+      job({
+        userId: "alice",
+        payload: {
+          kind: "call:missed",
+          call: {
+            id: "call-1",
+            chatId: "chat-1",
+            callerId: "bob",
+            calleeId: "alice",
+            video: false,
+            status: "missed",
+            createdAt: new Date().toISOString(),
+            answeredAt: null,
+            endedAt: new Date().toISOString(),
+          },
+          callerName: "Bob",
+        },
+      }),
+    );
+
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ TTL: 60 * 60 * 24, urgency: "normal" }),
+    );
   });
 
   it("leaves the subscription in place on a transient failure", async () => {
@@ -121,7 +155,7 @@ describe("NotificationsProcessor", () => {
     sendNotification.mockRejectedValueOnce(new Error("network blip"));
 
     await processor.process(
-      job({ userId: "alice", payload: { kind: "call:closed", callId: "call-1" } }),
+      job({ userId: "alice", payload: { kind: "call:closed", callId: "call-1", reason: "ended" } }),
     );
 
     expect(pushSubscription.delete).not.toHaveBeenCalled();

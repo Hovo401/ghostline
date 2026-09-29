@@ -32,6 +32,8 @@ interface PushHandoffMessage {
 interface NotificationClickHandoffMessage {
   source: "ghostline-notification-click";
   chatId?: string;
+  callId?: string;
+  answer?: boolean;
 }
 
 self.addEventListener("install", () => {
@@ -81,16 +83,13 @@ self.addEventListener("push", (event) => {
         return;
       }
 
-      if (payload.kind === "call:closed") {
-        const existing = await self.registration.getNotifications({
-          tag: `call:${payload.callId}`,
-        });
-        existing.forEach((notification) => {
-          notification.close();
-        });
-        return;
-      }
-
+      // Every branch below here must call `showNotification` — a push that
+      // shows nothing (silently closing a stale notification, say) reads to
+      // Chrome as "site updated in the background" and to Safari as one of
+      // the too-many-silent-pushes strikes that gets a subscription revoked
+      // (calls plan §Фаза 5 doc T-068). `showNotification` with the same
+      // `tag` as an existing notification replaces it in place, so
+      // `call:closed` doesn't need to close the old one first.
       const built = buildNotificationOptions(payload);
       await self.registration.showNotification(built.title, built.options);
     })(),
@@ -117,10 +116,16 @@ self.addEventListener("notificationclick", (event) => {
     return;
   }
 
-  // Bare click or "answer": focus an existing tab, handing off which chat to
-  // open if this was a message notification. A fresh tab opened here has no
-  // notification context to hand off to once it loads — nothing more
-  // specific to do than land on "/app" and let the user pick.
+  // Bare click, or "answer" on an incoming-call notification: focus an
+  // existing tab and hand off what to open there (which chat, or "answer
+  // this call"); with no tab open, `/app`'s deep-link search params carry
+  // the same context across the fresh page load (calls plan §Фаза 5 doc
+  // T-068, `routes/app.tsx` + `use-notification-deep-link.ts`).
+  const isAnswerableCall =
+    data?.kind === "call:incoming" && (event.action === "answer" || event.action === "");
+  const callId = isAnswerableCall ? data.callId : undefined;
+  const chatId = data?.kind === "message" ? data.chatId : undefined;
+
   event.waitUntil(
     (async () => {
       const clients = await windowClients();
@@ -129,9 +134,19 @@ self.addEventListener("notificationclick", (event) => {
         await target.focus();
         const message: NotificationClickHandoffMessage = {
           source: "ghostline-notification-click",
-          chatId: data?.kind === "message" ? data.chatId : undefined,
+          chatId,
+          callId,
+          answer: callId ? true : undefined,
         };
         target.postMessage(message);
+        return;
+      }
+      if (callId) {
+        await self.clients.openWindow(`/app?call=${encodeURIComponent(callId)}&answer=1`);
+        return;
+      }
+      if (chatId) {
+        await self.clients.openWindow(`/app?chat=${encodeURIComponent(chatId)}`);
         return;
       }
       await self.clients.openWindow("/app");

@@ -23,7 +23,21 @@ function AppShell() {
   );
 }
 
+/** `?chat=`/`?call=&answer=1` — a notification-click deep link `sw.ts`
+ * attaches when it opened a fresh tab (calls plan §Фаза 5 doc T-068);
+ * `features/chat/use-notification-deep-link.ts` consumes and clears them. */
+interface AppSearch {
+  chat?: string;
+  call?: string;
+  answer?: string;
+}
+
 export const Route = createFileRoute("/app")({
+  validateSearch: (search: Record<string, unknown>): AppSearch => ({
+    chat: typeof search.chat === "string" ? search.chat : undefined,
+    call: typeof search.call === "string" ? search.call : undefined,
+    answer: typeof search.answer === "string" ? search.answer : undefined,
+  }),
   beforeLoad: async () => {
     await ensureSession();
     if (useSessionStore.getState().status !== "authenticated") {

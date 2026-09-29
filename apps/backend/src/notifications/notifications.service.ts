@@ -2,6 +2,7 @@ import type {
   Call,
   Message,
   NotificationSettings,
+  PushCallClosedPayload,
   PushSubscriptionBody,
 } from "@ghostline/contracts";
 import { InjectQueue } from "@nestjs/bullmq";
@@ -130,10 +131,10 @@ export class NotificationsService {
   }
 
   /** Tells the callee's devices to dismiss any `call:incoming` notification still showing. */
-  async notifyCallClosed(call: Call): Promise<void> {
+  async notifyCallClosed(call: Call, reason: PushCallClosedPayload["reason"]): Promise<void> {
     await this.queue.add("push", {
       userId: call.calleeId,
-      payload: { kind: "call:closed", callId: call.id },
+      payload: { kind: "call:closed", callId: call.id, reason },
     });
   }
 

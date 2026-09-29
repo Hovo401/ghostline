@@ -92,9 +92,27 @@ describe("buildNotificationOptions", () => {
     expect(built.options.data).toMatchObject({ declineToken: "signed-token" });
   });
 
-  it("builds a closing marker for call:closed", () => {
-    const built = buildNotificationOptions({ kind: "call:closed", callId: "call-1" });
+  it("builds a silent 'answered elsewhere' notification for call:closed", () => {
+    const built = buildNotificationOptions({
+      kind: "call:closed",
+      callId: "call-1",
+      reason: "answered-elsewhere",
+    });
+    expect(built.title).toBe("Ghostline");
+    expect(built.options.body).toBe("Звонок принят на другом устройстве");
     expect(built.options.tag).toBe("call:call-1");
+    expect(built.options.silent).toBe(true);
+    expect(built.options.data).toEqual({ kind: "call:closed", callId: "call-1" });
+  });
+
+  it("builds a silent 'ended' notification for call:closed", () => {
+    const built = buildNotificationOptions({
+      kind: "call:closed",
+      callId: "call-1",
+      reason: "ended",
+    });
+    expect(built.options.body).toBe("Звонок завершён");
+    expect(built.options.silent).toBe(true);
   });
 
   it("builds a missed-call notification", () => {

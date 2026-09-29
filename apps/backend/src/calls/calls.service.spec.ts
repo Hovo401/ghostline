@@ -293,6 +293,28 @@ describe("CallsService", () => {
       );
     });
 
+    it("schedules 10 ring-repeat jobs, 4s apart, each with its own idempotent jobId", async () => {
+      const { service, chatId, fakeQueue } = await buildCallsService();
+
+      const join = await service.start("alice", { chatId, video: false });
+
+      const calls = fakeQueue.add.mock.calls as unknown as [
+        string,
+        { callId: string },
+        { delay: number; jobId: string },
+      ][];
+      const repeatCalls = calls.filter(([name]) => name === "ring-repeat");
+      expect(repeatCalls).toHaveLength(10);
+      repeatCalls.forEach(([, data, opts], index) => {
+        const attempt = index + 1;
+        expect(data).toEqual({ callId: join.call.id });
+        expect(opts).toMatchObject({
+          delay: 4_000 * attempt,
+          jobId: `ring-repeat-${join.call.id}-${String(attempt)}`,
+        });
+      });
+    });
+
     it("uses a BullMQ-safe jobId (no colons)", async () => {
       const { service, chatId, fakeQueue } = await buildCallsService();
 
@@ -364,7 +386,7 @@ describe("CallsService", () => {
 
   describe("accept", () => {
     it("transitions RINGING -> ACTIVE and is idempotent on a second call", async () => {
-      const { service, chatId } = await buildCallsService();
+      const { service, chatId, fakeNotifications } = await buildCallsService();
       const started = await service.start("alice", { chatId, video: false });
 
       const first = await service.accept("bob", started.call.id);
@@ -373,6 +395,11 @@ describe("CallsService", () => {
       expect(first.call.status).toBe("active");
       expect(second.call.status).toBe("active");
       expect(first.call.answeredAt).toBe(second.call.answeredAt);
+      expect(fakeNotifications.notifyCallClosed).toHaveBeenCalledTimes(1);
+      expect(fakeNotifications.notifyCallClosed).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "active" }),
+        "answered-elsewhere",
+      );
     });
 
     it("only the callee can accept", async () => {
@@ -406,6 +433,10 @@ describe("CallsService", () => {
       expect(second.status).toBe("declined");
       expect(fakeMessages.createCallMessage).toHaveBeenCalledTimes(1);
       expect(fakeNotifications.notifyCallClosed).toHaveBeenCalledTimes(1);
+      expect(fakeNotifications.notifyCallClosed).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "declined" }),
+        "ended",
+      );
     });
 
     it("cancel: only the caller can cancel a ringing call", async () => {
@@ -421,9 +452,10 @@ describe("CallsService", () => {
     });
 
     it("hangup: either party can end an active call, and a history message reports it", async () => {
-      const { service, chatId, fakeMessages } = await buildCallsService();
+      const { service, chatId, fakeMessages, fakeNotifications } = await buildCallsService();
       const started = await service.start("alice", { chatId, video: false });
       await service.accept("bob", started.call.id);
+      fakeNotifications.notifyCallClosed.mockClear();
 
       const ended = await service.hangup("alice", started.call.id);
 
@@ -432,6 +464,10 @@ describe("CallsService", () => {
         chatId,
         "alice",
         expect.objectContaining({ status: "ENDED" }),
+      );
+      expect(fakeNotifications.notifyCallClosed).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "ended" }),
+        "ended",
       );
     });
 

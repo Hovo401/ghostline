@@ -9,6 +9,8 @@ import {
 import { Button } from "../../shared/ui/button";
 import { Toggle } from "../../shared/ui/toggle";
 
+import { detectPlatformHint, isStandaloneDisplay } from "./platform-hint";
+
 const STATUS_LABEL: Record<ReturnType<typeof usePushSubscription>["status"], string> = {
   subscribed: "Включены",
   unsubscribed: "Выключены",
@@ -16,16 +18,6 @@ const STATUS_LABEL: Record<ReturnType<typeof usePushSubscription>["status"], str
   unsupported: "Не поддерживаются этим браузером",
   pending: "Проверяем…",
 };
-
-/** `navigator.standalone` only exists on iOS Safari — checking it directly
- * against `false` both feature-detects (other browsers leave it
- * `undefined`, which fails the check) and answers "is this iOS Safari, not
- * yet installed to the Home Screen" in one go (DESIGN-BRIEF's iOS Push
- * caveat: Push only works from an installed PWA on iOS 16.4+). */
-function isIosSafariNotInstalled(): boolean {
-  const nav = navigator as Navigator & { standalone?: boolean };
-  return nav.standalone === false;
-}
 
 function ToggleRow({
   label,
@@ -73,6 +65,11 @@ export function NotificationsTab() {
     updateSettings.mutate(partial);
   };
 
+  const platformHint =
+    status !== "unsupported" && status !== "denied"
+      ? detectPlatformHint(navigator.userAgent, isStandaloneDisplay())
+      : null;
+
   return (
     <div className="flex max-w-180 flex-col gap-9 px-14 pt-8 pb-16">
       <h1 className="m-0 text-[32px] font-medium tracking-tight">Уведомления</h1>
@@ -103,12 +100,7 @@ export function NotificationsTab() {
             </Button>
           )}
         </div>
-        {isIosSafariNotInstalled() && (
-          <p className="text-sm text-mute">
-            Установите на экран «Домой» для уведомлений — на iPhone/iPad push работает только из
-            установленного приложения.
-          </p>
-        )}
+        {platformHint && <p className="text-sm text-mute">{platformHint.text}</p>}
       </section>
 
       {settings.data && (

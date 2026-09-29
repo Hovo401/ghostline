@@ -4,7 +4,8 @@ import { InjectQueue, Processor, WorkerHost } from "@nestjs/bullmq";
 import { Logger } from "@nestjs/common";
 import type { Job, Queue } from "bullmq";
 
-import { toWireCall } from "../calls/call.util";
+import { signDeclineToken, toWireCall } from "../calls/call.util";
+import { AppConfigService } from "../config/app-config.service";
 import { resolveMessageStatus, toWireMessage } from "../messages/message.util";
 import { PrismaService } from "../prisma/prisma.service";
 import { RealtimeEmitter } from "../realtime/realtime-emitter";
@@ -39,14 +40,55 @@ export class CallRingTimeoutProcessor extends WorkerHost {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly realtime: RealtimeEmitter,
+    private readonly config: AppConfigService,
     @InjectQueue(NOTIFICATIONS_QUEUE) private readonly notifications: Queue<NotificationJobData>,
   ) {
     super();
   }
 
   async process(job: Job<CallRingTimeoutJobData>): Promise<void> {
-    const { callId } = job.data;
+    if (job.name === "ring-repeat") {
+      await this.processRingRepeat(job.data.callId);
+      return;
+    }
+    await this.processRingTimeout(job.data.callId);
+  }
 
+  /**
+   * Re-sends the `call:incoming` push while the call is still `RINGING` so
+   * the SW's `tag`+`renotify` re-rings the callee's devices (see
+   * `CallsService.start`, which schedules up to `RING_REPEAT_COUNT` of
+   * these). A call already resolved by the time this fires is a no-op —
+   * nothing to cancel, the remaining scheduled repeats just do the same
+   * check and no-op too.
+   */
+  private async processRingRepeat(callId: string): Promise<void> {
+    const call = await this.prisma.call.findUnique({ where: { id: callId } });
+    if (call?.status !== "RINGING") return;
+
+    const callee = await this.prisma.user.findUnique({
+      where: { id: call.calleeId },
+      select: { notifyCalls: true },
+    });
+    if (!callee?.notifyCalls) return;
+
+    const caller = await this.prisma.user.findUniqueOrThrow({
+      where: { id: call.callerId },
+      select: { displayName: true },
+    });
+
+    await this.notifications.add("push", {
+      userId: call.calleeId,
+      payload: {
+        kind: "call:incoming",
+        call: toWireCall(call),
+        callerName: caller.displayName,
+        declineToken: signDeclineToken(this.config.jwt.accessSecret, call.id),
+      },
+    });
+  }
+
+  private async processRingTimeout(callId: string): Promise<void> {
     const result = await this.prisma.call.updateMany({
       where: { id: callId, status: "RINGING" },
       data: { status: "MISSED", endedAt: new Date() },

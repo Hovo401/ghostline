@@ -100,7 +100,18 @@ export function buildNotificationOptions(payload: PushPayload): BuiltNotificatio
       return {
         title: APP_NAME,
         options: {
+          body:
+            payload.reason === "answered-elsewhere"
+              ? "Звонок принят на другом устройстве"
+              : "Звонок завершён",
           tag: `call:${payload.callId}`,
+          // Content, but no sound/vibration — this replaces the ringing
+          // notification once the call is no longer actionable, it
+          // shouldn't wake the user up again (ADR-0010 amendment, calls
+          // plan §Фаза 5 "не делать тихих push": Safari revokes a push
+          // subscription after too many silent/no-op notifications, so this
+          // still has to call showNotification, just quietly).
+          silent: true,
           data: { kind: "call:closed", callId: payload.callId },
         },
       };

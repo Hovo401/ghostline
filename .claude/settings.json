@@ -201,7 +201,10 @@
       "Bash(npx --yes @livekit/cli --version)",
       "Bash(taskkill //F //IM docker-compose.exe)",
       "Bash(pkill -f \"compose -p ghostline-prodtest\")",
-      "Bash(grep -o 'Mapped {/[^,]*health[^}]*}')"
+      "Bash(grep -o 'Mapped {/[^,]*health[^}]*}')",
+      "Bash(pnpm --filter @ghostline/contracts run lint)",
+      "Bash(pnpm --filter @ghostline/contracts run test)",
+      "Bash(pnpm --filter @ghostline/frontend exec vitest run src/features/chat/use-notification-deep-link.spec.tsx)"
     ],
     "deny": [
       "Read(**/node_modules/**)",

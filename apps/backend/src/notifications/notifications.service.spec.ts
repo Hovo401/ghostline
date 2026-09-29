@@ -205,6 +205,37 @@ describe("NotificationsService", () => {
     });
   });
 
+  describe("notifyCallClosed", () => {
+    it("passes the reason through to the payload", async () => {
+      const { service, add } = await buildService([]);
+      const call = {
+        id: "call-1",
+        chatId: "chat-1",
+        callerId: "alice",
+        calleeId: "bob",
+        video: false,
+        status: "declined" as const,
+        createdAt: new Date().toISOString(),
+        answeredAt: null,
+        endedAt: new Date().toISOString(),
+      };
+
+      await service.notifyCallClosed(call, "ended");
+
+      expect(add).toHaveBeenCalledWith("push", {
+        userId: "bob",
+        payload: { kind: "call:closed", callId: "call-1", reason: "ended" },
+      });
+
+      await service.notifyCallClosed(call, "answered-elsewhere");
+
+      expect(add).toHaveBeenCalledWith("push", {
+        userId: "bob",
+        payload: { kind: "call:closed", callId: "call-1", reason: "answered-elsewhere" },
+      });
+    });
+  });
+
   describe("subscribe / unsubscribe", () => {
     it("upserts by endpoint", async () => {
       const { service, pushSubscription } = await buildService([]);

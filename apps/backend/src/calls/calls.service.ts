@@ -27,6 +27,15 @@ import { UsersService } from "../users/users.service";
 import { busyLockKey, roomNameForCall, toWireCall, verifyDeclineToken } from "./call.util";
 
 const RING_TIMEOUT_MS = 45_000;
+/**
+ * The browser can't play a long ringtone in the background, so the SW
+ * re-rings (via `tag`+`renotify`) on every repeated `call:incoming` push
+ * while the call is still `RINGING` — a flat set of delayed, idempotent
+ * jobs on the same queue as the ring-timeout, not a BullMQ repeat
+ * scheduler (see `CallRingTimeoutProcessor`).
+ */
+const RING_REPEAT_INTERVAL_MS = 4_000;
+const RING_REPEAT_COUNT = 10;
 const BUSY_LOCK_RING_TTL_MS = RING_TIMEOUT_MS + 5_000;
 const BUSY_LOCK_ACTIVE_TTL_MS = 4 * 60 * 60 * 1000; // 4h, matches the join token TTL below.
 const JOIN_TOKEN_TTL = "2h";
@@ -132,6 +141,19 @@ export class CallsService {
         { callId: call.id },
         { delay: RING_TIMEOUT_MS, jobId: `ring-timeout-${call.id}` },
       );
+      await Promise.all(
+        Array.from({ length: RING_REPEAT_COUNT }, (_, i) => {
+          const attempt = i + 1;
+          return this.callsQueue.add(
+            "ring-repeat",
+            { callId: call.id },
+            {
+              delay: RING_REPEAT_INTERVAL_MS * attempt,
+              jobId: `ring-repeat-${call.id}-${String(attempt)}`,
+            },
+          );
+        }),
+      );
 
       const wireCall = toWireCall(call);
       this.events.server.to(`user:${calleeId}`).emit("call:incoming", wireCall);
@@ -201,7 +223,7 @@ export class CallsService {
         // it was answered here and stops ringing; the caller learns it was picked up.
         this.events.server.to(`user:${call.calleeId}`).emit("call:updated", wireCall);
         this.events.server.to(`user:${call.callerId}`).emit("call:updated", wireCall);
-        await this.notifications.notifyCallClosed(wireCall);
+        await this.notifications.notifyCallClosed(wireCall, "answered-elsewhere");
       }
     } else if (call.status !== "ACTIVE") {
       throw new ConflictException(`call is ${call.status.toLowerCase()}, can't be accepted`);
@@ -350,7 +372,7 @@ export class CallsService {
       });
       await this.notifications.notifyCallMissed(wireCall, caller.displayName);
     } else {
-      await this.notifications.notifyCallClosed(wireCall);
+      await this.notifications.notifyCallClosed(wireCall, "ended");
     }
 
     return wireCall;

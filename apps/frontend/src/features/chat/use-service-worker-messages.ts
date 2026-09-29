@@ -1,10 +1,14 @@
 import { useEffect } from "react";
 
+import { useCallActions } from "../../entities/call";
+
 import { useChatUiStore } from "./chat-ui-store";
 
 interface NotificationClickHandoffMessage {
   source: "ghostline-notification-click";
   chatId?: string;
+  callId?: string;
+  answer?: boolean;
 }
 
 function isNotificationClickHandoff(data: unknown): data is NotificationClickHandoffMessage {
@@ -19,7 +23,9 @@ function isNotificationClickHandoff(data: unknown): data is NotificationClickHan
  * Reacts to `sw.ts`'s notification-click handoff (calls plan §Фаза 5):
  * clicking a message push's system notification focuses this tab and posts
  * which chat it was for, so the page opens straight to it instead of
- * landing on whatever was already selected. Mount once (`Chat.tsx`).
+ * landing on whatever was already selected; clicking (or hitting "Ответить"
+ * on) a call push's notification posts `callId`+`answer` instead, so this
+ * tab actually answers the call. Mount once (`Chat.tsx`).
  *
  * The push-time visible-tab handoff (`source: "ghostline-push"`) isn't
  * handled here — a visible tab already has the real update over the WS
@@ -29,6 +35,7 @@ function isNotificationClickHandoff(data: unknown): data is NotificationClickHan
  */
 export function useServiceWorkerMessages(): void {
   const selectChat = useChatUiStore((state) => state.selectChat);
+  const { accept } = useCallActions();
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
@@ -36,11 +43,12 @@ export function useServiceWorkerMessages(): void {
     const handleMessage = (event: MessageEvent): void => {
       if (!isNotificationClickHandoff(event.data)) return;
       if (event.data.chatId) selectChat(event.data.chatId);
+      if (event.data.callId && event.data.answer) accept(event.data.callId);
     };
 
     navigator.serviceWorker.addEventListener("message", handleMessage);
     return () => {
       navigator.serviceWorker.removeEventListener("message", handleMessage);
     };
-  }, [selectChat]);
+  }, [selectChat, accept]);
 }

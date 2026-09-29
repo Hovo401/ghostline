@@ -47,3 +47,27 @@ before this ADR). The service worker becomes a required piece of the frontend bu
 parsing must use the same zod schema (`PushPayloadSchema`) the backend authors against, so a
 schema change to `packages/contracts` is felt on both ends immediately, per the root CLAUDE.md's
 hard rule 1.
+
+## Platform limits (no native equivalent in a browser)
+
+Web Push can wake a closed browser, but it can't reproduce a native incoming-call screen. What
+each platform actually gives us:
+
+| Platform | Closed browser/app | Incoming-call UI |
+| --- | --- | --- |
+| Android, Chrome/Edge/Firefox | Delivered — the OS wakes the browser for push even after it's been swiped from recents. | A normal notification with `actions` ("Ответить"/"Отклонить"), sound, vibration. No full-screen lock-screen call UI and no continuous ringtone — those are native APIs (full-screen intent, `ConnectionService`) a web page can't reach. |
+| iOS Safari 16.4+ | Delivered only if the site is installed to the Home Screen (PWA) — Safari push to a plain tab doesn't survive the app being closed. | No notification `actions` (iOS doesn't support them); tapping opens the app to the call screen. |
+| Desktop Chrome/Edge (Windows/macOS) | Delivered only while the browser process is still running in the background (tray icon / "Continue running background apps"). If the process is fully quit, the push provider holds it for the payload's TTL and it arrives on next launch. | Same notification with actions as Android. |
+| Desktop Firefox/Safari | Not delivered while the browser process is fully closed; arrives on next launch within TTL. | — |
+
+Because there's no continuous ringtone, an incoming call re-sends the same `call:incoming` push
+every ~4s while it's still `RINGING` (`CallsService.start` schedules the repeats alongside the
+existing ring-timeout job) — the service worker's `tag`+`renotify` makes each arrival ring/vibrate
+again, standing in for a ringtone. A `call:closed` push always carries a `reason`
+(`"answered-elsewhere" | "ended"`) and always shows a (silent) replacement notification instead of
+just clearing the old one silently — iOS revokes a subscription after repeated no-op pushes, and a
+silent-with-no-notification push looks identical to a bug from the user's side.
+
+A full lock-screen call experience like a native messenger's requires a native wrapper (e.g.
+Capacitor/TWA with FCM + `ConnectionService`) — out of scope here; this ADR's decision covers what
+a browser-only client can do.

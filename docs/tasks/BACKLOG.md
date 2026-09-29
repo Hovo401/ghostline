@@ -99,29 +99,40 @@ yet; do that when this wave is done. FR IDs: see REQUIREMENTS.md's "v1" priority
 
 ### Calls (FR-CALL-01–09, FR-NOTIF-06)
 
-- [ ] T-060 — `packages/contracts`: `Call`/`CallStatus`/`StartCallBody`/`CallJoin` schemas,
+- [x] T-060 — `packages/contracts`: `Call`/`CallStatus`/`StartCallBody`/`CallJoin` schemas,
       `call:incoming`/`call:updated` WS events, `Message.type: "call"` + `MessageCallInfo`. Done.
-- [ ] T-061 — Prisma: `Call`, `PushSubscription` models, `MessageType.CALL` + `Message.callId`,
+- [x] T-061 — Prisma: `Call`, `PushSubscription` models, `MessageType.CALL` + `Message.callId`,
       `User.notifyMessages/notifyCalls/notifyPreview`. Done.
-- [ ] T-062 — Backend `calls` module: state machine (ringing/active/ended/missed/declined/
+- [x] T-062 — Backend `calls` module: state machine (ringing/active/ended/missed/declined/
       cancelled/busy/failed), busy-lock + glare handling, LiveKit token minting, ring-timeout via
       BullMQ, LiveKit webhook finalization, call-outcome history message. Depends on T-060, T-061.
-- [ ] T-063 — LiveKit infra: `docker/livekit/livekit.yaml`, `compose.dev.yaml`/`compose.prod.yaml`
+- [x] T-063 — LiveKit infra: `docker/livekit/livekit.yaml`, `compose.dev.yaml`/`compose.prod.yaml`
       services, nginx `rtc.${DOMAIN}` proxy + TURN-over-443 SNI routing, certbot domains.
-- [ ] T-064 — Frontend `entities/call` + `features/call`: call store, realtime hook, IncomingCall/
+- [x] T-064 — Frontend `entities/call` + `features/call`: call store, realtime hook, IncomingCall/
       CallScreen/CallMiniBar, LiveKit room wired for bad-network resilience (adaptive
       stream/simulcast/reconnect, connection-quality banner). Depends on T-060, T-062.
-- [ ] T-065 — Chat integration: call buttons in `ChatThreadPanel`, call history row in
+- [x] T-065 — Chat integration: call buttons in `ChatThreadPanel`, call history row in
       `MessageBubble`. Depends on T-064.
 
 ### Web Push notifications (FR-NOTIF-04/06, FR-SET-13)
 
-- [ ] T-066 — Backend `notifications` module: VAPID key endpoint, subscription CRUD, settings,
+- [x] T-066 — Backend `notifications` module: VAPID key endpoint, subscription CRUD, settings,
       push-send queue (message + call payloads), subscription cleanup on 404/410. Depends on
       T-060, T-061.
-- [ ] T-067 — Frontend service worker (`vite-plugin-pwa`, `injectManifest`) + `entities/
+- [x] T-067 — Frontend service worker (`vite-plugin-pwa`, `injectManifest`) + `entities/
       notification`: push subscribe/unsubscribe flow, `NotificationsTab` in Settings, in-app vs.
       system-notification routing (docs/adr/0010). Depends on T-060, T-066.
+- [x] T-068 — Closed-browser reachability follow-ups: `call:incoming` push re-sent every ~4s while
+      `RINGING` (stand-in for a ringtone browsers can't play in the background), `call:closed`
+      always shows a content-bearing (silent) replacement notification instead of a bare dismiss,
+      "Ответить"/notification click on message or call opens/focuses the right chat or call
+      (`?chat=`/`?call=&answer=1` deep link when no tab is open), per-platform hint in
+      `NotificationsTab` (iOS install-to-Home-Screen / Android background permission / desktop
+      background-apps setting), `call:missed` push TTL raised to 1 day. Depends on T-067.
+- [ ] T-069 — Add a logout action (no "Выйти" UI exists yet — `entities/session`'s `clearSession`
+      is only called from a failed silent-refresh) that also unsubscribes this device's push
+      subscription (`usePushSubscription().unsubscribe()`) before clearing the session, for
+      privacy on a shared device. Depends on T-067.
 
 ## M7 — Open source
 

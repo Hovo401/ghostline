@@ -13,6 +13,7 @@ import { useChatUiStore } from "./chat-ui-store";
 import { ChatListPanel } from "./ChatListPanel";
 import { ChatThreadPanel } from "./ChatThreadPanel";
 import { NewChatModal } from "./NewChatModal";
+import { useNotificationDeepLink } from "./use-notification-deep-link";
 import { useServiceWorkerMessages } from "./use-service-worker-messages";
 
 /**
@@ -34,6 +35,7 @@ export function Chat() {
   const { status: pushStatus } = usePushSubscription();
   useMessageNotificationFallback(pushStatus !== "subscribed");
   useServiceWorkerMessages();
+  useNotificationDeepLink();
 
   const { data: chats } = useChats();
   const selectedChatId = useChatUiStore((state) => state.selectedChatId);

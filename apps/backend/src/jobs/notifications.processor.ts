@@ -23,8 +23,9 @@ function pushOptionsFor(payload: PushPayload): { ttl: number; urgency: Urgency }
     case "message":
       return { ttl: 60 * 60 * 24, urgency: "normal" };
     case "call:closed":
-    case "call:missed":
       return { ttl: 60, urgency: "normal" };
+    case "call:missed":
+      return { ttl: 60 * 60 * 24, urgency: "normal" };
   }
 }
 

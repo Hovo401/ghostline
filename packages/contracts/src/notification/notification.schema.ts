@@ -54,6 +54,8 @@ const pushCallIncomingPayloadSchema = z.object({
 const pushCallClosedPayloadSchema = z.object({
   kind: z.literal("call:closed"),
   callId: z.string().uuid(),
+  /** `answered-elsewhere` when a device other than the one showing the notification picked up; `ended` for every other terminal outcome (declined/cancelled/ended). */
+  reason: z.enum(["answered-elsewhere", "ended"]),
 });
 
 const pushCallMissedPayloadSchema = z.object({

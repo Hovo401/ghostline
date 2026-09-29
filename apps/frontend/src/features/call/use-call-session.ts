@@ -177,6 +177,12 @@ export function useCallSession(): CallSessionHandle {
       try {
         await nextRoom.connect(resolveLivekitUrl(livekitUrl), token);
         if (cancelled.current) return;
+        // TODO(calls plan §Фаза 5 doc T-068): a browser autoplay policy can
+        // block remote audio here when this join wasn't itself triggered by
+        // a user gesture (e.g. auto-accepting from a notification-click
+        // deep link) — LiveKit's fix is `room.startAudio()` from a
+        // subsequent click, which needs a "Включить звук" affordance
+        // `CallScreen` doesn't have yet.
 
         try {
           await nextRoom.localParticipant.setMicrophoneEnabled(true);
