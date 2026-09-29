@@ -17,6 +17,11 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio"
   },
+  "dependenciesMeta": {
+    "@ghostline/contracts": {
+      "injected": true
+    }
+  },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.730.0",
     "@aws-sdk/s3-request-presigner": "^3.730.0",
