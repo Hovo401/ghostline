@@ -50,14 +50,14 @@ to `https://minio.diotek.pp.ua` via presigned URLs.
 5. **GitHub repository secrets** (Settings → Secrets and variables → Actions):
    - `DEPLOY_SSH_KEY` — the private key from step 3
    - `DEPLOY_KNOWN_HOSTS` — output of `ssh-keyscan diotek.pp.ua`
-6. **First release**: push to `dev`, or run the _Deploy (dev server)_ workflow
+6. **First release**: merge into `main`, or run the _Deploy (dev server)_ workflow
    manually from the Actions tab.
 7. **LiveKit Cloud webhook** (so ended calls get finalized): project settings →
    Webhooks → `https://ghostline.diotek.pp.ua/api/v1/calls/livekit-webhook`.
 
 ## Day to day
 
-- **Ship code**: push to `dev`. The workflow builds, uploads a release to
+- **Ship code**: merge into `main` (`dev` only runs CI). The workflow builds, uploads a release to
   `/opt/ghostline/releases/<sha>`, runs `prisma migrate deploy`, flips
   `current`, restarts pm2, then syncs the SPA. Last 3 releases are kept.
 - **Change config/secrets**: edit `group_vars/`, run `.\run.ps1`. The env file

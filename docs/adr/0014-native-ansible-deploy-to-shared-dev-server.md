@@ -17,7 +17,7 @@ for, and would fight the host nginx for ports 80/443.
 and role in the existing Postgres, its own private bucket and scoped user in
 the existing MinIO, a dedicated Redis instance on `127.0.0.1:6380`, a
 `conf.d` nginx vhost for `ghostline.diotek.pp.ua`, and a pm2 app pair
-(backend + worker). A GitHub Actions workflow builds on push to `dev` and
+(backend + worker). A GitHub Actions workflow builds on push to `main` and
 ships the release over rsync; the server never builds.
 
 Presigned media URLs point at the existing `minio.diotek.pp.ua` vhost, which
