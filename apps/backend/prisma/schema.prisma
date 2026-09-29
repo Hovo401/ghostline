@@ -6,7 +6,9 @@
 // fields/models are intentionally absent.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // node:24-slim build stage has no openssl, so "native" misdetects 1.1.x
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {

@@ -6,8 +6,8 @@
     "build": "nest build",
     "dev": "nest start --watch --preserveWatchOutput",
     "dev:worker": "nest start --watch --preserveWatchOutput --entryFile main.worker",
-    "start:prod": "node dist/main.js",
-    "start:worker:prod": "node dist/main.worker.js",
+    "start:prod": "node dist/src/main.js",
+    "start:worker:prod": "node dist/src/main.worker.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -16,11 +16,6 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio"
-  },
-  "dependenciesMeta": {
-    "@ghostline/contracts": {
-      "injected": true
-    }
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.730.0",

@@ -125,9 +125,6 @@ importers:
       zod:
         specifier: ^3.24.1
         version: 3.25.76
-    dependenciesMeta:
-      '@ghostline/contracts':
-        injected: true
     devDependencies:
       '@ghostline/config':
         specifier: workspace:*

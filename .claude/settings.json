@@ -198,7 +198,10 @@
       "Bash(node -e \"const c=require\\('./caller.json'\\); const p=require\\('./peer.json'\\); console.log\\('CALLER_TOKEN='+c.accessToken\\); console.log\\('PEER_TOKEN='+p.accessToken\\); console.log\\('PEER_ID='+p.user.id\\);\")",
       "Bash(curl -s -X POST http://localhost/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"e2ecaller2\",\"password\":\"E2eCallerPass123!\"}' -o caller.json -w \"login caller: %{http_code}\\\\n\")",
       "Bash(node -e \"const c=require\\('./caller.json'\\); const p=require\\('./peer.json'\\); console.log\\('CALLER_TOKEN='+c.accessToken\\); console.log\\('PEER_ID='+p.user.id\\); console.log\\('CALLER_ID='+c.user.id\\);\")",
-      "Bash(npx --yes @livekit/cli --version)"
+      "Bash(npx --yes @livekit/cli --version)",
+      "Bash(taskkill //F //IM docker-compose.exe)",
+      "Bash(pkill -f \"compose -p ghostline-prodtest\")",
+      "Bash(grep -o 'Mapped {/[^,]*health[^}]*}')"
     ],
     "deny": [
       "Read(**/node_modules/**)",
