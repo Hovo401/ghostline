@@ -16,8 +16,11 @@ set -a
 set +a
 
 # The prod bundle drops the prisma CLI (devDependency); fetch the exact
-# version the release was built with instead.
-npx --yes "prisma@$(cat PRISMA_VERSION)" migrate deploy --schema prisma/schema.prisma
+# version the release was built with instead. Run npx outside the release:
+# its package.json lists prisma as a devDependency, so npx would treat it as
+# installed, skip the download, and fail with "prisma: not found".
+PRISMA_VERSION="$(cat PRISMA_VERSION)"
+(cd /tmp && npx --yes "prisma@$PRISMA_VERSION" migrate deploy --schema "$RELEASE/prisma/schema.prisma")
 
 ln -sfn "$RELEASE" "$APP_DIR/current.next"
 mv -Tf "$APP_DIR/current.next" "$APP_DIR/current"
