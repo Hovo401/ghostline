@@ -4,10 +4,18 @@ import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { VitePWA } from "vite-plugin-pwa";
+
+import { vitePwaOptions } from "./pwa.config";
 
 export default defineConfig({
   // tanstackRouter must come before react() — see its Vite plugin docs.
-  plugins: [tanstackRouter({ target: "react", autoCodeSplitting: true }), react(), tailwindcss()],
+  plugins: [
+    tanstackRouter({ target: "react", autoCodeSplitting: true }),
+    react(),
+    tailwindcss(),
+    VitePWA(vitePwaOptions),
+  ],
   resolve: {
     alias: { "@": path.resolve(import.meta.dirname, "./src") },
   },
@@ -32,8 +40,12 @@ export default defineConfig({
     host: true,
     port: 5173,
     strictPort: true,
-    // Reached through nginx (docker/nginx/dev.conf) at http://localhost/ —
-    // the HMR websocket rides the same proxied origin.
-    hmr: { clientPort: 80 },
+    // Reached through nginx (docker/nginx/dev.conf) at http://localhost/ or
+    // https://<LAN_IP>/ (docs/adr/0009's LAN-dev addendum) — no `clientPort`
+    // override here: with none set, Vite's HMR client falls back to
+    // `location.port` (empty on both of those, since 80/443 are the
+    // protocol's default ports), so it always matches whichever origin/port
+    // the page itself was actually loaded through instead of being pinned
+    // to plain :80 and breaking HMR on the https:// origin.
   },
 });

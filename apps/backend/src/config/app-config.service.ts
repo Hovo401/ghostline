@@ -66,4 +66,21 @@ export class AppConfigService {
   get mediaMaxFileSizeBytes(): number {
     return this.config.get("MEDIA_MAX_FILE_SIZE_BYTES", { infer: true });
   }
+
+  get livekit(): { url: string; apiUrl: string; apiKey: string; apiSecret: string } {
+    return {
+      url: this.config.get("LIVEKIT_URL", { infer: true }),
+      apiUrl: this.config.get("LIVEKIT_API_URL", { infer: true }),
+      apiKey: this.config.get("LIVEKIT_API_KEY", { infer: true }),
+      apiSecret: this.config.get("LIVEKIT_API_SECRET", { infer: true }),
+    };
+  }
+
+  get vapid(): { publicKey: string; privateKey: string; subject: string } {
+    return {
+      publicKey: this.config.get("VAPID_PUBLIC_KEY", { infer: true }),
+      privateKey: this.config.get("VAPID_PRIVATE_KEY", { infer: true }),
+      subject: this.config.get("VAPID_SUBJECT", { infer: true }),
+    };
+  }
 }

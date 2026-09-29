@@ -28,11 +28,18 @@ export function GhostField({
 
   useEffect(() => {
     let cancelled = false;
-    void import("./ghost-field-element").then(({ registerGhostField }) => {
-      if (cancelled) return;
-      registerGhostField();
-      setReady(true);
-    });
+    void import("./ghost-field-element")
+      .then(({ registerGhostField }) => {
+        if (cancelled) return;
+        registerGhostField();
+        setReady(true);
+      })
+      .catch(() => {
+        // Best-effort: the component may unmount (or, in tests, the jsdom
+        // environment may tear down) before this chunk finishes loading —
+        // ghost-field is decorative, so fail silently instead of surfacing
+        // an unhandled rejection.
+      });
     return () => {
       cancelled = true;
     };

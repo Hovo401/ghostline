@@ -102,6 +102,27 @@ body {
   transition: background-color 300ms;
 }
 
+/* Tailwind v4 preflight drops the browser default `cursor: pointer` on
+ * interactive elements — restore it so clickable UI (buttons, links, list
+ * items, form controls) shows a pointer instead of the text/arrow cursor. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  label[for],
+  select,
+  summary,
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="file"] {
+    cursor: pointer;
+  }
+  :disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
 /* "Typing" dots timing token — DESIGN-BRIEF §5 (900ms cycle, 150ms stagger
  * applied per-dot via inline animation-delay, the one thing this can't
  * express as a fixed class). */

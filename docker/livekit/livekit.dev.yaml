@@ -1,0 +1,44 @@
+# Dev-mode LiveKit config (docs/adr/0009) — everything on one machine, no
+# TURN/TLS needed (docker/livekit/livekit.yaml is the prod counterpart with
+# those). This file exists, instead of just passing `--dev` on the CLI like
+# before, so we can also register the LiveKit webhook (`api_key`/`urls`
+# below) — the CLI-only `--dev` mode has no way to configure that, which
+# meant in dev a closed/crashed tab never told the backend the call ended
+# until the ring-timeout/`departure_timeout` caught up. `--dev` still sets
+# permissive defaults (single node, no auth on the HTTP API) that this file
+# doesn't need to repeat; we're layering the webhook on top of it.
+port: 7880
+bind_addresses: ["0.0.0.0"]
+
+rtc:
+  tcp_port: 7881
+  # A single-port UDP *mux* (every participant shares this one port), not a
+  # range of size 1 (`port_range_start`/`end` both 7882) — a range hands out
+  # one port PER PARTICIPANT, so a second participant in the same room has
+  # nothing left and silently never gets media (`port_range_*` must be unset
+  # for `udp_port` to take effect — see LiveKit's config-sample.yaml).
+  udp_port: 7882
+  # LiveKit advertises ICE candidates on the container's own IP (172.x) by
+  # default, which nothing outside the container can reach — only the ports
+  # this compose service actually publishes are. `node_ip` overrides the
+  # advertised address to match: the machine's LAN IP (`tools/dev.mjs`
+  # detects it, compose.dev.yaml passes it through as `LAN_IP`), so a phone
+  # on the same Wi-Fi can complete ICE, not just the PC itself (which can
+  # also reach its own LAN IP). See docs/adr/0009's LAN-dev addendum.
+  node_ip: ${LAN_IP}
+  use_external_ip: false
+
+room:
+  empty_timeout: 30
+  departure_timeout: 30
+
+keys:
+  ${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}
+
+# CallsService.applyWebhookEvent (apps/backend/src/calls) finalizes
+# ended/missed calls from these events — see `POST /calls/livekit-webhook`.
+# `backend` resolves via Docker Compose's DNS inside this network.
+webhook:
+  api_key: ${LIVEKIT_API_KEY}
+  urls:
+    - http://backend:3000/api/v1/calls/livekit-webhook

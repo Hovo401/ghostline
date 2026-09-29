@@ -19,6 +19,7 @@ function makeMessage(overrides: Partial<ChatMessage>): ChatMessage {
     durationMs: null,
     waveform: null,
     replyToId: null,
+    call: null,
     status: "sent",
     editedAt: null,
     deletedAt: null,
@@ -59,6 +60,38 @@ describe("MessageBubble", () => {
 
     const img = screen.getByRole("img", { name: "photo.png" });
     expect(img).toHaveAttribute("src", "https://s3.example/photo.png");
+  });
+
+  it("clicking an image message opens the fullscreen viewer for that message", () => {
+    const onOpenImage = vi.fn();
+    const message = makeMessage({
+      id: "m-photo",
+      type: "image",
+      text: null,
+      attachment: {
+        id: "a1",
+        key: "k",
+        mime: "image/png",
+        size: 1000,
+        width: 800,
+        height: 600,
+        name: "photo.png",
+        url: "https://s3.example/photo.png",
+      },
+    });
+    render(
+      <MessageBubble
+        message={message}
+        isOwn={false}
+        isLastOutgoing={false}
+        scrambleDelay={0}
+        onRetry={vi.fn()}
+        onOpenImage={onOpenImage}
+      />,
+    );
+
+    screen.getByRole("button", { name: "Открыть фото" }).click();
+    expect(onOpenImage).toHaveBeenCalledWith("m-photo");
   });
 
   it("renders the real name, size and extension for a file message", () => {
@@ -150,6 +183,66 @@ describe("MessageBubble", () => {
 
     expect(screen.getByRole("button", { name: "Воспроизвести" })).toBeInTheDocument();
     expect(screen.getByText("0:05")).toBeInTheDocument();
+  });
+
+  it("renders an outgoing ended call with its duration", () => {
+    const message = makeMessage({
+      type: "call",
+      text: null,
+      call: { status: "ended", video: true, durationMs: 323_000 },
+    });
+    render(
+      <MessageBubble
+        message={message}
+        isOwn={true}
+        isLastOutgoing={false}
+        scrambleDelay={0}
+        onRetry={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Исходящий видеозвонок · 5:23")).toBeInTheDocument();
+  });
+
+  it("renders a missed incoming call without a duration", () => {
+    const message = makeMessage({
+      type: "call",
+      text: null,
+      call: { status: "missed", video: false, durationMs: null },
+    });
+    render(
+      <MessageBubble
+        message={message}
+        isOwn={false}
+        isLastOutgoing={false}
+        scrambleDelay={0}
+        onRetry={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Пропущенный аудиозвонок")).toBeInTheDocument();
+  });
+
+  it("tapping a call row starts a call back into the same chat", () => {
+    const onCallBack = vi.fn();
+    const message = makeMessage({
+      type: "call",
+      text: null,
+      call: { status: "declined", video: true, durationMs: null },
+    });
+    render(
+      <MessageBubble
+        message={message}
+        isOwn={true}
+        isLastOutgoing={false}
+        scrambleDelay={0}
+        onRetry={vi.fn()}
+        onCallBack={onCallBack}
+      />,
+    );
+
+    screen.getByRole("button", { name: /Отклонённый видеозвонок/ }).click();
+    expect(onCallBack).toHaveBeenCalledWith(message);
   });
 
   it("offers a retry for a failed message", () => {

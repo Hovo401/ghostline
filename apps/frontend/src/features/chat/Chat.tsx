@@ -1,7 +1,9 @@
 import { Link } from "@tanstack/react-router";
 
+import { useActiveCallQuery, useCallRealtime } from "../../entities/call";
 import { useChatRealtime, useChats, useTypingRealtime } from "../../entities/chat";
 import { useMessageRealtime } from "../../entities/message";
+import { useMessageNotificationFallback, usePushSubscription } from "../../entities/notification";
 import { useMeRealtime } from "../../entities/session";
 import { useSessionStore } from "../../shared/api/session-store";
 import { useGhostlineSocket } from "../../shared/api/socket-client";
@@ -11,6 +13,7 @@ import { useChatUiStore } from "./chat-ui-store";
 import { ChatListPanel } from "./ChatListPanel";
 import { ChatThreadPanel } from "./ChatThreadPanel";
 import { NewChatModal } from "./NewChatModal";
+import { useServiceWorkerMessages } from "./use-service-worker-messages";
 
 /**
  * The whole "Мессенджер" screen (DESIGN-BRIEF.md §7.2) — desktop rail +
@@ -26,6 +29,11 @@ export function Chat() {
   useMessageRealtime();
   useTypingRealtime();
   useMeRealtime();
+  useCallRealtime();
+  useActiveCallQuery();
+  const { status: pushStatus } = usePushSubscription();
+  useMessageNotificationFallback(pushStatus !== "subscribed");
+  useServiceWorkerMessages();
 
   const { data: chats } = useChats();
   const selectedChatId = useChatUiStore((state) => state.selectedChatId);

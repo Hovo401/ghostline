@@ -74,6 +74,29 @@ services:
         condition: service_healthy
     restart: "no"
 
+  # Self-hosted LiveKit SFU (docs/adr/0009). `network_mode: host` avoids
+  # mapping the ~10k UDP media ports individually (LiveKit's own
+  # recommendation for self-hosting) — the tradeoff is this container joins
+  # the *host's* network namespace, not the compose bridge network: it
+  # can't resolve other services by name ("backend", "nginx", …) and other
+  # services can't reach it by container name either. See the `backend`
+  # service's `127.0.0.1:3000` port below (how the webhook reaches the API)
+  # and the `nginx` service's `extra_hosts` (how nginx reaches LiveKit's
+  # signaling/TURN ports) for the two ends of that workaround.
+  livekit:
+    image: livekit/livekit-server:latest
+    restart: unless-stopped
+    network_mode: host
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    env_file: .env
+    environment:
+      DOMAIN: ${DOMAIN}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+    volumes:
+      - ./docker/livekit/livekit.yaml:/etc/livekit/livekit.yaml:ro
+      - ./docker/livekit/entrypoint.sh:/entrypoint.sh:ro
+
   migrate:
     build:
       context: .

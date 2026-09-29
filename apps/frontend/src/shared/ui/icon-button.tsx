@@ -9,7 +9,12 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   icon: ReactNode;
   label: string;
-  variant?: "ghost" | "accent";
+  /** "inverse" is white-on-dark for overlays like the fullscreen media
+   * viewer's `bg-black/90` chrome (VideoNoteBubble's existing `text-white`
+   * on `bg-black/*` is the same already-accepted pattern) — the default
+   * `ghost` token colors (`text-fg`) don't read against that regardless of
+   * the active theme. */
+  variant?: "ghost" | "accent" | "inverse";
 }
 
 export function IconButton({
@@ -19,6 +24,12 @@ export function IconButton({
   className,
   ...props
 }: IconButtonProps) {
+  const variantClass =
+    variant === "accent"
+      ? "[background:var(--color-accent)] text-ink"
+      : variant === "inverse"
+        ? "text-white hover:bg-white/10"
+        : "text-fg hover:bg-bg2";
   return (
     <button
       type="button"
@@ -26,7 +37,7 @@ export function IconButton({
       title={label}
       className={[
         "inline-flex h-11 w-11 items-center justify-center rounded-full transition-colors duration-200",
-        variant === "accent" ? "[background:var(--color-accent)] text-ink" : "text-fg hover:bg-bg2",
+        variantClass,
         className,
       ]
         .filter(Boolean)

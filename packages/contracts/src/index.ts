@@ -57,6 +57,7 @@ export type {
 export {
   MessageTypeSchema,
   MessageStatusSchema,
+  MessageCallInfoSchema,
   SendMessageRequestSchema,
   EditMessageRequestSchema,
   ListMessagesQuerySchema,
@@ -65,6 +66,7 @@ export {
 export type {
   MessageType,
   MessageStatus,
+  MessageCallInfo,
   SendMessageRequest,
   EditMessageRequest,
   ListMessagesQuery,
@@ -107,3 +109,31 @@ export type {
   ServerToClientEvents,
   ClientToServerEvents,
 } from "./ws/events.schema";
+
+export {
+  CallStatusSchema,
+  CallSchema,
+  StartCallBodySchema,
+  CallJoinSchema,
+  ActiveCallSchema,
+} from "./call/call.schema";
+export type { CallStatus, Call, StartCallBody, CallJoin, ActiveCall } from "./call/call.schema";
+
+export {
+  PushSubscriptionKeysSchema,
+  PushSubscriptionBodySchema,
+  NotificationSettingsSchema,
+  NotificationSettingsPatchSchema,
+  PushPayloadSchema,
+} from "./notification/notification.schema";
+export type {
+  PushSubscriptionKeys,
+  PushSubscriptionBody,
+  NotificationSettings,
+  NotificationSettingsPatch,
+  PushPayload,
+  PushMessagePayload,
+  PushCallIncomingPayload,
+  PushCallClosedPayload,
+  PushCallMissedPayload,
+} from "./notification/notification.schema";

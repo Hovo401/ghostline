@@ -76,6 +76,15 @@ export function createFrontendConfig(tsconfigRootDir) {
       rules: { "no-restricted-syntax": "off" },
     },
     {
+      // The PWA manifest's `theme_color`/`background_color` are OS-level
+      // metadata (browser chrome, splash screen) baked into a static JSON
+      // manifest at build time — there's no CSS custom property to read at
+      // that point, so, like the theme token files above, this is a
+      // legitimate place for a literal.
+      files: ["pwa.config.ts"],
+      rules: { "no-restricted-syntax": "off" },
+    },
+    {
       // The bootstrap entry isn't hot-reloaded as a component itself —
       // react-refresh's "only export components" constraint doesn't apply.
       files: ["src/app/**"],

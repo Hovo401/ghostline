@@ -7,6 +7,7 @@ import { useCurrentUserId } from "../../entities/user";
 import { useChatUiStore } from "./chat-ui-store";
 import { ChatListRow } from "./ChatListRow";
 import { chatDisplayName } from "./format";
+import { NotificationInviteBanner } from "./NotificationInviteBanner";
 
 /** Chat list column — DESIGN-BRIEF.md §7.2: header + "Новый", search, rows
  * (avatar/name/time/preview or typing, unread badge). On phone this is the
@@ -54,6 +55,7 @@ export function ChatListPanel({ className }: { className?: string }) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 pb-2">
+        <NotificationInviteBanner />
         {isLoading && <p className="p-3 font-mono text-xs text-mute">Загрузка…</p>}
         {!isLoading && filtered.length === 0 && (
           <p className="p-3 font-mono text-xs text-mute">Ничего не найдено</p>

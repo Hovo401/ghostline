@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import type { Call } from "../call/call.schema";
 import type { ChatListItem } from "../chat/chat.schema";
 import type { Message } from "../message/message.schema";
 import type { UserPublicProfile } from "../user/user.schema";
@@ -62,6 +63,11 @@ export interface ServerToClientEvents {
   "user:updated": (payload: UserPublicProfile) => void;
   presence: (payload: PresencePayload) => void;
   typing: (payload: TypingServerPayload) => void;
+  // Sent to every socket in `user:${calleeId}` (all tabs/devices) so a tab
+  // that isn't handling the call learns it was answered/declined/ended
+  // elsewhere and stops ringing. Also sent to the caller on status changes.
+  "call:incoming": (payload: Call) => void;
+  "call:updated": (payload: Call) => void;
 }
 
 export interface ClientToServerEvents {

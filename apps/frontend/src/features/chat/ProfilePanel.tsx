@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-import { type Attachment, fileExtension } from "../../entities/attachment";
+import { type Attachment, fileExtension, useMediaViewerStore } from "../../entities/attachment";
 import { type ChatListItem, useChatMedia, useMuteChat } from "../../entities/chat";
 import { useBlockUser } from "../../entities/user";
 import { Avatar } from "../../shared/ui/avatar";
@@ -20,22 +20,32 @@ function stagger(step: number): CSSProperties {
 
 /** One "МЕДИА" grid cell — a real photo thumbnail, or (file/voice/video)
  * the same extension badge MessageBubble's file chip uses, reusing
- * `fileExtension` instead of re-deriving it. */
-function MediaGridItem({ attachment }: { attachment: Attachment }) {
+ * `fileExtension` instead of re-deriving it. An image cell opens the
+ * fullscreen viewer (T-033) on the chat's photos; non-image cells aren't
+ * clickable (file/voice/video already play/download inline). */
+function MediaGridItem({ attachment, onOpen }: { attachment: Attachment; onOpen?: () => void }) {
   const isImage = attachment.mime.startsWith("image/");
-  return (
-    <div className="relative flex aspect-square items-end justify-end overflow-hidden rounded-lg bg-panel p-1.5">
-      {isImage ? (
+  if (isImage) {
+    return (
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label="Открыть фото"
+        className="relative flex aspect-square cursor-zoom-in items-end justify-end overflow-hidden rounded-lg bg-panel p-1.5"
+      >
         <img
           src={attachment.url}
           alt={attachment.name ?? "Фото"}
           className="absolute inset-0 h-full w-full object-cover"
         />
-      ) : (
-        <span className="font-mono text-[10px] text-mute">
-          {fileExtension(attachment.name, attachment.mime)}
-        </span>
-      )}
+      </button>
+    );
+  }
+  return (
+    <div className="relative flex aspect-square items-end justify-end overflow-hidden rounded-lg bg-panel p-1.5">
+      <span className="font-mono text-[10px] text-mute">
+        {fileExtension(attachment.name, attachment.mime)}
+      </span>
     </div>
   );
 }
@@ -48,8 +58,12 @@ export function ProfilePanel({ chat, open, onClose }: ProfilePanelProps) {
   const muteChat = useMuteChat();
   const blockUser = useBlockUser();
   const media = useChatMedia(chat.id, open);
+  const openViewer = useMediaViewerStore((state) => state.open);
   const name = chatDisplayName(chat);
   const peer = chat.peer;
+  const imageAttachments = (media.data ?? []).filter((attachment) =>
+    attachment.mime.startsWith("image/"),
+  );
 
   const fadeClass = (extra: string): string =>
     [
@@ -151,7 +165,14 @@ export function ProfilePanel({ chat, open, onClose }: ProfilePanelProps) {
               </span>
               <div className="grid grid-cols-3 gap-1">
                 {media.data.map((attachment) => (
-                  <MediaGridItem key={attachment.id} attachment={attachment} />
+                  <MediaGridItem
+                    key={attachment.id}
+                    attachment={attachment}
+                    onOpen={() => {
+                      const index = imageAttachments.findIndex((item) => item.id === attachment.id);
+                      if (index !== -1) openViewer(imageAttachments, index);
+                    }}
+                  />
                 ))}
               </div>
             </div>

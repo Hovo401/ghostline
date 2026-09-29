@@ -9,7 +9,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "docker compose -f compose.dev.yaml up --watch",
+    "dev": "node tools/dev.mjs",
     "dev:down": "docker compose -f compose.dev.yaml down",
     "dev:logs": "docker compose -f compose.dev.yaml logs -f",
     "prod:build": "docker compose -f compose.prod.yaml build",

@@ -1,5 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
+import { useMediaViewerStore, type Attachment } from "../../entities/attachment";
+import { useCallActions } from "../../entities/call";
 import {
   type ChatMessage,
   groupMessages,
@@ -34,9 +36,35 @@ export function MessageFeed({
   onLoadMore,
 }: MessageFeedProps) {
   const { retry } = useSendMessage(chatId);
+  const { start: startCall } = useCallActions();
   const scrollRef = useRef<HTMLDivElement>(null);
   const groups = groupMessages(messages, currentUserId);
   const lastOwnIndex = lastOutgoingIndex(messages, currentUserId);
+  const openViewer = useMediaViewerStore((state) => state.open);
+
+  // Tapping a call-history row (F-CALL history in the feed) calls back into
+  // the same chat, in the same mode (audio/video) the original call was.
+  const callBack = (message: ChatMessage): void => {
+    if (message.type !== "call" || !message.call) return;
+    startCall({ chatId, video: message.call.video });
+  };
+
+  // Gallery for the fullscreen viewer (T-033) — every image message in the
+  // loaded feed, in feed order, so ←/→ pages through the chat's photos the
+  // way the prototype's viewer does, not just the ones currently on screen.
+  const imageMessages = useMemo(
+    () => messages.filter((message) => message.type === "image" && message.attachment),
+    [messages],
+  );
+
+  const openImageMessage = (messageId: string): void => {
+    const index = imageMessages.findIndex((message) => message.id === messageId);
+    if (index === -1) return;
+    const attachments = imageMessages
+      .map((message) => message.attachment)
+      .filter((attachment): attachment is Attachment => attachment !== null);
+    openViewer(attachments, index);
+  };
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -69,6 +97,8 @@ export function MessageFeed({
               isLastOutgoing={index === lastOwnIndex}
               scrambleDelay={scrambleDelay}
               onRetry={retry}
+              onOpenImage={openImageMessage}
+              onCallBack={callBack}
             />
           </div>
         );

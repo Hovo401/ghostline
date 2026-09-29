@@ -1,6 +1,7 @@
-import type { Message, MessageStatus, MessageType } from "@ghostline/contracts";
+import type { Message, MessageCallInfo, MessageStatus, MessageType } from "@ghostline/contracts";
 import type {
   Attachment as PrismaAttachment,
+  Call as PrismaCall,
   Message as PrismaMessage,
   MessageType as PrismaMessageType,
 } from "@prisma/client";
@@ -24,6 +25,7 @@ const WIRE_TO_PRISMA_TYPE: Record<MessageType, PrismaMessageType> = {
   file: "FILE",
   voice: "VOICE",
   video: "VIDEO",
+  call: "CALL",
 };
 
 const PRISMA_TO_WIRE_TYPE: Record<PrismaMessageType, MessageType> = {
@@ -32,7 +34,26 @@ const PRISMA_TO_WIRE_TYPE: Record<PrismaMessageType, MessageType> = {
   FILE: "file",
   VOICE: "voice",
   VIDEO: "video",
+  CALL: "call",
 };
+
+/** Maps a finished `Call` row onto the `Message.call` wire field (T-06x calls). */
+const CALL_STATUS_TO_MESSAGE_CALL_STATUS: Partial<
+  Record<PrismaCall["status"], MessageCallInfo["status"]>
+> = {
+  ENDED: "ended",
+  MISSED: "missed",
+  DECLINED: "declined",
+  CANCELLED: "cancelled",
+};
+
+export function toWireMessageCallInfo(call: PrismaCall): MessageCallInfo | null {
+  const status = CALL_STATUS_TO_MESSAGE_CALL_STATUS[call.status];
+  if (!status) return null; // RINGING/ACTIVE/BUSY/FAILED never become a history row.
+  const durationMs =
+    call.answeredAt && call.endedAt ? call.endedAt.getTime() - call.answeredAt.getTime() : null;
+  return { status, video: call.video, durationMs };
+}
 
 export function toPrismaMessageType(type: MessageType): PrismaMessageType {
   return WIRE_TO_PRISMA_TYPE[type];
@@ -117,8 +138,15 @@ export async function resolveMessageStatus(
   });
 }
 
-/** A `Message` row as returned once every query site adds `include: { attachment: true }`. */
-export type PrismaMessageWithAttachment = PrismaMessage & { attachment: PrismaAttachment | null };
+/**
+ * A `Message` row as returned once every query site adds `include: { attachment: true }`.
+ * `call` is optional: only `CallsService` needs it (it already holds the `Call` it just
+ * finished, so it includes it), every other query site's messages are never `type: "call"`.
+ */
+export type PrismaMessageWithAttachment = PrismaMessage & {
+  attachment: PrismaAttachment | null;
+  call?: PrismaCall | null;
+};
 
 export async function toWireMessage(
   message: PrismaMessageWithAttachment,
@@ -138,6 +166,7 @@ export async function toWireMessage(
     durationMs: message.durationMs,
     waveform: message.waveform as number[] | null,
     replyToId: message.replyToId,
+    call: message.call ? toWireMessageCallInfo(message.call) : null,
     status,
     editedAt: message.editedAt?.toISOString() ?? null,
     deletedAt: message.deletedAt?.toISOString() ?? null,

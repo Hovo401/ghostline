@@ -26,3 +26,10 @@ export function userSearchQueryKey(query: string) {
 export function usernameAvailabilityQueryKey(username: string) {
   return ["users", "availability", username] as const;
 }
+
+/** `entities/call`'s `useActiveCallQuery` — `GET /calls/active`, fired once
+ * on mount to resume a call across a page reload. */
+export const CALL_ACTIVE_QUERY_KEY = ["calls", "active"] as const;
+
+/** `entities/notification`'s `useNotificationSettings`/`useUpdateNotificationSettings`. */
+export const NOTIFICATION_SETTINGS_QUERY_KEY = ["notifications", "settings"] as const;

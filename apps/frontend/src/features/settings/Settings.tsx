@@ -6,11 +6,13 @@ import { Avatar } from "../../shared/ui/avatar";
 import { SegmentedTabs } from "../../shared/ui/segmented-tabs";
 
 import { AppearanceTab } from "./AppearanceTab";
+import { NotificationsTab } from "./NotificationsTab";
 import { ProfileTab } from "./ProfileTab";
 
 const SETTINGS_TABS = [
   { value: "profile", label: "Профиль" },
   { value: "appearance", label: "Внешний вид" },
+  { value: "notifications", label: "Уведомления" },
 ] as const;
 type SettingsTab = (typeof SETTINGS_TABS)[number]["value"];
 
@@ -18,10 +20,10 @@ type SettingsTab = (typeof SETTINGS_TABS)[number]["value"];
  * `onSettings` screen (DESIGN-BRIEF.md §7.3): desktop rail + section list,
  * phone back arrow + segmented tabs, ported from
  * docs/design/prototype/Ghostline.dc.html's `data-screen-label="Настройки ·
- * Внешний вид"` block. Only "Профиль" and "Внешний вид" ship — the
- * prototype's other section labels
- * (Конфиденциальность/Уведомления/Устройства/О приложении) are BACKLOG.md
- * M6 ("remaining settings sections").
+ * Внешний вид"` block. "Профиль", "Внешний вид" and "Уведомления" ship —
+ * the prototype's remaining section labels
+ * (Конфиденциальность/Устройства/О приложении) are BACKLOG.md M6
+ * ("remaining settings sections").
  */
 export function Settings() {
   const [tab, setTab] = useState<SettingsTab>("profile");
@@ -92,7 +94,9 @@ export function Settings() {
           <SegmentedTabs options={SETTINGS_TABS} value={tab} onChange={setTab} fill />
         </div>
 
-        {tab === "profile" ? <ProfileTab /> : <AppearanceTab />}
+        {tab === "profile" && <ProfileTab />}
+        {tab === "appearance" && <AppearanceTab />}
+        {tab === "notifications" && <NotificationsTab />}
       </div>
     </div>
   );

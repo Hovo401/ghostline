@@ -7,6 +7,7 @@ import { Prisma } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 
 import { ChatsService } from "../chats/chats.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { ChatEventsGateway } from "../realtime/chat-events.gateway";
 import { REDIS_CLIENT } from "../redis/redis.module";
@@ -255,6 +256,7 @@ async function buildMessagesService(
   const fakeEvents = { server: { to: () => ({ emit: () => undefined }) } };
   const fakeRedis = { scard: () => Promise.resolve(0) };
   const fakeStorage = { createDownloadUrl: () => Promise.resolve("http://example.test/signed") };
+  const fakeNotifications = { notifyNewMessage: () => Promise.resolve() };
 
   const moduleRef = await Test.createTestingModule({
     providers: [
@@ -264,6 +266,7 @@ async function buildMessagesService(
       { provide: ChatsService, useValue: fakeChats },
       { provide: ChatEventsGateway, useValue: fakeEvents },
       { provide: StorageService, useValue: fakeStorage },
+      { provide: NotificationsService, useValue: fakeNotifications },
       { provide: REDIS_CLIENT, useValue: fakeRedis },
     ],
   }).compile();

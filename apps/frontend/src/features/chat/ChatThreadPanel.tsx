@@ -1,9 +1,12 @@
 import { useEffect } from "react";
 
+import { useCallActions, useCallStore } from "../../entities/call";
 import { type ChatListItem, useMarkChatRead, useTypingStore } from "../../entities/chat";
 import { useMessages } from "../../entities/message";
 import { useCurrentUserId } from "../../entities/user";
 import { Avatar } from "../../shared/ui/avatar";
+import { PhoneIcon, VideoCameraIcon } from "../../shared/ui/call-icons";
+import { IconButton } from "../../shared/ui/icon-button";
 
 import { useChatUiStore } from "./chat-ui-store";
 import { Composer } from "./Composer";
@@ -22,6 +25,8 @@ export function ChatThreadPanel({ chat, className }: ChatThreadPanelProps) {
   const currentUserId = useCurrentUserId();
   const { messages, hasNextPage, fetchNextPage } = useMessages(chat.id);
   const markRead = useMarkChatRead();
+  const { start: startCall } = useCallActions();
+  const callInProgress = useCallStore((state) => state.phase !== "idle");
   const closeChat = useChatUiStore((state) => state.closeChat);
   const profilePanelOpen = useChatUiStore((state) => state.profilePanelOpen);
   const openProfilePanel = useChatUiStore((state) => state.openProfilePanel);
@@ -93,6 +98,26 @@ export function ChatThreadPanel({ chat, className }: ChatThreadPanelProps) {
               </span>
             </span>
           </button>
+          {chat.peer && (
+            <div className="flex flex-none items-center gap-1">
+              <IconButton
+                icon={<PhoneIcon />}
+                label="Аудиозвонок"
+                disabled={callInProgress}
+                onClick={() => {
+                  startCall({ chatId: chat.id, video: false });
+                }}
+              />
+              <IconButton
+                icon={<VideoCameraIcon />}
+                label="Видеозвонок"
+                disabled={callInProgress}
+                onClick={() => {
+                  startCall({ chatId: chat.id, video: true });
+                }}
+              />
+            </div>
+          )}
         </div>
 
         <MessageFeed

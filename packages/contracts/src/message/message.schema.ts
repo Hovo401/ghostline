@@ -4,8 +4,16 @@ import { AttachmentSchema } from "../attachment/attachment.schema";
 
 /** Message types, delivery status, send request and the wire resource shape. */
 
-export const MessageTypeSchema = z.enum(["text", "image", "file", "voice", "video"]);
+export const MessageTypeSchema = z.enum(["text", "image", "file", "voice", "video", "call"]);
 export type MessageType = z.infer<typeof MessageTypeSchema>;
+
+/** Present only on `type: "call"` messages — a call's outcome, for the history row in the feed. */
+export const MessageCallInfoSchema = z.object({
+  status: z.enum(["ended", "missed", "declined", "cancelled"]),
+  video: z.boolean(),
+  durationMs: z.number().int().min(0).nullable(),
+});
+export type MessageCallInfo = z.infer<typeof MessageCallInfoSchema>;
 
 export const MessageStatusSchema = z.enum(["sent", "delivered", "read"]);
 export type MessageStatus = z.infer<typeof MessageStatusSchema>;
@@ -60,6 +68,8 @@ export const MessageSchema = z.object({
   durationMs: z.number().int().nullable(),
   waveform: z.array(z.number().int()).nullable(),
   replyToId: z.string().uuid().nullable(),
+  // Set only when `type === "call"` — see `MessageCallInfoSchema`.
+  call: MessageCallInfoSchema.nullable(),
   status: MessageStatusSchema,
   editedAt: z.string().datetime().nullable(),
   deletedAt: z.string().datetime().nullable(),

@@ -35,6 +35,19 @@ the containers (`docker compose watch` — see [ADR-0006](docs/adr/0006-docker-c
 for why watch instead of bind mounts). Editing `packages/contracts/src` rebuilds it
 automatically for both containers.
 
+`pnpm dev` also prints a `https://<LAN_IP>` address (`tools/dev.mjs` detects your machine's LAN
+IP) — open that on a phone on the same Wi-Fi to test calls device-to-device, accepting the
+one-time self-signed certificate warning. See [ADR-0009](docs/adr/0009-livekit-sfu-not-p2p-coturn.md)'s
+LAN-dev addendum for why HTTPS is required here. If the phone can't connect, Windows Firewall is
+the usual cause — from an elevated PowerShell:
+
+```powershell
+New-NetFirewallRule -DisplayName "Ghostline dev (LAN)" -Direction Inbound -Action Allow `
+  -Protocol TCP -LocalPort 443,7881
+New-NetFirewallRule -DisplayName "Ghostline dev (LAN, RTC media)" -Direction Inbound -Action Allow `
+  -Protocol UDP -LocalPort 7882
+```
+
 Other useful commands (see [CLAUDE.md](CLAUDE.md) for the full list):
 
 ```sh

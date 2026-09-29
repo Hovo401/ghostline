@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { fileExtension, formatFileSize } from "../../entities/attachment";
 import { formatDuration, formatMessageMeta, type ChatMessage } from "../../entities/message";
+import { PhoneIcon, VideoCameraIcon } from "../../shared/ui/call-icons";
 import { Scramble } from "../../shared/ui/scramble";
 
 interface MessageBubbleProps {
@@ -12,6 +13,12 @@ interface MessageBubbleProps {
    * messages (DESIGN-BRIEF.md §5, 70ms step) — 0 skips straight to instant. */
   scrambleDelay: number;
   onRetry: (message: ChatMessage) => void;
+  /** Opens the fullscreen media viewer (T-033) at this message's photo —
+   * only meaningful for `type === "image"`, ignored otherwise. */
+  onOpenImage?: (messageId: string) => void;
+  /** Starts a new call back into this chat, in the same mode (audio/video)
+   * — only meaningful for `type === "call"`, ignored otherwise. */
+  onCallBack?: (message: ChatMessage) => void;
 }
 
 function PlayIcon() {
@@ -31,8 +38,18 @@ function PauseIcon() {
   );
 }
 
-/** DESIGN-BRIEF.md §7.2: 300px 4:3 card, real photo, optional caption. */
-function ImageBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolean }) {
+/** DESIGN-BRIEF.md §7.2: 300px 4:3 card, real photo, optional caption.
+ * Clickable — opens the fullscreen viewer (T-033) on the feed's gallery at
+ * this message's photo. */
+function ImageBubble({
+  message,
+  isOwn,
+  onOpenImage,
+}: {
+  message: ChatMessage;
+  isOwn: boolean;
+  onOpenImage?: (messageId: string) => void;
+}) {
   const attachment = message.attachment;
   return (
     <div
@@ -43,11 +60,20 @@ function ImageBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolean 
     >
       <div className="aspect-[4/3] bg-bg2">
         {attachment && (
-          <img
-            src={attachment.url}
-            alt={attachment.name ?? "Фото"}
-            className="block h-full w-full object-cover"
-          />
+          <button
+            type="button"
+            onClick={() => {
+              onOpenImage?.(message.id);
+            }}
+            aria-label="Открыть фото"
+            className="block h-full w-full cursor-zoom-in"
+          >
+            <img
+              src={attachment.url}
+              alt={attachment.name ?? "Фото"}
+              className="block h-full w-full object-cover"
+            />
+          </button>
         )}
       </div>
       {message.text && (
@@ -145,7 +171,7 @@ function VoiceBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolean 
         aria-label={playing ? "Пауза" : "Воспроизвести"}
         className={[
           "flex h-9.5 w-9.5 flex-none items-center justify-center rounded-full outline-none",
-          isOwn ? "bg-ink text-accent" : "bg-accent text-ink",
+          isOwn ? "bg-ink text-accent-text" : "bg-accent text-ink",
         ].join(" ")}
       >
         {playing ? <PauseIcon /> : <PlayIcon />}
@@ -268,6 +294,56 @@ function VideoNoteBubble({ message }: { message: ChatMessage }) {
 // itself always carries the real one from the recorder.
 const DEFAULT_BARS = Array.from({ length: 28 }, () => 140);
 
+const CALL_STATUS_LABEL: Record<"missed" | "declined" | "cancelled", string> = {
+  missed: "Пропущенный",
+  declined: "Отклонённый",
+  cancelled: "Отменённый",
+};
+
+/** History row for a `type: "call"` message (calls plan) — phrased from
+ * `message.call.status`/`video`/`durationMs` and whether the current user
+ * placed the call ("Исходящий видеозвонок · 5:23") or received it
+ * ("Пропущенный аудиозвонок"). Tapping it starts a new call into the same
+ * chat, in the same mode. */
+function CallBubble({
+  message,
+  isOwn,
+  onCallBack,
+}: {
+  message: ChatMessage;
+  isOwn: boolean;
+  onCallBack?: (message: ChatMessage) => void;
+}) {
+  const call = message.call;
+  if (!call) return null;
+
+  const kindLabel = call.video ? "видеозвонок" : "аудиозвонок";
+  const statusPrefix = call.status === "ended" ? null : CALL_STATUS_LABEL[call.status];
+  const label = statusPrefix
+    ? `${statusPrefix} ${kindLabel}`
+    : `${isOwn ? "Исходящий" : "Входящий"} ${kindLabel}${
+        call.durationMs != null ? ` · ${formatDuration(call.durationMs)}` : ""
+      }`;
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        onCallBack?.(message);
+      }}
+      className={[
+        "flex w-fit max-w-[82%] items-center gap-2.5 rounded-bubble px-3.5 py-2.5 text-msg",
+        isOwn ? "[background:var(--color-accent)] text-ink" : "border border-line bg-in text-fg",
+      ].join(" ")}
+    >
+      <span aria-hidden className="flex-none">
+        {call.video ? <VideoCameraIcon /> : <PhoneIcon />}
+      </span>
+      <span>{label}</span>
+    </button>
+  );
+}
+
 /** One message bubble + its status line — DESIGN-BRIEF.md §7.2. Renders
  * text plus the four media types (image/file/voice/video note); media
  * always carries the already-uploaded `attachment` (F4). */
@@ -277,6 +353,8 @@ export function MessageBubble({
   isLastOutgoing,
   scrambleDelay,
   onRetry,
+  onOpenImage,
+  onCallBack,
 }: MessageBubbleProps) {
   const meta = formatMessageMeta(message, isOwn, isLastOutgoing);
 
@@ -294,10 +372,15 @@ export function MessageBubble({
           <Scramble text={message.text ?? ""} delay={scrambleDelay} instant={scrambleDelay === 0} />
         </div>
       )}
-      {message.type === "image" && <ImageBubble message={message} isOwn={isOwn} />}
+      {message.type === "image" && (
+        <ImageBubble message={message} isOwn={isOwn} onOpenImage={onOpenImage} />
+      )}
       {message.type === "file" && <FileBubble message={message} isOwn={isOwn} />}
       {message.type === "voice" && <VoiceBubble message={message} isOwn={isOwn} />}
       {message.type === "video" && <VideoNoteBubble message={message} />}
+      {message.type === "call" && (
+        <CallBubble message={message} isOwn={isOwn} onCallBack={onCallBack} />
+      )}
       <span
         className={[
           "px-1.5 font-mono text-xs",

@@ -85,6 +85,7 @@ export function useSendMessage(chatId: string) {
         durationMs: media ? (variables.durationMs ?? null) : null,
         waveform: media ? (variables.waveform ?? null) : null,
         replyToId: null,
+        call: null,
         status: "sent",
         editedAt: null,
         deletedAt: null,

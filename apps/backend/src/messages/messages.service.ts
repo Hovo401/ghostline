@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type {
   ListMessagesQuery,
   Message,
@@ -12,10 +14,11 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { Prisma, type Call as PrismaCall } from "@prisma/client";
 import type Redis from "ioredis";
 
 import { ChatsService } from "../chats/chats.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { ChatEventsGateway } from "../realtime/chat-events.gateway";
 import { isOnline } from "../realtime/presence.service";
@@ -35,6 +38,7 @@ export class MessagesService {
     private readonly chats: ChatsService,
     private readonly events: ChatEventsGateway,
     private readonly storage: StorageService,
+    private readonly notifications: NotificationsService,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
   ) {}
 
@@ -104,8 +108,65 @@ export class MessagesService {
     );
     await this.markDeliveredForOnlineMembers(dto.chatId, created.seq, userId);
     await this.pushChatUpdated(dto.chatId);
+    await this.notifyPush(dto.chatId, wireMessage, userId);
 
     return wireMessage;
+  }
+
+  /**
+   * Writes a `type: CALL` history row for a finished call (docs/adr/0009) —
+   * `CallsService` calls this on every terminal transition that's worth a
+   * feed entry (ended/missed/declined/cancelled, never busy/failed). Mirrors
+   * `sendMessage`'s seq-allocation transaction but skips the attachment/dedup
+   * machinery those don't need; `senderId` is the caller, so the history row
+   * reads the same "who called whom" direction a normal message would.
+   */
+  async createCallMessage(chatId: string, callerId: string, call: PrismaCall): Promise<Message> {
+    const created = await this.prisma.$transaction(async (tx) => {
+      const updatedChat = await tx.chat.update({
+        where: { id: chatId },
+        data: { lastSeq: { increment: 1 }, lastMessageAt: new Date() },
+      });
+      return tx.message.create({
+        data: {
+          chatId,
+          seq: updatedChat.lastSeq,
+          senderId: callerId,
+          clientMessageId: randomUUID(),
+          type: "CALL",
+          callId: call.id,
+        },
+        include: { attachment: true },
+      });
+    });
+
+    const wireMessage = await toWireMessage(
+      { ...created, call },
+      await resolveMessageStatus(this.prisma, created),
+      this.storage,
+    );
+
+    await this.emitToMembers(chatId, (memberId) =>
+      this.events.server.to(`user:${memberId}`).emit("message:new", wireMessage),
+    );
+    await this.pushChatUpdated(chatId);
+
+    return wireMessage;
+  }
+
+  /** FR-NOTIF-04: best-effort — a missing sender (deleted account) just skips the push. */
+  private async notifyPush(chatId: string, message: Message, senderId: string): Promise<void> {
+    const sender = await this.prisma.user.findUnique({
+      where: { id: senderId },
+      select: { displayName: true },
+    });
+    if (!sender) return;
+    await this.notifications.notifyNewMessage({
+      chatId,
+      chatTitle: sender.displayName,
+      message,
+      senderId,
+    });
   }
 
   /** FR-MSG-05: own text messages only, marked `editedAt`. */

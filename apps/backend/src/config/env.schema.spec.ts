@@ -12,6 +12,13 @@ const validConfig = {
   S3_PUBLIC_URL: "http://localhost:8333",
   JWT_ACCESS_SECRET: "a".repeat(32),
   JWT_REFRESH_SECRET: "b".repeat(32),
+  LIVEKIT_URL: "wss://rtc.example.com",
+  LIVEKIT_API_URL: "http://livekit:7880",
+  LIVEKIT_API_KEY: "key",
+  LIVEKIT_API_SECRET: "secret",
+  VAPID_PUBLIC_KEY: "pub",
+  VAPID_PRIVATE_KEY: "priv",
+  VAPID_SUBJECT: "mailto:admin@example.com",
 };
 
 describe("validateEnv", () => {
