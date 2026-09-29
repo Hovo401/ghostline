@@ -90,7 +90,22 @@
       "Bash(curl -s -o /dev/null -w \"health status: %{http_code}\\\\n\" http://localhost/api/health)",
       "Bash(curl -s -o /dev/null -w \"root health: %{http_code}\\\\n\" http://localhost:3000/health)",
       "Bash(curl -s -o /dev/null -w \"health via nginx: %{http_code}\\\\n\" http://localhost/api/health)",
-      "Bash(curl -s -o /dev/null -w \"status: %{http_code}\\\\n\" http://localhost/)"
+      "Bash(curl -s -o /dev/null -w \"status: %{http_code}\\\\n\" http://localhost/)",
+      "Bash(pnpm --filter @ghostline/frontend typecheck)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost/)",
+      "Bash(curl -s http://localhost/)",
+      "Bash(powershell -Command 'Get-Process | Where-Object { $_.Path -like '\\\\''*ms-playwright*'\\\\'' } | Select-Object Id,ProcessName,Path')",
+      "Bash(powershell -Command \"Get-Process chrome -ErrorAction SilentlyContinue | Select-Object Id,Path\")",
+      "Bash(rm -f \"/c/Users/Lenovo/AppData/Local/ms-playwright-mcp/mcp-chrome-b724b57/SingletonLock\")",
+      "Bash(powershell -Command 'Get-CimInstance Win32_Process -Filter \"Name='\\\\''chrome.exe'\\\\''\" | Where-Object { $_.CommandLine -like '\\\\''*ms-playwright-mcp*'\\\\'' } | Select-Object ProcessId,CommandLine')",
+      "Bash(powershell -Command \"\\(Get-CimInstance Win32_Process -Filter \\\\\"ProcessId=2116\\\\\"\\).CommandLine\")",
+      "Bash(grep -o \"morph-track\" apps/frontend/src/features/landing/Landing.tsx)",
+      "Bash(grep -c \"data-morph-track\" apps/frontend/src/features/landing/Landing.tsx)",
+      "Bash(powershell -Command \"taskkill /PID 2116 /T /F\")",
+      "Bash(rm -f landing-hero.png landing-footer.png landing-stage3-morphed.png)",
+      "Bash(pkill -f \"serve docs/design/prototype\")",
+      "Bash(powershell -Command 'Get-CimInstance Win32_Process -Filter \"Name='\\\\''node.exe'\\\\''\" | Where-Object { $_.CommandLine -like '\\\\''*serve*prototype*'\\\\'' } | Select-Object ProcessId,CommandLine')",
+      "Bash(powershell -Command 'Get-CimInstance Win32_Process -Filter \"Name='\\\\''node.exe'\\\\''\" | Where-Object { $_.CommandLine -like '\\\\''*prototype*'\\\\'' -or $_.CommandLine -like '\\\\''*serve*build*'\\\\'' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }')"
     ],
     "deny": [
       "Read(**/node_modules/**)",
