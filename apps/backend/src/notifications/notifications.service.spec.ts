@@ -205,6 +205,16 @@ describe("NotificationsService", () => {
     });
   });
 
+  describe("sendTest", () => {
+    it("enqueues a test push for the requester only", async () => {
+      const { service, add } = await buildService([]);
+
+      await service.sendTest("alice");
+
+      expect(add).toHaveBeenCalledWith("push", { userId: "alice", payload: { kind: "test" } });
+    });
+  });
+
   describe("notifyCallClosed", () => {
     it("passes the reason through to the payload", async () => {
       const { service, add } = await buildService([]);

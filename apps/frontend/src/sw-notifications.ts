@@ -23,7 +23,8 @@ export function parsePushPayload(data: unknown): PushPayload | null {
     kind === "message" ||
     kind === "call:incoming" ||
     kind === "call:closed" ||
-    kind === "call:missed"
+    kind === "call:missed" ||
+    kind === "test"
   ) {
     return data as PushPayload;
   }
@@ -123,6 +124,15 @@ export function buildNotificationOptions(payload: PushPayload): BuiltNotificatio
           tag: `call:${payload.call.id}`,
           renotify: true,
           data: { kind: "call:missed", callId: payload.call.id },
+        },
+      };
+    case "test":
+      return {
+        title: APP_NAME,
+        options: {
+          body: "Тестовое уведомление — push работает",
+          tag: "test",
+          data: { kind: "test" },
         },
       };
   }

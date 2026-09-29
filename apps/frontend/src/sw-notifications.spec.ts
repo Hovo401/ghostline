@@ -1,7 +1,11 @@
 import type { PushPayload } from "@ghostline/contracts";
 import { describe, expect, it } from "vitest";
 
-import { buildNotificationOptions, hasVisibleWindowClient } from "./sw-notifications";
+import {
+  buildNotificationOptions,
+  hasVisibleWindowClient,
+  parsePushPayload,
+} from "./sw-notifications";
 
 const CALL = {
   id: "call-1",
@@ -123,6 +127,18 @@ describe("buildNotificationOptions", () => {
     });
     expect(built.options.body).toBe("Пропущенный звонок");
     expect(built.options.tag).toBe("call:call-1");
+  });
+
+  it("builds a visible notification for a test push", () => {
+    const built = buildNotificationOptions({ kind: "test" });
+    expect(built.title).toBe("Ghostline");
+    expect(built.options.body).toContain("Тестовое");
+  });
+});
+
+describe("parsePushPayload", () => {
+  it("accepts a test push", () => {
+    expect(parsePushPayload({ kind: "test" })).toEqual({ kind: "test" });
   });
 });
 

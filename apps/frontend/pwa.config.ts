@@ -34,7 +34,14 @@ export const vitePwaOptions: Partial<VitePWAOptions> = {
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "maskable" },
     ],
   },
+  // Enabled (unlike vite-plugin-pwa's default) so `sw.ts` actually registers
+  // under `pnpm dev` — otherwise `navigator.serviceWorker.ready` never
+  // resolves and `use-push-subscription.ts` hangs at "pending" forever, with
+  // nothing visible in NotificationsTab to click. `type: "module"` matches
+  // `injectManifest`'s ESM output (no Workbox precache, see the docblock
+  // above) so dev serves the same module format as the real build.
   devOptions: {
-    enabled: false,
+    enabled: true,
+    type: "module",
   },
 };

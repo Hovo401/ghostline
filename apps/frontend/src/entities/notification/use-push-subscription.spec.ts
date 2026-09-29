@@ -3,9 +3,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { apiFetch } from "../../shared/api/http-client";
 
-import { usePushSubscription } from "./use-push-subscription";
+import { resetPushSyncForTests, usePushSubscription } from "./use-push-subscription";
 
 vi.mock("../../shared/api/http-client", () => ({ apiFetch: vi.fn() }));
+
+/** base64url "aGVsbG8" — what the mocked `GET /notifications/vapid-key` returns. */
+const VAPID_KEY = "aGVsbG8";
+const VAPID_KEY_BYTES = new TextEncoder().encode("hello");
 
 interface StubOptions {
   permission?: NotificationPermission;
@@ -30,10 +34,27 @@ function stubPushApis(options: StubOptions = {}) {
   });
 }
 
+function fakeSubscription(endpoint: string, key: Uint8Array = VAPID_KEY_BYTES) {
+  return {
+    endpoint,
+    options: { applicationServerKey: key.buffer },
+    unsubscribe: vi.fn().mockResolvedValue(true),
+    toJSON: () => ({ endpoint, keys: { p256dh: "p", auth: "a" } }),
+  };
+}
+
+function mockServer() {
+  vi.mocked(apiFetch).mockImplementation((path: string) => {
+    if (path === "/notifications/vapid-key") return Promise.resolve({ publicKey: VAPID_KEY });
+    return Promise.resolve(undefined);
+  });
+}
+
 describe("usePushSubscription", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.mocked(apiFetch).mockReset();
+    resetPushSyncForTests();
   });
 
   it("is 'unsupported' when the Push API isn't available (the jsdom default)", async () => {
@@ -49,13 +70,59 @@ describe("usePushSubscription", () => {
     await waitFor(() => {
       expect(result.current.status).toBe("unsubscribed");
     });
+    expect(apiFetch).not.toHaveBeenCalled();
   });
 
-  it("reports 'subscribed' when a subscription already exists", async () => {
-    stubPushApis({ getSubscription: vi.fn().mockResolvedValue({}) });
+  it("re-registers an existing browser subscription with the server on load", async () => {
+    // Regression: the server row can be gone (deleted after a 403/404/410,
+    // or taken over by another account on this browser) while the browser
+    // still holds the subscription — this used to report 'subscribed' and
+    // never deliver anything.
+    stubPushApis({
+      getSubscription: vi.fn().mockResolvedValue(fakeSubscription("https://push.example/abc")),
+    });
+    mockServer();
+
     const { result } = renderHook(() => usePushSubscription());
     await waitFor(() => {
       expect(result.current.status).toBe("subscribed");
+    });
+
+    expect(apiFetch).toHaveBeenCalledWith("/notifications/subscriptions", {
+      method: "POST",
+      body: { endpoint: "https://push.example/abc", keys: { p256dh: "p", auth: "a" } },
+    });
+  });
+
+  it("replaces a subscription made under an older VAPID key", async () => {
+    const stale = fakeSubscription("https://push.example/old", new TextEncoder().encode("other"));
+    const subscribeMock = vi.fn().mockResolvedValue(fakeSubscription("https://push.example/new"));
+    stubPushApis({ getSubscription: vi.fn().mockResolvedValue(stale), subscribe: subscribeMock });
+    mockServer();
+
+    const { result } = renderHook(() => usePushSubscription());
+    await waitFor(() => {
+      expect(result.current.status).toBe("subscribed");
+    });
+
+    expect(stale.unsubscribe).toHaveBeenCalled();
+    expect(subscribeMock).toHaveBeenCalled();
+    expect(apiFetch).toHaveBeenCalledWith("/notifications/subscriptions", {
+      method: "POST",
+      body: { endpoint: "https://push.example/new", keys: { p256dh: "p", auth: "a" } },
+    });
+  });
+
+  it("falls back to 'unsubscribed' instead of hanging when the sync fails", async () => {
+    stubPushApis({
+      getSubscription: vi.fn().mockResolvedValue(fakeSubscription("https://push.example/abc")),
+    });
+    vi.mocked(apiFetch).mockRejectedValue(new Error("offline"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const { result } = renderHook(() => usePushSubscription());
+    await waitFor(() => {
+      expect(result.current.status).toBe("unsubscribed");
     });
   });
 
@@ -68,15 +135,9 @@ describe("usePushSubscription", () => {
   });
 
   it("subscribe() requests permission, fetches the VAPID key and posts the subscription", async () => {
-    const subscribeMock = vi.fn().mockResolvedValue({
-      endpoint: "https://push.example/abc",
-      toJSON: () => ({ endpoint: "https://push.example/abc", keys: { p256dh: "p", auth: "a" } }),
-    });
+    const subscribeMock = vi.fn().mockResolvedValue(fakeSubscription("https://push.example/abc"));
     stubPushApis({ getSubscription: vi.fn().mockResolvedValue(null), subscribe: subscribeMock });
-    vi.mocked(apiFetch).mockImplementation((path: string) => {
-      if (path === "/notifications/vapid-key") return Promise.resolve({ publicKey: "aGVsbG8" });
-      return Promise.resolve(undefined);
-    });
+    mockServer();
 
     const { result } = renderHook(() => usePushSubscription());
     await waitFor(() => {
@@ -96,13 +157,9 @@ describe("usePushSubscription", () => {
   });
 
   it("unsubscribe() removes the browser subscription and DELETEs it server-side", async () => {
-    const unsubscribeMock = vi.fn().mockResolvedValue(true);
-    stubPushApis({
-      getSubscription: vi.fn().mockResolvedValue({
-        endpoint: "https://push.example/abc",
-        unsubscribe: unsubscribeMock,
-      }),
-    });
+    const subscription = fakeSubscription("https://push.example/abc");
+    stubPushApis({ getSubscription: vi.fn().mockResolvedValue(subscription) });
+    mockServer();
 
     const { result } = renderHook(() => usePushSubscription());
     await waitFor(() => {
@@ -113,7 +170,7 @@ describe("usePushSubscription", () => {
       await result.current.unsubscribe();
     });
 
-    expect(unsubscribeMock).toHaveBeenCalled();
+    expect(subscription.unsubscribe).toHaveBeenCalled();
     expect(apiFetch).toHaveBeenCalledWith("/notifications/subscriptions", {
       method: "DELETE",
       body: { endpoint: "https://push.example/abc" },

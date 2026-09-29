@@ -50,6 +50,12 @@ export class NotificationsController {
     return this.notifications.unsubscribe(userId, dto.endpoint);
   }
 
+  @Post("test")
+  @HttpCode(204)
+  sendTest(@CurrentUserId() userId: string): Promise<void> {
+    return this.notifications.sendTest(userId);
+  }
+
   @Get("settings")
   getSettings(@CurrentUserId() userId: string): Promise<NotificationSettings> {
     return this.notifications.getSettings(userId);

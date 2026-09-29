@@ -24,6 +24,8 @@ function pushOptionsFor(payload: PushPayload): { ttl: number; urgency: Urgency }
       return { ttl: 60 * 60 * 24, urgency: "normal" };
     case "call:closed":
       return { ttl: 60, urgency: "normal" };
+    case "test":
+      return { ttl: 60, urgency: "high" };
     case "call:missed":
       return { ttl: 60 * 60 * 24, urgency: "normal" };
   }
@@ -77,7 +79,14 @@ export class NotificationsProcessor extends WorkerHost {
         data: { lastSuccessAt: new Date() },
       });
     } catch (error) {
-      if (error instanceof WebPushError && (error.statusCode === 404 || error.statusCode === 410)) {
+      // 404/410: the browser dropped this subscription. 403: it was created
+      // with a different VAPID key (the key was rotated) and can never be
+      // delivered again. Either way the page re-registers a fresh one on its
+      // next load (`use-push-subscription.ts`), so deleting is safe.
+      if (error instanceof WebPushError && [403, 404, 410].includes(error.statusCode)) {
+        this.logger.warn(
+          `push subscription ${sub.id} rejected (${String(error.statusCode)}) — removed`,
+        );
         await this.prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => undefined);
         return;
       }

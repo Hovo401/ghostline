@@ -9,6 +9,10 @@ x-app-url: &app-url https://${CODESPACE_NAME}-80.${GITHUB_CODESPACES_PORT_FORWAR
 x-s3-url: &s3-url https://${CODESPACE_NAME}-8333.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}
 
 services:
+  seaweedfs:
+    environment:
+      CORS_ORIGIN: *app-url
+
   backend:
     environment:
       CORS_ORIGIN: *app-url

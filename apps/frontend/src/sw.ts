@@ -73,7 +73,9 @@ self.addEventListener("push", (event) => {
       }
 
       const clients = await windowClients();
-      if (hasVisibleWindowClient(clients)) {
+      // A test push is sent from the settings tab, which is visible by
+      // definition — suppressing it would make the test prove nothing.
+      if (payload.kind !== "test" && hasVisibleWindowClient(clients)) {
         // A visible tab already gets this over the WS (`message:new`/
         // `call:incoming`) — handing it off here too is only useful for an
         // in-app toast/sound cue, which needs a `shared/ui` toast primitive

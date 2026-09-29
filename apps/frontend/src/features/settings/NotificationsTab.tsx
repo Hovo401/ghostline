@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import {
   useNotificationSettings,
+  sendTestPush,
   usePushSubscription,
   useUpdateNotificationSettings,
   type NotificationSettings,
@@ -42,23 +43,26 @@ function ToggleRow({
  * and the iOS "add to Home Screen" hint. Modeled on `AppearanceTab`'s
  * layout (card + sections in a scrollable column).
  *
- * "Отправить тестовое" fires a `Notification` straight from the page
- * rather than round-tripping through the backend — no `POST /notifications/
- * test`-style endpoint exists in this app's contract (`notification.schema.ts`
- * only has vapid-key/subscriptions/settings), and a real push round trip
- * isn't needed to prove permission + the OS notification UI actually work.
+ * "Отправить тестовое" goes through `POST /notifications/test` — a real
+ * push, so it fails exactly when real notifications would (a stale server
+ * subscription, a rotated VAPID key). A page-local `new Notification()`
+ * proved only the permission, and throws outright on Android Chrome.
  */
 export function NotificationsTab() {
   const { status, subscribe, unsubscribe } = usePushSubscription();
   const settings = useNotificationSettings();
   const updateSettings = useUpdateNotificationSettings();
-  const [testSent, setTestSent] = useState(false);
+  const [testState, setTestState] = useState<"idle" | "sent" | "failed">("idle");
 
   const sendTestNotification = (): void => {
-    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
-
-    new Notification("Ghostline", { body: "Тестовое уведомление" });
-    setTestSent(true);
+    sendTestPush().then(
+      () => {
+        setTestState("sent");
+      },
+      () => {
+        setTestState("failed");
+      },
+    );
   };
 
   const patch = (partial: Partial<NotificationSettings>): void => {
@@ -137,7 +141,8 @@ export function NotificationsTab() {
         >
           Отправить тестовое
         </Button>
-        {testSent && <span className="text-sm text-mute">Отправлено</span>}
+        {testState === "sent" && <span className="text-sm text-mute">Отправлено</span>}
+        {testState === "failed" && <span className="text-sm text-mute">Не удалось отправить</span>}
       </div>
     </div>
   );

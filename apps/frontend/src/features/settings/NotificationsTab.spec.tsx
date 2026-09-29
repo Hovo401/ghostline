@@ -14,7 +14,10 @@ let settingsData: { messages: boolean; calls: boolean; preview: boolean } | unde
   preview: true,
 };
 
+const sendTestPush = vi.fn();
+
 vi.mock("../../entities/notification", () => ({
+  sendTestPush: () => sendTestPush() as Promise<void>,
   usePushSubscription: () => ({ status: pushStatus, subscribe, unsubscribe }),
   useNotificationSettings: () => ({ data: settingsData }),
   useUpdateNotificationSettings: () => ({ mutate: updateMutate }),
@@ -53,6 +56,23 @@ describe("NotificationsTab", () => {
   it("disables the test button until subscribed", () => {
     render(<NotificationsTab />);
     expect(screen.getByRole("button", { name: "Отправить тестовое" })).toBeDisabled();
+  });
+
+  it("sends a real test push through the server once subscribed", async () => {
+    pushStatus = "subscribed";
+    sendTestPush.mockResolvedValue(undefined);
+    render(<NotificationsTab />);
+    fireEvent.click(screen.getByRole("button", { name: "Отправить тестовое" }));
+    expect(sendTestPush).toHaveBeenCalled();
+    expect(await screen.findByText("Отправлено")).toBeInTheDocument();
+  });
+
+  it("says so when the test push can't be sent", async () => {
+    pushStatus = "subscribed";
+    sendTestPush.mockRejectedValue(new Error("offline"));
+    render(<NotificationsTab />);
+    fireEvent.click(screen.getByRole("button", { name: "Отправить тестовое" }));
+    expect(await screen.findByText("Не удалось отправить")).toBeInTheDocument();
   });
 
   it("reports the browser doesn't support push", () => {

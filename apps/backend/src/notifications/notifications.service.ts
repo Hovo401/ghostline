@@ -116,6 +116,12 @@ export class NotificationsService {
     }
   }
 
+  /** A real push to every subscribed device of `userId` — proves the whole
+   * server → push service → service worker chain, unlike a page-local `Notification`. */
+  async sendTest(userId: string): Promise<void> {
+    await this.queue.add("push", { userId, payload: { kind: "test" } });
+  }
+
   /** Skipped entirely (no job enqueued) when the callee has calls muted (`notifyCalls: false`). */
   async notifyCallIncoming(call: Call, callerName: string): Promise<void> {
     if (!(await this.calleeWantsCallPush(call.calleeId))) return;

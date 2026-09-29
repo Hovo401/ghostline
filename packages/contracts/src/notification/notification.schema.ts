@@ -64,11 +64,17 @@ const pushCallMissedPayloadSchema = z.object({
   callerName: z.string(),
 });
 
+/** `POST /notifications/test` — a real push round trip to every device of the requester. */
+const pushTestPayloadSchema = z.object({
+  kind: z.literal("test"),
+});
+
 export const PushPayloadSchema = z.discriminatedUnion("kind", [
   pushMessagePayloadSchema,
   pushCallIncomingPayloadSchema,
   pushCallClosedPayloadSchema,
   pushCallMissedPayloadSchema,
+  pushTestPayloadSchema,
 ]);
 export type PushPayload = z.infer<typeof PushPayloadSchema>;
 export type PushMessagePayload = z.infer<typeof pushMessagePayloadSchema>;

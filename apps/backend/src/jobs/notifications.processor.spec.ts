@@ -114,6 +114,17 @@ describe("NotificationsProcessor", () => {
     expect(pushSubscription.delete).toHaveBeenCalledWith({ where: { id: "sub-1" } });
   });
 
+  it("removes a subscription created under a rotated VAPID key (403)", async () => {
+    const { processor, pushSubscription } = await buildProcessor([
+      { id: "sub-1", userId: "alice", endpoint: "https://push.example/1", p256dh: "p", auth: "a" },
+    ]);
+    sendNotification.mockRejectedValueOnce(new WebPushError("key mismatch", 403));
+
+    await processor.process(job({ userId: "alice", payload: { kind: "test" } }));
+
+    expect(pushSubscription.delete).toHaveBeenCalledWith({ where: { id: "sub-1" } });
+  });
+
   it("gives a missed call a full day TTL (so it still arrives late)", async () => {
     const { processor } = await buildProcessor([
       { id: "sub-1", userId: "alice", endpoint: "https://push.example/1", p256dh: "p", auth: "a" },
