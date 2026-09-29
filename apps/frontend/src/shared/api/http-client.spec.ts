@@ -58,9 +58,7 @@ describe("apiFetch", () => {
   it("throws ApiError with the response status on a non-2xx response", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(() =>
-        Promise.resolve(new Response("nope", { status: 401, statusText: "Unauthorized" })),
-      ),
+      vi.fn(() => Promise.resolve(new Response("nope", { status: 403, statusText: "Forbidden" }))),
     );
 
     await expect(apiFetch("/me")).rejects.toBeInstanceOf(ApiError);

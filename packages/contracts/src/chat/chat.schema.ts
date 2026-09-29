@@ -16,6 +16,7 @@ export const ChatListItemSchema = z.object({
       username: z.string(),
       displayName: z.string(),
       avatarKey: z.string().nullable(),
+      avatarUrl: z.string().url().nullable(),
       online: z.boolean(),
     })
     .nullable(),

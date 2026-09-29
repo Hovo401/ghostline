@@ -3,8 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Attachment } from "../../entities/attachment";
 import { useMediaViewerStore } from "../../entities/attachment";
+import { apiFetch } from "../../shared/api/http-client";
+import type * as HttpClientModule from "../../shared/api/http-client";
 
 import { MediaViewer } from "./MediaViewer";
+
+vi.mock("../../shared/api/http-client", async () => {
+  const actual = await vi.importActual<typeof HttpClientModule>("../../shared/api/http-client");
+  return { ...actual, apiFetch: vi.fn() };
+});
 
 function attachment(id: string): Attachment {
   return {
@@ -100,24 +107,29 @@ describe("MediaViewer", () => {
     expect(screen.queryByRole("button", { name: "Следующее фото" })).not.toBeInTheDocument();
   });
 
-  it("the download button fetches the attachment and triggers a save", () => {
-    const blob = new Blob(["data"]);
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(blob) }),
-    );
-    vi.stubGlobal("URL", {
-      ...URL,
-      createObjectURL: vi.fn().mockReturnValue("blob:mock"),
-      revokeObjectURL: vi.fn(),
+  it("the download button re-fetches a fresh attachment URL and triggers a save", async () => {
+    const fresh = {
+      ...items[0],
+      id: "11111111-1111-1111-1111-111111111111",
+      url: "https://example.com/fresh-a.png",
+    };
+    vi.mocked(apiFetch).mockResolvedValue(fresh);
+    let clickedHref: string | null = null;
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      clickedHref = this.href;
     });
 
     useMediaViewerStore.getState().open(items, 0);
     render(<MediaViewer />);
 
     fireEvent.click(screen.getByRole("button", { name: "Скачать" }));
+    await vi.waitFor(() => {
+      expect(clickSpy).toHaveBeenCalled();
+    });
 
-    expect(fetch).toHaveBeenCalledWith(items[0]?.url);
-    vi.unstubAllGlobals();
+    expect(apiFetch).toHaveBeenCalledWith(`/attachments/${items[0]?.id ?? ""}`);
+    expect(clickedHref).toBe(fresh.url);
   });
 });

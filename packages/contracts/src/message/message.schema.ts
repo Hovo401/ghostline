@@ -4,7 +4,15 @@ import { AttachmentSchema } from "../attachment/attachment.schema";
 
 /** Message types, delivery status, send request and the wire resource shape. */
 
-export const MessageTypeSchema = z.enum(["text", "image", "file", "voice", "video", "call"]);
+export const MessageTypeSchema = z.enum([
+  "text",
+  "image",
+  "file",
+  "voice",
+  "video",
+  "video_note",
+  "call",
+]);
 export type MessageType = z.infer<typeof MessageTypeSchema>;
 
 /** Present only on `type: "call"` messages — a call's outcome, for the history row in the feed. */

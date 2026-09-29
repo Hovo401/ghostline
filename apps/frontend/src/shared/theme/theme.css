@@ -94,6 +94,54 @@
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
+/* Tailwind emits the @theme vars on :root only, so their `var(--gl-*)` is
+ * resolved once at <html> — a nested `data-theme`/`data-accent` (the
+ * settings previews) would otherwise inherit the root's resolved colors
+ * instead of its own. Re-declaring them here re-resolves per scope. */
+[data-theme],
+[data-accent],
+[data-tone] {
+  --color-bg: var(--gl-bg);
+  --color-bg2: var(--gl-bg2);
+  --color-panel: var(--gl-panel);
+  --color-line: var(--gl-line);
+  --color-fg: var(--gl-fg);
+  --color-mute: var(--gl-mute);
+  --color-in: var(--gl-in);
+  --color-desk: var(--gl-desk);
+  --color-accent: var(--gl-accent-fill);
+  --color-accent-text: var(--gl-accent-text);
+  --color-ink: var(--gl-ink);
+  --color-avatar: var(--gl-avatar);
+  --color-avatar-fg: var(--gl-avatar-fg);
+  --shadow-glow: var(--gl-glow);
+}
+
+/* Scrollbars follow the active theme instead of the browser's default
+ * light bar. `scrollbar-color` covers Firefox/modern Chromium; the
+ * ::-webkit-* rules cover older WebKit/Chromium. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--gl-line) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--gl-line);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gl-mute);
+}
+::-webkit-scrollbar-button {
+  display: none;
+}
+
 body {
   background-color: var(--gl-bg);
   color: var(--gl-fg);
@@ -154,4 +202,47 @@ body {
 }
 .animate-rec-blink {
   animation: gl-rec-blink 1000ms ease-in-out infinite;
+}
+
+/* Toast enter/exit — shared/ui/toast.tsx. */
+@keyframes gl-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes gl-toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+.animate-toast-in {
+  animation: gl-toast-in 200ms ease-out;
+}
+.animate-toast-out {
+  animation: gl-toast-out 160ms ease-in forwards;
+}
+
+/* AttachPreviewDialog appear/disappear — features/chat/AttachPreviewDialog.tsx. */
+@keyframes gl-dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.animate-dialog-in {
+  animation: gl-dialog-in 160ms ease-out;
 }

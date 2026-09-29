@@ -44,6 +44,8 @@ function previewForNonText(type: string): string {
     case "voice":
       return "Голосовое сообщение";
     case "video":
+      return "Видео";
+    case "video_note":
       return "Видеосообщение";
     case "call":
       return "Звонок";

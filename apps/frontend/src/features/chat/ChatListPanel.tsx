@@ -3,6 +3,8 @@ import { useMemo } from "react";
 
 import { useChats } from "../../entities/chat";
 import { useCurrentUserId } from "../../entities/user";
+import { useSessionStore } from "../../shared/api/session-store";
+import { Avatar } from "../../shared/ui/avatar";
 
 import { useChatUiStore } from "./chat-ui-store";
 import { ChatListRow } from "./ChatListRow";
@@ -19,6 +21,7 @@ export function ChatListPanel({ className }: { className?: string }) {
   const selectChat = useChatUiStore((state) => state.selectChat);
   const listFilter = useChatUiStore((state) => state.listFilter);
   const setListFilter = useChatUiStore((state) => state.setListFilter);
+  const me = useSessionStore((state) => state.user);
   const openNewChatModal = useChatUiStore((state) => state.openNewChatModal);
 
   const filtered = useMemo(() => {
@@ -34,8 +37,14 @@ export function ChatListPanel({ className }: { className?: string }) {
         .join(" ")}
     >
       <div className="flex flex-col gap-3.5 px-4.5 pt-5 pb-3">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-medium tracking-tight">Чаты</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="mr-auto text-2xl font-medium tracking-tight">Чаты</h1>
+          <Link
+            to="/"
+            className="flex h-8.5 items-center rounded-xl border border-line px-3 text-sm"
+          >
+            Главная
+          </Link>
           <button
             type="button"
             onClick={openNewChatModal}
@@ -43,6 +52,14 @@ export function ChatListPanel({ className }: { className?: string }) {
           >
             Новый
           </button>
+          <Link
+            to="/settings"
+            aria-label="Настройки"
+            title="Настройки"
+            className="flex h-8.5 w-8.5 items-center justify-center rounded-xl border border-line text-base md:hidden"
+          >
+            <span aria-hidden>{"⚙"}</span>
+          </Link>
         </div>
         <input
           value={listFilter}
@@ -71,27 +88,20 @@ export function ChatListPanel({ className }: { className?: string }) {
         ))}
       </div>
 
-      {/* Phone-only bottom tab bar — DESIGN-BRIEF.md §4 "Раскладка телефона". */}
-      <div className="flex border-t border-line px-2 pt-2 pb-6 md:hidden">
-        <button
-          type="button"
-          className="flex flex-1 flex-col items-center justify-center gap-0.5 py-3 text-xs text-accent-text"
-        >
-          <span aria-hidden className="font-mono text-base">
-            {(chats ?? []).some((c) => c.unreadCount > 0) ? "◉" : "○"}
-          </span>
-          Чаты
-        </button>
+      {/* Desktop-only: the current user's avatar opens settings. On phone
+       * the settings button lives in the header instead. */}
+      {me && (
         <Link
           to="/settings"
-          className="flex flex-1 flex-col items-center justify-center gap-0.5 py-3 text-xs text-mute"
+          className="hidden items-center gap-3 border-t border-line px-4.5 pt-3 pb-4 hover:bg-bg2 md:flex"
         >
-          <span aria-hidden className="font-mono text-base">
-            {"◐"}
+          <Avatar name={me.displayName} src={me.avatarUrl ?? undefined} size={46} />
+          <span className="min-w-0 flex-1 truncate text-sm">{me.displayName}</span>
+          <span aria-hidden className="font-mono text-base text-mute">
+            {"⚙"}
           </span>
-          Настройки
         </Link>
-      </div>
+      )}
     </div>
   );
 }

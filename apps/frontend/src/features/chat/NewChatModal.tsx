@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useOpenDirectChat } from "../../entities/chat";
 import { useUserSearch } from "../../entities/user";
 import { Avatar } from "../../shared/ui/avatar";
+import { Backdrop } from "../../shared/ui/backdrop";
 import { IconButton } from "../../shared/ui/icon-button";
 import { TextField } from "../../shared/ui/text-field";
 
@@ -34,8 +35,14 @@ export function NewChatModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-20 flex items-start justify-center bg-bg/60 pt-24">
-      <div className="flex w-full max-w-sm flex-col gap-4 rounded-2xl border border-line bg-panel p-5 shadow-glow">
+    <>
+      <Backdrop open onClose={closeNewChatModal} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Новый чат"
+        className="fixed top-24 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 flex-col gap-4 rounded-2xl border border-line bg-panel p-5 shadow-glow"
+      >
         <div className="flex items-center justify-between">
           <span className="text-base font-medium">Новый чат</span>
           <IconButton
@@ -66,7 +73,11 @@ export function NewChatModal() {
               }}
               className="flex items-center gap-3 rounded-xl p-2 text-left hover:bg-bg2"
             >
-              <Avatar name={user.displayName} online={user.online} />
+              <Avatar
+                name={user.displayName}
+                src={user.avatarUrl ?? undefined}
+                online={user.online}
+              />
               <span className="flex min-w-0 flex-col">
                 <span className="truncate text-sm font-medium">{user.displayName}</span>
                 <span className="truncate font-mono text-xs text-accent-text">
@@ -77,6 +88,6 @@ export function NewChatModal() {
           ))}
         </div>
       </div>
-    </div>
+    </>
   );
 }

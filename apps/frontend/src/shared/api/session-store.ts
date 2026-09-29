@@ -49,3 +49,26 @@ export const useSessionStore = create<SessionState & SessionActions>((set) => ({
 export function getAccessToken(): string | null {
   return useSessionStore.getState().accessToken;
 }
+
+export interface SessionRefreshResult {
+  accessToken: string;
+  user: UserPublicProfile;
+}
+
+/**
+ * The `/auth/refresh` call, injected here by `entities/session`'s bootstrap
+ * module rather than imported directly by `http-client.ts` — `auth-client.ts`
+ * (where the real call lives) itself imports `apiFetch` from `http-client.ts`,
+ * so a static import the other way would be a circular import between the
+ * two `shared/api` modules (`import-x/no-cycle`). `http-client.ts`'s 401
+ * retry calls `getSessionRefresher()` instead.
+ */
+let sessionRefresher: (() => Promise<SessionRefreshResult>) | null = null;
+
+export function setSessionRefresher(refresher: () => Promise<SessionRefreshResult>): void {
+  sessionRefresher = refresher;
+}
+
+export function getSessionRefresher(): (() => Promise<SessionRefreshResult>) | null {
+  return sessionRefresher;
+}

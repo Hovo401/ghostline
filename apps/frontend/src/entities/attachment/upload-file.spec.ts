@@ -8,9 +8,13 @@ class FakeXhr {
   upload = { onprogress: null as ((event: ProgressEvent) => void) | null };
   onload: (() => void) | null = null;
   onerror: (() => void) | null = null;
+  onabort: (() => void) | null = null;
   open = vi.fn();
   setRequestHeader = vi.fn();
   send = vi.fn();
+  abort = vi.fn(() => {
+    this.onabort?.();
+  });
 
   constructor() {
     FakeXhr.instances.push(this);
@@ -59,20 +63,48 @@ describe("putFileWithProgress", () => {
     await promise;
   });
 
-  it("rejects on a non-2xx status", async () => {
+  it("rejects with a typed http error on a non-2xx status", async () => {
     const promise = putFileWithProgress("https://s3.example/upload", new Blob(["a"]), "image/png");
     const xhr = lastXhr();
     xhr.status = 500;
 
     xhr.onload?.();
-    await expect(promise).rejects.toThrow(/500/);
+    await expect(promise).rejects.toMatchObject({ code: "http", status: 500 });
   });
 
-  it("rejects on a transport error", async () => {
+  it("rejects with a typed network error on a transport error", async () => {
     const promise = putFileWithProgress("https://s3.example/upload", new Blob(["a"]), "image/png");
     const xhr = lastXhr();
 
     xhr.onerror?.();
-    await expect(promise).rejects.toThrow(/upload failed/);
+    await expect(promise).rejects.toMatchObject({ code: "network" });
+  });
+
+  it("rejects with a typed aborted error when the signal aborts mid-flight", async () => {
+    const controller = new AbortController();
+    const promise = putFileWithProgress(
+      "https://s3.example/upload",
+      new Blob(["a"]),
+      "image/png",
+      undefined,
+      controller.signal,
+    );
+    controller.abort();
+
+    await expect(promise).rejects.toMatchObject({ code: "aborted" });
+  });
+
+  it("rejects immediately if the signal is already aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const promise = putFileWithProgress(
+      "https://s3.example/upload",
+      new Blob(["a"]),
+      "image/png",
+      undefined,
+      controller.signal,
+    );
+
+    await expect(promise).rejects.toMatchObject({ code: "aborted" });
   });
 });

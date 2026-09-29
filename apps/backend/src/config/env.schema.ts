@@ -24,7 +24,7 @@ export const envSchema = z.object({
   S3_PUBLIC_URL: z.string().url(),
 
   // FR-MEDIA-04: default 100 MB.
-  MEDIA_MAX_FILE_SIZE_BYTES: z.coerce.number().int().positive().default(100_000_000),
+  MEDIA_MAX_FILE_SIZE_BYTES: z.coerce.number().int().positive().default(1_073_741_824),
 
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),

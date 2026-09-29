@@ -1,6 +1,7 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { useMediaViewerStore } from "../../entities/attachment";
 import type { ChatMessage } from "../../entities/message";
 
 import { MessageBubble } from "./MessageBubble";
@@ -124,6 +125,33 @@ describe("MessageBubble", () => {
     expect(screen.getByText("PDF")).toBeInTheDocument();
   });
 
+  it("opens an image sent as a file in the media viewer", () => {
+    const attachment = {
+      id: "a2",
+      key: "k",
+      mime: "image/png",
+      size: 3_000_000,
+      width: null,
+      height: null,
+      name: "Screenshot.png",
+      url: "https://s3.example/s.png",
+    };
+    render(
+      <MessageBubble
+        message={makeMessage({ type: "file", text: null, attachment })}
+        isOwn
+        isLastOutgoing={false}
+        scrambleDelay={0}
+        onRetry={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Просмотр" }));
+    expect(useMediaViewerStore.getState().items).toEqual([attachment]);
+    expect(useMediaViewerStore.getState().index).toBe(0);
+    useMediaViewerStore.getState().close();
+  });
+
   it("renders a play button and duration for a voice message", () => {
     const message = makeMessage({
       type: "voice",
@@ -157,7 +185,7 @@ describe("MessageBubble", () => {
 
   it("renders a round play control and duration for a video note", () => {
     const message = makeMessage({
-      type: "video",
+      type: "video_note",
       text: null,
       durationMs: 5_000,
       attachment: {
@@ -183,6 +211,11 @@ describe("MessageBubble", () => {
 
     expect(screen.getByRole("button", { name: "Воспроизвести" })).toBeInTheDocument();
     expect(screen.getByText("0:05")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Увеличить" }));
+    expect(useMediaViewerStore.getState().index).toBe(0);
+    expect(useMediaViewerStore.getState().round).toBe(true);
+    useMediaViewerStore.getState().close();
   });
 
   it("renders an outgoing ended call with its duration", () => {

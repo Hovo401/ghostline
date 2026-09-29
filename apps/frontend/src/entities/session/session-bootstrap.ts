@@ -1,5 +1,10 @@
 import { refreshSession } from "../../shared/api/auth-client";
-import { useSessionStore } from "../../shared/api/session-store";
+import { setSessionRefresher, useSessionStore } from "../../shared/api/session-store";
+
+// Registered once, at module load, so `http-client.ts`'s 401 retry can mint
+// a fresh access token without importing `auth-client.ts` directly (that
+// would be a circular import — see `session-store.ts`'s `getSessionRefresher`).
+setSessionRefresher(refreshSession);
 
 let pending: Promise<void> | null = null;
 

@@ -53,6 +53,7 @@ export function patchPeerProfile(queryClient: QueryClient, profile: UserPublicPr
               username: profile.username,
               displayName: profile.displayName,
               avatarKey: profile.avatarKey,
+              avatarUrl: profile.avatarUrl,
             },
           }
         : c,

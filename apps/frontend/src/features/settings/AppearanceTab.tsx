@@ -4,6 +4,7 @@ import {
   FONT_IDS,
   SCALE_IDS,
   THEME_IDS,
+  resolveTone,
   useAppearanceStore,
   type AccentId,
   type ThemeId,
@@ -42,8 +43,8 @@ function ThemePreviewSwatch({ id }: { id: ThemeId }) {
   if (id === "system") {
     return (
       <div className="flex h-22 overflow-hidden rounded-[10px] border border-line/25">
-        <div data-theme="dark" className="h-full w-1/2 bg-bg" />
-        <div data-theme="light" className="h-full w-1/2 bg-bg" />
+        <div data-theme="dark" data-tone="dark" className="h-full w-1/2 bg-bg" />
+        <div data-theme="light" data-tone="light" className="h-full w-1/2 bg-bg" />
       </div>
     );
   }
@@ -61,6 +62,7 @@ function ThemePreviewSwatch({ id }: { id: ThemeId }) {
   return (
     <div
       data-theme={id}
+      data-tone={resolveTone(id, customTheme.bg)}
       className="flex h-22 flex-col justify-center gap-2 rounded-[10px] border border-line/25 bg-bg p-3.5"
     >
       <div className="h-3.5 w-[62%] rounded-full bg-in" />

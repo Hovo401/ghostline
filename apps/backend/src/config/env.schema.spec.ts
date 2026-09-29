@@ -27,7 +27,7 @@ describe("validateEnv", () => {
     expect(env.PORT).toBe(3000);
     expect(env.NODE_ENV).toBe("development");
     expect(env.S3_FORCE_PATH_STYLE).toBe(true);
-    expect(env.MEDIA_MAX_FILE_SIZE_BYTES).toBe(100_000_000);
+    expect(env.MEDIA_MAX_FILE_SIZE_BYTES).toBe(1_073_741_824);
   });
 
   it("throws with a readable message when a required var is missing", () => {

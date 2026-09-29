@@ -5,8 +5,8 @@ import { Settings } from "../features/settings";
 import { useSessionStore } from "../shared/api/session-store";
 
 // Settings shell (DESIGN-BRIEF.md §7.3) — profile + appearance, reached from
-// the messenger rail/phone tab bar's "Настройки" button (ChatListPanel.tsx,
-// Chat.tsx).
+// the chat list's settings button (header on phone, avatar footer on desktop
+// — ChatListPanel.tsx).
 export const Route = createFileRoute("/settings")({
   beforeLoad: async () => {
     await ensureSession();

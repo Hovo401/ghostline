@@ -15,6 +15,7 @@ function makeChat(overrides: Partial<ChatListItem> = {}): ChatListItem {
       username: "oleg",
       displayName: "Олег",
       avatarKey: null,
+      avatarUrl: null,
       online: true,
     },
     lastMessage: null,
@@ -52,6 +53,7 @@ describe("patchPeerProfile", () => {
       username: "oleg_new",
       displayName: "Олег Новый",
       avatarKey: "attachments/1/avatar.jpg",
+      avatarUrl: "http://example.test/avatar.jpg",
     });
   });
 
@@ -59,7 +61,14 @@ describe("patchPeerProfile", () => {
     const queryClient = new QueryClient();
     const other = makeChat({
       id: "chat-2",
-      peer: { id: "someone-else", username: "d", displayName: "D", avatarKey: null, online: false },
+      peer: {
+        id: "someone-else",
+        username: "d",
+        displayName: "D",
+        avatarKey: null,
+        avatarUrl: null,
+        online: false,
+      },
     });
     queryClient.setQueryData(CHATS_QUERY_KEY, [other]);
 

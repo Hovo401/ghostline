@@ -66,7 +66,7 @@ skeletons, `User`/`Session` Prisma models, health checks. What's left:
       two-client pattern — reuse it, don't add a third). REQUIREMENTS §7.6.
 - [ ] T-031 — Media processor: thumbnails, EXIF strip, poster frames (extend
       `apps/backend/src/jobs/media.processor.ts` — currently a stub with a `TODO(media)`).
-- [ ] T-032 — Photo/video/file messages in the composer and the feed, attachment preview before
+- [x] T-032 — Photo/video/file messages in the composer and the feed, attachment preview before
       send, progress/cancel/retry. FR-MEDIA-01–09.
 - [x] T-033 — Fullscreen media viewer. FR-MEDIA-09. "Перейти к сообщению" split out to T-033b
       (needs `messageId` on `Attachment`).

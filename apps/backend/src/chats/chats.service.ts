@@ -9,7 +9,7 @@ import {
 import type { Chat } from "@prisma/client";
 import type Redis from "ioredis";
 
-import { toWireAttachment } from "../attachments/attachment.util";
+import { toAvatarUrl, toWireAttachment } from "../attachments/attachment.util";
 import { computePresenceView, isMutuallyVisible } from "../common/visibility.util";
 import { resolveMessageStatus, toWireMessage } from "../messages/message.util";
 import { PrismaService } from "../prisma/prisma.service";
@@ -219,6 +219,7 @@ export class ChatsService {
           username: peerUser.username,
           displayName: peerUser.displayName,
           avatarKey: blocked ? null : peerUser.avatarKey,
+          avatarUrl: blocked ? null : await toAvatarUrl(peerUser.avatarKey, this.storage),
           online: presence.online,
         };
       }

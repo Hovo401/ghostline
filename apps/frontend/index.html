@@ -14,7 +14,10 @@
       (function () {
         var root = document.documentElement;
         try {
-          var raw = localStorage.getItem("ghostline:appearance");
+          // Public pages (landing, login/register) always use the defaults —
+          // mirrors PUBLIC_PATHS in src/app/main.tsx.
+          var isPublic = location.pathname === "/" || location.pathname === "/login";
+          var raw = isPublic ? null : localStorage.getItem("ghostline:appearance");
           // zustand's `persist` middleware wraps state as { state, version }.
           var stored = raw ? JSON.parse(raw).state || {} : {};
           var theme = stored.theme || "dark";

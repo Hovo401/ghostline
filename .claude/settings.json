@@ -204,7 +204,20 @@
       "Bash(grep -o 'Mapped {/[^,]*health[^}]*}')",
       "Bash(pnpm --filter @ghostline/contracts run lint)",
       "Bash(pnpm --filter @ghostline/contracts run test)",
-      "Bash(pnpm --filter @ghostline/frontend exec vitest run src/features/chat/use-notification-deep-link.spec.tsx)"
+      "Bash(pnpm --filter @ghostline/frontend exec vitest run src/features/chat/use-notification-deep-link.spec.tsx)",
+      "Bash(DATABASE_URL=\"postgresql://ghostline:change-me@localhost:5433/ghostline\" pnpm exec prisma migrate dev --name add_video_note_and_multipart_upload --create-only)",
+      "Bash(DATABASE_URL=\"postgresql://ghostline:change-me@localhost:5433/ghostline\" pnpm exec prisma migrate dev)",
+      "Bash(grep -n \"check:changed\" package.json turbo.json)",
+      "Bash(cat turbo.json)",
+      "Bash(pnpm --filter @ghostline/frontend exec vitest run src/entities/attachment/upload-attachment.spec.ts src/entities/attachment/upload-file.spec.ts src/entities/attachment/upload-errors.spec.ts src/entities/attachment/validate-files.spec.ts src/entities/attachment/upload-limits.spec.ts src/shared/api/http-client.spec.ts src/shared/ui/toast-store.spec.ts src/shared/ui/toast.spec.tsx src/shared/ui/progress-ring.spec.tsx src/shared/lib/use-before-unload.spec.ts)",
+      "Bash(pnpm --filter @ghostline/frontend exec vitest run src/entities/attachment/upload-attachment.spec.ts src/shared/ui/toast.spec.tsx src/shared/ui/progress-ring.spec.tsx)",
+      "Bash(pnpm --filter @ghostline/frontend exec vitest run src/features/media-viewer src/features/chat/MessageBubble.spec.tsx src/entities/attachment/media-viewer-store.spec.ts)",
+      "Bash(pnpm --filter @ghostline/frontend exec vitest run src/features/media-viewer)",
+      "Bash(curl -s http://localhost/src/entities/attachment/upload-file.ts)",
+      "Bash(curl -s http://localhost/src/entities/attachment/upload-attachment.ts)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost/src/entities/attachment/upload-file.ts)",
+      "Bash(python -)",
+      "Bash(npx jest *)"
     ],
     "deny": [
       "Read(**/node_modules/**)",

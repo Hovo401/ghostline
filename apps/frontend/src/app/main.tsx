@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { createRouter, RouterProvider } from "@tanstack/react-router";
+import { createRouter, RouterProvider, useRouterState } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -25,8 +25,13 @@ declare module "@tanstack/react-router" {
 
 const queryClient = new QueryClient();
 
+/** Public pages keep the default look — appearance settings style the app
+ * only. Mirrored in index.html's inline script. */
+const PUBLIC_PATHS = new Set(["/", "/login"]);
+
 function AppRoot() {
-  useApplyAppearance();
+  const pathname = useRouterState({ router, select: (state) => state.location.pathname });
+  useApplyAppearance(!PUBLIC_PATHS.has(pathname));
   return (
     <>
       <RouterProvider router={router} />

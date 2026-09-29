@@ -119,12 +119,52 @@ export function useSendMessage(chatId: string) {
   };
 
   const sendMedia = (params: {
+    clientMessageId?: string;
     type: Exclude<MessageType, "text">;
     attachment: Attachment;
     durationMs?: number;
     waveform?: number[];
   }): void => {
-    mutation.mutate({ clientMessageId: crypto.randomUUID(), ...params });
+    mutation.mutate({ clientMessageId: params.clientMessageId ?? crypto.randomUUID(), ...params });
+  };
+
+  /**
+   * Inserts the pending bubble immediately, before the upload has even
+   * started — `Composer`/`AttachPreviewDialog` call this the instant a file
+   * is picked (with a local `URL.createObjectURL` preview), then hand the
+   * same `clientMessageId` to `upload-queue-store.enqueue`; once the upload
+   * finishes, `sendMedia` is called with that same id so the POST response
+   * replaces this placeholder instead of adding a second bubble.
+   */
+  const beginMedia = (params: {
+    clientMessageId: string;
+    type: Exclude<MessageType, "text">;
+    caption?: string;
+    durationMs?: number;
+    waveform?: number[];
+  }): void => {
+    if (!currentUserId) return;
+    const optimistic: ChatMessage = {
+      id: params.clientMessageId,
+      chatId,
+      seq: BigInt(Date.now()),
+      senderId: currentUserId,
+      clientMessageId: params.clientMessageId,
+      type: params.type,
+      text: params.caption ?? null,
+      attachmentId: null,
+      attachment: null,
+      durationMs: params.durationMs ?? null,
+      waveform: params.waveform ?? null,
+      replyToId: null,
+      call: null,
+      status: "sent",
+      editedAt: null,
+      deletedAt: null,
+      createdAt: new Date().toISOString(),
+      pending: true,
+    };
+    upsertMessage(queryClient, chatId, optimistic);
   };
 
   const retry = (message: ChatMessage): void => {
@@ -143,5 +183,5 @@ export function useSendMessage(chatId: string) {
     });
   };
 
-  return { send, sendMedia, retry };
+  return { send, sendMedia, beginMedia, retry };
 }

@@ -10,15 +10,18 @@ import { applyCustomAccent, applyCustomTheme } from "./apply-custom-appearance";
  * index.html; this takes over for every change after hydration (including
  * the OS scheme flipping while `theme === "system"`, and regenerating the
  * `custom` theme/accent `<style>` tags when their colors change).
+ *
+ * `usePrefs = false` (public pages — landing, login/register) applies the
+ * defaults instead: appearance settings only style the app itself.
  */
-export function useApplyAppearance(): void {
-  const theme = useAppearanceStore((state) => state.theme);
-  const accent = useAppearanceStore((state) => state.accent);
-  const font = useAppearanceStore((state) => state.font);
-  const scale = useAppearanceStore((state) => state.scale);
-  const bubble = useAppearanceStore((state) => state.bubble);
-  const customTheme = useAppearanceStore((state) => state.customTheme);
-  const customAccent = useAppearanceStore((state) => state.customAccent);
+export function useApplyAppearance(usePrefs = true): void {
+  const store = useAppearanceStore();
+  const theme = usePrefs ? store.theme : "dark";
+  const accent = usePrefs ? store.accent : "signal";
+  const font = usePrefs ? store.font : "sans";
+  const scale = usePrefs ? store.scale : "m";
+  const bubble = usePrefs ? store.bubble : "round";
+  const { customTheme, customAccent } = store;
 
   useEffect(() => {
     if (theme === "custom") applyCustomTheme(customTheme);

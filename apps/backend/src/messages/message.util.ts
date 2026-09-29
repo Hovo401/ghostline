@@ -25,6 +25,7 @@ const WIRE_TO_PRISMA_TYPE: Record<MessageType, PrismaMessageType> = {
   file: "FILE",
   voice: "VOICE",
   video: "VIDEO",
+  video_note: "VIDEO_NOTE",
   call: "CALL",
 };
 
@@ -34,6 +35,7 @@ const PRISMA_TO_WIRE_TYPE: Record<PrismaMessageType, MessageType> = {
   FILE: "file",
   VOICE: "voice",
   VIDEO: "video",
+  VIDEO_NOTE: "video_note",
   CALL: "call",
 };
 

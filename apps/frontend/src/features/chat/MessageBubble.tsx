@@ -1,8 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 
-import { fileExtension, formatFileSize } from "../../entities/attachment";
+import {
+  describeUploadError,
+  downloadAttachment,
+  fileExtension,
+  formatFileSize,
+  isTextPreviewable,
+  useMediaViewerStore,
+  useUploadQueueStore,
+} from "../../entities/attachment";
 import { formatDuration, formatMessageMeta, type ChatMessage } from "../../entities/message";
 import { PhoneIcon, VideoCameraIcon } from "../../shared/ui/call-icons";
+import { PauseIcon, PlayIcon } from "../../shared/ui/media-icons";
+import { ProgressRing } from "../../shared/ui/progress-ring";
+import { RoundVideo } from "../../shared/ui/round-video";
 import { Scramble } from "../../shared/ui/scramble";
 
 interface MessageBubbleProps {
@@ -13,34 +24,119 @@ interface MessageBubbleProps {
    * messages (DESIGN-BRIEF.md §5, 70ms step) — 0 skips straight to instant. */
   scrambleDelay: number;
   onRetry: (message: ChatMessage) => void;
-  /** Opens the fullscreen media viewer (T-033) at this message's photo —
-   * only meaningful for `type === "image"`, ignored otherwise. */
+  /** Opens the fullscreen media viewer (T-033) at this message's photo/video
+   * — only meaningful for `type === "image" | "video"`, ignored otherwise. */
   onOpenImage?: (messageId: string) => void;
   /** Starts a new call back into this chat, in the same mode (audio/video)
    * — only meaningful for `type === "call"`, ignored otherwise. */
   onCallBack?: (message: ChatMessage) => void;
 }
 
-function PlayIcon() {
+function DownloadIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" style={{ marginLeft: 2 }} aria-hidden>
-      <path d="M3 1.5v11l9.5-5.5z" fill="currentColor" />
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
     </svg>
   );
 }
 
-function PauseIcon() {
+function EyeIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
-      <rect x="2.5" y="1.5" width="3.2" height="11" rx="1" fill="currentColor" />
-      <rect x="8.3" y="1.5" width="3.2" height="11" rx="1" fill="currentColor" />
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+      <circle cx="12" cy="12" r="3" />
     </svg>
+  );
+}
+
+/**
+ * Overlay for a bubble whose media is still uploading/failed — reads
+ * progress from `upload-queue-store` by `clientMessageId` rather than
+ * duplicating it onto the message object (apps/frontend/CLAUDE.md: one copy
+ * of state per layer). Renders nothing once the entry has left the queue
+ * (upload finished — the real `attachment` takes over the bubble). Own
+ * messages only ever have a queue entry, so this is a no-op for incoming
+ * messages/history.
+ */
+function UploadOverlay({ clientMessageId }: { clientMessageId: string }) {
+  const entry = useUploadQueueStore((state) => state.entries[clientMessageId]);
+  const cancel = useUploadQueueStore((state) => state.cancel);
+  const retry = useUploadQueueStore((state) => state.retry);
+  if (!entry) return null;
+
+  if (entry.status === "failed") {
+    return (
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-bubble bg-black/70 p-3 text-center text-white">
+        <span className="text-[12.5px] leading-snug">{describeUploadError(entry.error)}</span>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              retry(clientMessageId);
+            }}
+            className="rounded-full [background:var(--color-accent)] px-3 py-1 text-[12px] font-semibold text-ink"
+          >
+            Повторить
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              cancel(clientMessageId);
+            }}
+            className="rounded-full border border-white/40 px-3 py-1 text-[12px] text-white"
+          >
+            Удалить
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const percent = entry.total > 0 ? (entry.loaded / entry.total) * 100 : 0;
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-bubble bg-black/45">
+      <ProgressRing percent={percent} size={46} strokeWidth={3} colorClassName="text-white" />
+      <span className="font-mono text-[11px] text-white">
+        {`${formatFileSize(entry.loaded)} / ${formatFileSize(entry.total)}`}
+      </span>
+      <button
+        type="button"
+        aria-label="Отменить загрузку"
+        onClick={() => {
+          cancel(clientMessageId);
+        }}
+        className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white"
+      >
+        {"✕"}
+      </button>
+    </div>
   );
 }
 
 /** DESIGN-BRIEF.md §7.2: 300px 4:3 card, real photo, optional caption.
  * Clickable — opens the fullscreen viewer (T-033) on the feed's gallery at
- * this message's photo. */
+ * this message's photo. Shows the local `previewUrl` from the upload queue
+ * while pending, swaps to the real `attachment.url` once it lands. */
 function ImageBubble({
   message,
   isOwn,
@@ -51,26 +147,31 @@ function ImageBubble({
   onOpenImage?: (messageId: string) => void;
 }) {
   const attachment = message.attachment;
+  const queueEntry = useUploadQueueStore((state) => state.entries[message.clientMessageId]);
+  const src = attachment?.url ?? queueEntry?.previewUrl;
   return (
     <div
       className={[
-        "w-[300px] max-w-[82%] overflow-hidden rounded-bubble",
+        "relative w-[300px] max-w-[82%] overflow-hidden rounded-bubble",
         isOwn ? "[background:var(--color-accent)] text-ink" : "border border-line bg-in text-fg",
       ].join(" ")}
     >
       <div className="aspect-[4/3] bg-bg2">
-        {attachment && (
+        {src && (
           <button
             type="button"
             onClick={() => {
-              onOpenImage?.(message.id);
+              if (attachment) onOpenImage?.(message.id);
             }}
             aria-label="Открыть фото"
-            className="block h-full w-full cursor-zoom-in"
+            className={[
+              "block h-full w-full",
+              attachment ? "cursor-zoom-in" : "cursor-default",
+            ].join(" ")}
           >
             <img
-              src={attachment.url}
-              alt={attachment.name ?? "Фото"}
+              src={src}
+              alt={attachment?.name ?? "Фото"}
               className="block h-full w-full object-cover"
             />
           </button>
@@ -79,17 +180,97 @@ function ImageBubble({
       {message.text && (
         <div className="px-3.5 py-2.5 text-msg leading-[1.45] break-words">{message.text}</div>
       )}
+      <UploadOverlay clientMessageId={message.clientMessageId} />
     </div>
   );
 }
 
-/** DESIGN-BRIEF.md §7.2: 280px chip, 42×50 extension "leaf", name + size. */
-function FileBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolean }) {
+/** DESIGN-BRIEF.md §7.2 style, T-032 §4.4: normal rectangular video with a
+ * poster frame, a play affordance and a duration badge — a *picked* video
+ * (`type: "video"`), as opposed to the round `video_note` recorder bubble. */
+function VideoBubble({
+  message,
+  isOwn,
+  onOpenImage,
+}: {
+  message: ChatMessage;
+  isOwn: boolean;
+  onOpenImage?: (messageId: string) => void;
+}) {
   const attachment = message.attachment;
+  const queueEntry = useUploadQueueStore((state) => state.entries[message.clientMessageId]);
+  const src = attachment?.url ?? queueEntry?.previewUrl;
+  const durationMs = message.durationMs ?? 0;
+
   return (
     <div
       className={[
-        "flex w-[280px] max-w-[82%] items-center gap-3 rounded-bubble py-2.5 pr-4 pl-2.5",
+        "relative w-[300px] max-w-[82%] overflow-hidden rounded-bubble",
+        isOwn ? "[background:var(--color-accent)] text-ink" : "border border-line bg-in text-fg",
+      ].join(" ")}
+    >
+      <button
+        type="button"
+        onClick={() => {
+          if (attachment) onOpenImage?.(message.id);
+        }}
+        aria-label="Открыть видео"
+        className={[
+          "relative block aspect-[4/3] w-full bg-bg2",
+          attachment ? "cursor-pointer" : "cursor-default",
+        ].join(" ")}
+      >
+        {src && (
+          // `#t=0.1`: seek past frame 0 so the browser paints a poster frame
+          // (some browsers leave an unplayed <video> black otherwise).
+          <video
+            src={`${src}#t=0.1`}
+            preload="metadata"
+            playsInline
+            muted
+            className="block h-full w-full object-cover"
+          />
+        )}
+        {attachment && (
+          <span
+            aria-hidden
+            className="absolute top-1/2 left-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white"
+          >
+            <PlayIcon />
+          </span>
+        )}
+        {durationMs > 0 && (
+          <span
+            aria-hidden
+            className="absolute right-2 bottom-2 rounded-full bg-black/60 px-2 py-0.5 font-mono text-[11px] text-white"
+          >
+            {formatDuration(durationMs)}
+          </span>
+        )}
+      </button>
+      {message.text && (
+        <div className="px-3.5 py-2.5 text-msg leading-[1.45] break-words">{message.text}</div>
+      )}
+      <UploadOverlay clientMessageId={message.clientMessageId} />
+    </div>
+  );
+}
+
+/** DESIGN-BRIEF.md §7.2: 280px chip, 42×50 extension "leaf", name + size,
+ * plus "Скачать" (every file type) and "Просмотр" for small text formats
+ * (T-032 §4.4) and for images/videos sent as a file (opens the media viewer). */
+function FileBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolean }) {
+  const attachment = message.attachment;
+  const openText = useMediaViewerStore((state) => state.openText);
+  const openMedia = useMediaViewerStore((state) => state.open);
+  const textPreviewable = attachment ? isTextPreviewable(attachment.mime, attachment.name) : false;
+  const mediaPreviewable =
+    !!attachment && (attachment.mime.startsWith("image/") || attachment.mime.startsWith("video/"));
+
+  return (
+    <div
+      className={[
+        "relative flex w-[280px] max-w-[82%] items-center gap-3 rounded-bubble py-2.5 pr-3 pl-2.5",
         isOwn ? "[background:var(--color-accent)] text-ink" : "border border-line bg-in text-fg",
       ].join(" ")}
     >
@@ -107,11 +288,46 @@ function FileBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolean }
           {formatFileSize(attachment?.size ?? 0)}
         </span>
       </div>
+      {attachment && (
+        <div className="flex flex-none items-center gap-1">
+          {(textPreviewable || mediaPreviewable) && (
+            <button
+              type="button"
+              aria-label="Просмотр"
+              onClick={() => {
+                if (mediaPreviewable) openMedia([attachment], 0);
+                else openText(attachment);
+              }}
+              className={[
+                "flex h-8 w-8 items-center justify-center rounded-full",
+                isOwn ? "hover:bg-ink/15" : "hover:bg-bg2",
+              ].join(" ")}
+            >
+              <EyeIcon />
+            </button>
+          )}
+          <button
+            type="button"
+            aria-label="Скачать"
+            onClick={() => {
+              void downloadAttachment(attachment);
+            }}
+            className={[
+              "flex h-8 w-8 items-center justify-center rounded-full",
+              isOwn ? "hover:bg-ink/15" : "hover:bg-bg2",
+            ].join(" ")}
+          >
+            <DownloadIcon />
+          </button>
+        </div>
+      )}
+      <UploadOverlay clientMessageId={message.clientMessageId} />
     </div>
   );
 }
 
-/** DESIGN-BRIEF.md §7.2: 270px pill, play button, 28-bar waveform, duration. */
+/** DESIGN-BRIEF.md §7.2: 270px pill, play button, 28-bar waveform, duration,
+ * plus a small download affordance (T-032 §4.4). */
 function VoiceBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolean }) {
   const attachment = message.attachment;
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -160,7 +376,7 @@ function VoiceBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolean 
   return (
     <div
       className={[
-        "flex w-[270px] max-w-[82%] items-center gap-2.5 rounded-bubble py-2 pr-3.5 pl-2",
+        "relative flex w-[270px] max-w-[82%] items-center gap-2.5 rounded-bubble py-2 pr-3 pl-2",
         isOwn ? "[background:var(--color-accent)] text-ink" : "border border-line bg-in text-fg",
       ].join(" ")}
     >
@@ -195,97 +411,69 @@ function VoiceBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolean 
       <span className="flex-none font-mono text-[11.5px] opacity-80">
         {formatDuration(displayMs)}
       </span>
+      {attachment && (
+        <button
+          type="button"
+          aria-label="Скачать"
+          onClick={() => {
+            void downloadAttachment(attachment);
+          }}
+          className={[
+            "flex h-7 w-7 flex-none items-center justify-center rounded-full",
+            isOwn ? "hover:bg-ink/15" : "hover:bg-bg2",
+          ].join(" ")}
+        >
+          <DownloadIcon />
+        </button>
+      )}
+      <UploadOverlay clientMessageId={message.clientMessageId} />
     </div>
   );
 }
 
-/** DESIGN-BRIEF.md §7.2: 210px circle, accent conic progress ring, center play. */
+/** DESIGN-BRIEF.md §7.2: 210px circle, accent conic progress ring, center
+ * play — the recorder's round video note (`type: "video_note"`), distinct
+ * from a picked/gallery `VideoBubble` (`type: "video"`). */
 function VideoNoteBubble({ message }: { message: ChatMessage }) {
   const attachment = message.attachment;
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [playing, setPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const durationMs = message.durationMs ?? 0;
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    const onTimeUpdate = (): void => {
-      if (video.duration) setProgress(video.currentTime / video.duration);
-    };
-    const onPlay = (): void => {
-      setPlaying(true);
-    };
-    const onPause = (): void => {
-      setPlaying(false);
-    };
-    const onEnded = (): void => {
-      setPlaying(false);
-      setProgress(0);
-    };
-    video.addEventListener("timeupdate", onTimeUpdate);
-    video.addEventListener("play", onPlay);
-    video.addEventListener("pause", onPause);
-    video.addEventListener("ended", onEnded);
-    return () => {
-      video.removeEventListener("timeupdate", onTimeUpdate);
-      video.removeEventListener("play", onPlay);
-      video.removeEventListener("pause", onPause);
-      video.removeEventListener("ended", onEnded);
-    };
-  }, []);
-
-  const togglePlay = (): void => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (video.paused) void video.play();
-    else video.pause();
-  };
-
-  const displayMs = progress > 0 ? progress * durationMs : durationMs;
-  const pct = Math.round(progress * 100);
-  // Conic-gradient ring masked down to just its outer edge (prototype's
-  // recipe) — the mask's `#000` marks full-alpha, it isn't a theme color.
-  const ringMask =
-    "radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px))";
+  const queueEntry = useUploadQueueStore((state) => state.entries[message.clientMessageId]);
+  const openViewer = useMediaViewerStore((state) => state.open);
 
   return (
-    <button
-      type="button"
-      onClick={togglePlay}
-      aria-label={playing ? "Пауза" : "Воспроизвести"}
-      className="relative h-[210px] w-[210px] flex-none overflow-hidden rounded-full border border-line bg-bg2"
-    >
+    <div className="flex items-start gap-2">
+      <RoundVideo
+        src={attachment?.url ?? queueEntry?.previewUrl}
+        size={210}
+        durationMs={message.durationMs ?? undefined}
+        formatTime={formatDuration}
+      >
+        <UploadOverlay clientMessageId={message.clientMessageId} />
+      </RoundVideo>
       {attachment && (
-        <video
-          ref={videoRef}
-          src={attachment.url}
-          playsInline
-          className="h-full w-full object-cover"
-        />
+        <button
+          type="button"
+          onClick={() => {
+            openViewer([attachment], 0, { round: true });
+          }}
+          aria-label="Увеличить"
+          className="flex h-8 w-8 flex-none items-center justify-center rounded-full border border-line bg-bg2 text-mute hover:text-fg"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+          </svg>
+        </button>
       )}
-      <span
-        aria-hidden
-        className="absolute inset-0 rounded-full"
-        style={{
-          background: `conic-gradient(var(--color-accent) ${pct.toFixed(0)}%, transparent 0)`,
-          WebkitMask: ringMask,
-          mask: ringMask,
-        }}
-      />
-      <span
-        aria-hidden
-        className="absolute top-1/2 left-1/2 flex h-13 w-13 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white"
-      >
-        {playing ? <PauseIcon /> : <PlayIcon />}
-      </span>
-      <span
-        aria-hidden
-        className="absolute bottom-4.5 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-2.5 py-1 font-mono text-[11px] text-white"
-      >
-        {formatDuration(displayMs)}
-      </span>
-    </button>
+    </div>
   );
 }
 
@@ -345,8 +533,9 @@ function CallBubble({
 }
 
 /** One message bubble + its status line — DESIGN-BRIEF.md §7.2. Renders
- * text plus the four media types (image/file/voice/video note); media
- * always carries the already-uploaded `attachment` (F4). */
+ * text plus the media types (image/file/voice/video/video note); media
+ * always carries the already-uploaded `attachment` once ready, or a local
+ * preview from `upload-queue-store` while still uploading (F4, T-032). */
 export function MessageBubble({
   message,
   isOwn,
@@ -375,9 +564,12 @@ export function MessageBubble({
       {message.type === "image" && (
         <ImageBubble message={message} isOwn={isOwn} onOpenImage={onOpenImage} />
       )}
+      {message.type === "video" && (
+        <VideoBubble message={message} isOwn={isOwn} onOpenImage={onOpenImage} />
+      )}
       {message.type === "file" && <FileBubble message={message} isOwn={isOwn} />}
       {message.type === "voice" && <VoiceBubble message={message} isOwn={isOwn} />}
-      {message.type === "video" && <VideoNoteBubble message={message} />}
+      {message.type === "video_note" && <VideoNoteBubble message={message} />}
       {message.type === "call" && (
         <CallBubble message={message} isOwn={isOwn} onCallBack={onCallBack} />
       )}

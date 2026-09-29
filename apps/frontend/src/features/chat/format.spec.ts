@@ -37,6 +37,7 @@ function makeChat(overrides: Partial<ChatListItem>): ChatListItem {
       username: "oleg",
       displayName: "Олег",
       avatarKey: null,
+      avatarUrl: null,
       online: true,
     },
     lastMessage: null,

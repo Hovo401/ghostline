@@ -26,8 +26,10 @@ function previewForType(message: Message): string {
         ? `Голосовое · ${formatDuration(message.durationMs)}`
         : "Голосовое";
     case "video":
+      return message.durationMs != null ? `Видео · ${formatDuration(message.durationMs)}` : "Видео";
+    case "video_note":
       return message.durationMs != null
-        ? `Видео · ${formatDuration(message.durationMs)}`
+        ? `Видеосообщение · ${formatDuration(message.durationMs)}`
         : "Видеосообщение";
     case "text":
     default:

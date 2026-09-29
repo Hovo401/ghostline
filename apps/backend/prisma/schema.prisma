@@ -142,6 +142,7 @@ enum MessageType {
   FILE
   VOICE
   VIDEO
+  VIDEO_NOTE
   CALL
 }
 
@@ -194,6 +195,10 @@ model Attachment {
   name       String?
   width      Int?
   height     Int?
+  // Set only while a multipart upload is in progress (REQUIREMENTS.md
+  // §7.6) — the S3 multipart upload id, needed to presign further parts,
+  // complete, or abort it.
+  uploadId   String?
   createdAt  DateTime @default(now())
 
   uploader User     @relation(fields: [uploaderId], references: [id], onDelete: Cascade)

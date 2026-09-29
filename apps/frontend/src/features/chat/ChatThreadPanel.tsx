@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 
+import { selectActiveUploadCount, useUploadQueueStore } from "../../entities/attachment";
 import { useCallActions, useCallStore } from "../../entities/call";
 import { type ChatListItem, useMarkChatRead, useTypingStore } from "../../entities/chat";
 import { useMessages } from "../../entities/message";
@@ -35,6 +36,7 @@ export function ChatThreadPanel({ chat, className }: ChatThreadPanelProps) {
   const peerTyping = useTypingStore(
     (state) => peerId !== undefined && state.byChat[chat.id]?.userId === peerId,
   );
+  const activeUploadCount = useUploadQueueStore(selectActiveUploadCount);
 
   const markReadMutate = markRead.mutate;
   useEffect(() => {
@@ -58,8 +60,8 @@ export function ChatThreadPanel({ chat, className }: ChatThreadPanelProps) {
         .filter(Boolean)
         .join(" ")}
     >
-      {/* ProfilePanel itself stays `absolute` (it slides in as an overlay
-       * with its own scrim, DESIGN-BRIEF.md §7.2), but the thread's own
+      {/* ProfilePanel itself is `fixed` (it slides in over a full-screen
+       * Backdrop that dims everything and closes it on click, DESIGN-BRIEF.md §7.2), but the thread's own
        * content needs to actually narrow when it's open — on desktop,
        * reserving its width here so the header/feed/composer reflow inside
        * the remaining space, rather than keeping their old width and
@@ -85,7 +87,11 @@ export function ChatThreadPanel({ chat, className }: ChatThreadPanelProps) {
             className="flex min-w-0 flex-1 items-center gap-3 text-left"
             title="Открыть профиль"
           >
-            <Avatar name={chatDisplayName(chat)} size={38} />
+            <Avatar
+              name={chatDisplayName(chat)}
+              src={chat.peer?.avatarUrl ?? undefined}
+              size={38}
+            />
             <span className="flex min-w-0 flex-col gap-0.5">
               <span className="truncate text-[15.5px] font-medium">{chatDisplayName(chat)}</span>
               <span
@@ -131,6 +137,11 @@ export function ChatThreadPanel({ chat, className }: ChatThreadPanelProps) {
           }}
         />
 
+        {activeUploadCount > 0 && (
+          <div className="flex-none border-t border-line bg-bg px-4 py-1.5 font-mono text-[11.5px] text-mute">
+            {`Загружается файлов: ${activeUploadCount.toFixed(0)}`}
+          </div>
+        )}
         <Composer chatId={chat.id} />
       </div>
 

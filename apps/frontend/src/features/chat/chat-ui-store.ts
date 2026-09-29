@@ -17,6 +17,12 @@ interface ChatUiState {
   newChatModalOpen: boolean;
   listFilter: string;
   drafts: Record<string, string>;
+  /** Files picked/dropped/pasted, waiting on `AttachPreviewDialog` before
+   * any upload starts (T-032 §4.4) — keyed by chat so switching chats
+   * doesn't leak one chat's pending picker into another's `Composer`. Not
+   * persisted: `File` objects aren't serializable, and this is a
+   * transient, in-session-only selection anyway. */
+  pendingAttachFiles: Record<string, File[]>;
   selectChat: (chatId: string) => void;
   closeChat: () => void;
   openProfilePanel: () => void;
@@ -25,6 +31,8 @@ interface ChatUiState {
   closeNewChatModal: () => void;
   setListFilter: (filter: string) => void;
   setDraft: (chatId: string, text: string) => void;
+  openAttachDialog: (chatId: string, files: File[]) => void;
+  closeAttachDialog: (chatId: string) => void;
 }
 
 export const useChatUiStore = create<ChatUiState>()(
@@ -35,6 +43,7 @@ export const useChatUiStore = create<ChatUiState>()(
       newChatModalOpen: false,
       listFilter: "",
       drafts: {},
+      pendingAttachFiles: {},
       selectChat: (chatId) => {
         set({ selectedChatId: chatId, profilePanelOpen: false });
       },
@@ -58,6 +67,17 @@ export const useChatUiStore = create<ChatUiState>()(
       },
       setDraft: (chatId, text) => {
         set((state) => ({ drafts: { ...state.drafts, [chatId]: text } }));
+      },
+      openAttachDialog: (chatId, files) => {
+        set((state) => ({
+          pendingAttachFiles: { ...state.pendingAttachFiles, [chatId]: files },
+        }));
+      },
+      closeAttachDialog: (chatId) => {
+        set((state) => {
+          const { [chatId]: _removed, ...rest } = state.pendingAttachFiles;
+          return { pendingAttachFiles: rest };
+        });
       },
     }),
     {

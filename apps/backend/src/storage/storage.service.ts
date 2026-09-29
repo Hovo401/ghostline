@@ -1,10 +1,16 @@
 import {
+  AbortMultipartUploadCommand,
+  CompleteMultipartUploadCommand,
+  CreateMultipartUploadCommand,
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
+  ListPartsCommand,
   NotFound,
   PutObjectCommand,
   S3Client,
+  UploadPartCommand,
   type HeadObjectCommandOutput,
   type S3ClientConfig,
 } from "@aws-sdk/client-s3";
@@ -15,6 +21,18 @@ import { AppConfigService } from "../config/app-config.service";
 
 const PRESIGN_UPLOAD_TTL_SECONDS = 15 * 60;
 const PRESIGN_DOWNLOAD_TTL_SECONDS = 10 * 60;
+const PRESIGN_PART_TTL_SECONDS = 15 * 60;
+
+/**
+ * RFC 5987/6266 `Content-Disposition` filename — an ASCII-sanitized fallback
+ * for old clients plus a percent-encoded UTF-8 `filename*`, so non-ASCII
+ * names (e.g. Cyrillic) survive the header instead of breaking it.
+ */
+function buildContentDisposition(fileName: string): string {
+  const asciiFallback = fileName.replace(/[^\x20-\x7e]/g, "_").replace(/"/g, "'");
+  const encoded = encodeURIComponent(fileName);
+  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encoded}`;
+}
 
 /**
  * Thin wrapper around the S3 client — every other module that needs object
@@ -99,10 +117,70 @@ export class StorageService {
     const command = new GetObjectCommand({
       Bucket: this.bucket,
       Key: key,
-      ...(fileName ? { ResponseContentDisposition: `attachment; filename="${fileName}"` } : {}),
+      ...(fileName ? { ResponseContentDisposition: buildContentDisposition(fileName) } : {}),
     });
     return getSignedUrl(this.presignClient, command, {
       expiresIn: PRESIGN_DOWNLOAD_TTL_SECONDS,
     });
+  }
+
+  /** Starts a multipart upload (REQUIREMENTS.md §7.6) — returns the S3 upload id. */
+  async createMultipartUpload(key: string, contentType: string): Promise<string> {
+    const result = await this.internalClient.send(
+      new CreateMultipartUploadCommand({
+        Bucket: this.bucket,
+        Key: key,
+        ContentType: contentType,
+      }),
+    );
+    if (!result.UploadId) throw new Error("S3 did not return an upload id");
+    return result.UploadId;
+  }
+
+  /** Presigned `UploadPart` URL for one part of an in-progress multipart upload. */
+  async createUploadPartUrl(key: string, uploadId: string, partNumber: number): Promise<string> {
+    const command = new UploadPartCommand({
+      Bucket: this.bucket,
+      Key: key,
+      UploadId: uploadId,
+      PartNumber: partNumber,
+    });
+    return getSignedUrl(this.presignClient, command, {
+      expiresIn: PRESIGN_PART_TTL_SECONDS,
+    });
+  }
+
+  /**
+   * Completes a multipart upload. Parts/ETags are resolved server-side via
+   * `ListParts` rather than trusted from the browser — the browser can't
+   * read the `ETag` response header without S3 CORS `ExposeHeaders`, and we
+   * don't want to rely on that (docs/adr/0010).
+   */
+  async completeMultipartUpload(key: string, uploadId: string): Promise<void> {
+    const listed = await this.internalClient.send(
+      new ListPartsCommand({ Bucket: this.bucket, Key: key, UploadId: uploadId }),
+    );
+    const parts = (listed.Parts ?? [])
+      .filter((part) => part.PartNumber !== undefined)
+      .sort((a, b) => (a.PartNumber ?? 0) - (b.PartNumber ?? 0))
+      .map((part) => ({ PartNumber: part.PartNumber, ETag: part.ETag }));
+    await this.internalClient.send(
+      new CompleteMultipartUploadCommand({
+        Bucket: this.bucket,
+        Key: key,
+        UploadId: uploadId,
+        MultipartUpload: { Parts: parts },
+      }),
+    );
+  }
+
+  async abortMultipartUpload(key: string, uploadId: string): Promise<void> {
+    await this.internalClient.send(
+      new AbortMultipartUploadCommand({ Bucket: this.bucket, Key: key, UploadId: uploadId }),
+    );
+  }
+
+  async deleteObject(key: string): Promise<void> {
+    await this.internalClient.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
   }
 }

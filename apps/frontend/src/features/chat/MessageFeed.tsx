@@ -49,18 +49,22 @@ export function MessageFeed({
     startCall({ chatId, video: message.call.video });
   };
 
-  // Gallery for the fullscreen viewer (T-033) — every image message in the
-  // loaded feed, in feed order, so ←/→ pages through the chat's photos the
-  // way the prototype's viewer does, not just the ones currently on screen.
-  const imageMessages = useMemo(
-    () => messages.filter((message) => message.type === "image" && message.attachment),
+  // Gallery for the fullscreen viewer (T-033) — every image/video message
+  // (`type: "video"`, a picked/gallery video — not the round `video_note`)
+  // in the loaded feed, in feed order, so ←/→ pages through the chat's
+  // media the way the prototype's viewer does, not just what's on screen.
+  const galleryMessages = useMemo(
+    () =>
+      messages.filter(
+        (message) => (message.type === "image" || message.type === "video") && message.attachment,
+      ),
     [messages],
   );
 
   const openImageMessage = (messageId: string): void => {
-    const index = imageMessages.findIndex((message) => message.id === messageId);
+    const index = galleryMessages.findIndex((message) => message.id === messageId);
     if (index === -1) return;
-    const attachments = imageMessages
+    const attachments = galleryMessages
       .map((message) => message.attachment)
       .filter((attachment): attachment is Attachment => attachment !== null);
     openViewer(attachments, index);

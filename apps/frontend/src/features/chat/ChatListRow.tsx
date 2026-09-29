@@ -29,7 +29,11 @@ export function ChatListRow({ chat, active, currentUserId, onSelect }: ChatListR
         active ? "bg-bg2" : "",
       ].join(" ")}
     >
-      <Avatar name={chatDisplayName(chat)} online={chat.peer?.online} />
+      <Avatar
+        name={chatDisplayName(chat)}
+        src={chat.peer?.avatarUrl ?? undefined}
+        online={chat.peer?.online}
+      />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="flex items-baseline gap-2">
           <span className="min-w-0 flex-1 truncate text-[15px] font-medium">
