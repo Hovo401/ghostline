@@ -1,12 +1,14 @@
-import { randomUUID } from "node:crypto";
-
 import { InjectQueue, Processor, WorkerHost } from "@nestjs/bullmq";
 import { Logger } from "@nestjs/common";
 import type { Job, Queue } from "bullmq";
 
 import { signDeclineToken, toWireCall } from "../calls/call.util";
 import { AppConfigService } from "../config/app-config.service";
-import { resolveMessageStatus, toWireMessage } from "../messages/message.util";
+import {
+  createCallMessageRow,
+  resolveMessageStatus,
+  toWireMessage,
+} from "../messages/message.util";
 import { PrismaService } from "../prisma/prisma.service";
 import { RealtimeEmitter } from "../realtime/realtime-emitter";
 import { StorageService } from "../storage/storage.service";
@@ -102,27 +104,11 @@ export class CallRingTimeoutProcessor extends WorkerHost {
     // CallsService.start) — they expire on their own; nothing to release
     // here.
 
-    const created = await this.prisma.$transaction(async (tx) => {
-      const updatedChat = await tx.chat.update({
-        where: { id: call.chatId },
-        data: { lastSeq: { increment: 1 }, lastMessageAt: new Date() },
-      });
-      return tx.message.create({
-        data: {
-          chatId: call.chatId,
-          seq: updatedChat.lastSeq,
-          senderId: call.callerId,
-          clientMessageId: randomUUID(),
-          type: "CALL",
-          callId: call.id,
-        },
-        include: { attachment: true },
-      });
-    });
+    const created = await createCallMessageRow(this.prisma, call);
 
     const wireCall = toWireCall(call);
     const wireMessage = await toWireMessage(
-      { ...created, call },
+      created,
       await resolveMessageStatus(this.prisma, created),
       this.storage,
     );

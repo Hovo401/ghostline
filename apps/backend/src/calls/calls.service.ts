@@ -362,7 +362,7 @@ export class CallsService {
     this.events.server.to(`user:${fresh.calleeId}`).emit("call:updated", wireCall);
 
     if (MESSAGE_WORTHY_STATUSES.has(newStatus)) {
-      await this.messages.createCallMessage(fresh.chatId, fresh.callerId, fresh);
+      await this.messages.createCallMessage(fresh);
     }
 
     if (newStatus === "MISSED") {

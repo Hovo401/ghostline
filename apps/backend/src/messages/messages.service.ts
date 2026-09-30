@@ -1,6 +1,5 @@
-import { randomUUID } from "node:crypto";
-
 import type {
+  DeliveredUpdatedPayload,
   ListMessagesQuery,
   Message,
   MessageDeletedPayload,
@@ -26,7 +25,13 @@ import { REDIS_CLIENT } from "../redis/redis.module";
 import { StorageService } from "../storage/storage.service";
 import { UsersService } from "../users/users.service";
 
-import { resolveMessageStatus, toPrismaMessageType, toWireMessage } from "./message.util";
+import {
+  MESSAGE_INCLUDE,
+  createCallMessageRow,
+  resolveMessageStatus,
+  toPrismaMessageType,
+  toWireMessage,
+} from "./message.util";
 
 const HISTORY_PAGE_SIZE = 50;
 
@@ -80,7 +85,7 @@ export class MessagesService {
             waveform: dto.waveform ?? Prisma.JsonNull,
             replyToId: dto.replyToId ?? null,
           },
-          include: { attachment: true },
+          include: MESSAGE_INCLUDE,
         });
         // The sender has trivially "read" and "received" their own
         // message — keeps `unreadCount = chat.lastSeq - lastReadSeq`
@@ -97,6 +102,9 @@ export class MessagesService {
       throw error;
     }
 
+    // Before building the wire message, so an online recipient's send already
+    // reads "delivered" (and a stale "sent" can't overwrite the live tick).
+    await this.markDeliveredForOnlineMembers(dto.chatId, created.seq, userId);
     const wireMessage = await toWireMessage(
       created,
       await resolveMessageStatus(this.prisma, created),
@@ -106,7 +114,6 @@ export class MessagesService {
     await this.emitToMembers(dto.chatId, (memberId) =>
       this.events.server.to(`user:${memberId}`).emit("message:new", wireMessage),
     );
-    await this.markDeliveredForOnlineMembers(dto.chatId, created.seq, userId);
     await this.pushChatUpdated(dto.chatId);
     await this.notifyPush(dto.chatId, wireMessage, userId);
 
@@ -121,27 +128,12 @@ export class MessagesService {
    * machinery those don't need; `senderId` is the caller, so the history row
    * reads the same "who called whom" direction a normal message would.
    */
-  async createCallMessage(chatId: string, callerId: string, call: PrismaCall): Promise<Message> {
-    const created = await this.prisma.$transaction(async (tx) => {
-      const updatedChat = await tx.chat.update({
-        where: { id: chatId },
-        data: { lastSeq: { increment: 1 }, lastMessageAt: new Date() },
-      });
-      return tx.message.create({
-        data: {
-          chatId,
-          seq: updatedChat.lastSeq,
-          senderId: callerId,
-          clientMessageId: randomUUID(),
-          type: "CALL",
-          callId: call.id,
-        },
-        include: { attachment: true },
-      });
-    });
+  async createCallMessage(call: PrismaCall): Promise<Message> {
+    const chatId = call.chatId;
+    const created = await createCallMessageRow(this.prisma, call);
 
     const wireMessage = await toWireMessage(
-      { ...created, call },
+      created,
       await resolveMessageStatus(this.prisma, created),
       this.storage,
     );
@@ -149,6 +141,7 @@ export class MessagesService {
     await this.emitToMembers(chatId, (memberId) =>
       this.events.server.to(`user:${memberId}`).emit("message:new", wireMessage),
     );
+    await this.markDeliveredForOnlineMembers(chatId, created.seq, call.callerId);
     await this.pushChatUpdated(chatId);
 
     return wireMessage;
@@ -185,7 +178,7 @@ export class MessagesService {
     const updated = await this.prisma.message.update({
       where: { id: messageId },
       data: { text, editedAt: new Date() },
-      include: { attachment: true },
+      include: MESSAGE_INCLUDE,
     });
     const wireMessage = await toWireMessage(
       updated,
@@ -213,7 +206,13 @@ export class MessagesService {
 
     await this.prisma.message.update({
       where: { id: messageId },
-      data: { deletedAt: new Date(), text: null },
+      data: {
+        deletedAt: new Date(),
+        text: null,
+        attachmentId: null,
+        durationMs: null,
+        waveform: Prisma.JsonNull,
+      },
     });
 
     const payload: MessageDeletedPayload = { chatId: message.chatId, messageId };
@@ -228,7 +227,12 @@ export class MessagesService {
     await this.chats.assertMember(query.chatId, userId);
 
     const catchingUp = query.afterSeq !== undefined;
-    const where: Prisma.MessageWhereInput = { chatId: query.chatId };
+    // History hides deleted rows; a catch-up keeps them so the client can drop
+    // what it still has cached (there's no live `message:deleted` replay).
+    const where: Prisma.MessageWhereInput = {
+      chatId: query.chatId,
+      ...(catchingUp ? {} : { deletedAt: null }),
+    };
     if (catchingUp) {
       where.seq = { gt: query.afterSeq };
     } else if (query.beforeSeq !== undefined) {
@@ -239,7 +243,7 @@ export class MessagesService {
       where,
       orderBy: { seq: catchingUp ? "asc" : "desc" },
       take: HISTORY_PAGE_SIZE,
-      include: { attachment: true },
+      include: MESSAGE_INCLUDE,
     });
     // Paging backwards fetches newest-first for a correct `LIMIT`, then
     // flips to chronological order for the client.
@@ -299,7 +303,7 @@ export class MessagesService {
 
     const existing = await this.prisma.message.findUnique({
       where: { senderId_clientMessageId: { senderId, clientMessageId } },
-      include: { attachment: true },
+      include: MESSAGE_INCLUDE,
     });
     if (!existing) return null;
     return toWireMessage(existing, await resolveMessageStatus(this.prisma, existing), this.storage);
@@ -346,6 +350,7 @@ export class MessagesService {
           where: { chatId_userId: { chatId, userId: member.userId } },
           data: { lastDeliveredSeq: seq },
         });
+        await this.emitDelivered(chatId, member.userId, seq);
       }
     }
   }
@@ -360,6 +365,17 @@ export class MessagesService {
     await this.prisma.chatMember.update({
       where: { chatId_userId: { chatId, userId } },
       data: { lastDeliveredSeq: maxSeq },
+    });
+    await this.emitDelivered(chatId, userId, maxSeq);
+  }
+
+  /** Tells the other members (the senders) that `deliveredTo` now has messages up to `seq`. */
+  private async emitDelivered(chatId: string, deliveredTo: string, seq: bigint): Promise<void> {
+    const payload: DeliveredUpdatedPayload = { chatId, userId: deliveredTo, lastDeliveredSeq: seq };
+    await this.emitToMembers(chatId, (memberId) => {
+      if (memberId !== deliveredTo) {
+        this.events.server.to(`user:${memberId}`).emit("delivered:updated", payload);
+      }
     });
   }
 }

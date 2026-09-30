@@ -42,6 +42,13 @@ export const readUpdatedPayloadSchema = z.object({
 });
 export type ReadUpdatedPayload = z.infer<typeof readUpdatedPayloadSchema>;
 
+export const deliveredUpdatedPayloadSchema = z.object({
+  chatId: z.string().uuid(),
+  userId: z.string().uuid(),
+  lastDeliveredSeq: z.coerce.bigint(),
+});
+export type DeliveredUpdatedPayload = z.infer<typeof deliveredUpdatedPayloadSchema>;
+
 export const chatRemovedPayloadSchema = z.object({
   chatId: z.string().uuid(),
 });
@@ -60,6 +67,7 @@ export interface ServerToClientEvents {
   "chat:updated": (payload: ChatListItem) => void;
   "chat:removed": (payload: ChatRemovedPayload) => void;
   "read:updated": (payload: ReadUpdatedPayload) => void;
+  "delivered:updated": (payload: DeliveredUpdatedPayload) => void;
   "user:updated": (payload: UserPublicProfile) => void;
   presence: (payload: PresencePayload) => void;
   typing: (payload: TypingServerPayload) => void;

@@ -31,7 +31,8 @@ export function groupMessages(
 export function lastOutgoingIndex(messages: ChatMessage[], currentUserId: string | null): number {
   if (currentUserId === null) return -1;
   for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i]?.senderId === currentUserId) return i;
+    const message = messages[i];
+    if (message?.senderId === currentUserId && message.type !== "call") return i;
   }
   return -1;
 }

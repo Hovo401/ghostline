@@ -22,6 +22,15 @@ async function fetchMessagePage(chatId: string, beforeSeq: string | undefined) {
   return parseMessagePage(data);
 }
 
+/** Everything newer than `afterSeq`, oldest first — reconnect catch-up
+ * (FR-RT-05). Deleted rows are included so the caller can drop them. */
+export async function fetchMessagesAfter(chatId: string, afterSeq: bigint): Promise<ChatMessage[]> {
+  const data = await apiFetch("/messages", {
+    searchParams: { chatId, afterSeq: afterSeq.toString() },
+  });
+  return parseMessagePage(data);
+}
+
 /**
  * A chat's messages, oldest → newest, paginated backwards from "now" via
  * `beforeSeq` (REQUIREMENTS.md §7.4). `fetchNextPage` loads the next older

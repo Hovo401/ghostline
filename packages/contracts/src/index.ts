@@ -111,6 +111,7 @@ export type {
   TypingServerPayload,
   PresencePayload,
   ReadUpdatedPayload,
+  DeliveredUpdatedPayload,
   ChatRemovedPayload,
   MessageDeletedPayload,
   ServerToClientEvents,

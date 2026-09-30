@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type { Message, MessageCallInfo, MessageStatus, MessageType } from "@ghostline/contracts";
 import type {
   Attachment as PrismaAttachment,
@@ -140,14 +142,13 @@ export async function resolveMessageStatus(
   });
 }
 
-/**
- * A `Message` row as returned once every query site adds `include: { attachment: true }`.
- * `call` is optional: only `CallsService` needs it (it already holds the `Call` it just
- * finished, so it includes it), every other query site's messages are never `type: "call"`.
- */
+/** Relations `toWireMessage` needs — every query that feeds it must use this. */
+export const MESSAGE_INCLUDE = { attachment: true, call: true } as const;
+
+/** A `Message` row loaded with `MESSAGE_INCLUDE`. */
 export type PrismaMessageWithAttachment = PrismaMessage & {
   attachment: PrismaAttachment | null;
-  call?: PrismaCall | null;
+  call: PrismaCall | null;
 };
 
 export async function toWireMessage(
@@ -155,6 +156,9 @@ export async function toWireMessage(
   status: MessageStatus,
   storage: StorageService,
 ): Promise<Message> {
+  // A deleted message keeps nothing but its shell (old rows may still carry a
+  // media/call payload from before delete cleared it).
+  const deleted = message.deletedAt !== null;
   return {
     id: message.id,
     chatId: message.chatId,
@@ -162,16 +166,52 @@ export async function toWireMessage(
     senderId: message.senderId,
     clientMessageId: message.clientMessageId,
     type: toWireMessageType(message.type),
-    text: message.text,
-    attachmentId: message.attachmentId,
-    attachment: message.attachment ? await toWireAttachment(message.attachment, storage) : null,
+    text: deleted ? null : message.text,
+    attachmentId: deleted ? null : message.attachmentId,
+    attachment:
+      message.attachment && !deleted ? await toWireAttachment(message.attachment, storage) : null,
     durationMs: message.durationMs,
     waveform: message.waveform as number[] | null,
     replyToId: message.replyToId,
-    call: message.call ? toWireMessageCallInfo(message.call) : null,
+    call: message.call && !deleted ? toWireMessageCallInfo(message.call) : null,
     status,
     editedAt: message.editedAt?.toISOString() ?? null,
     deletedAt: message.deletedAt?.toISOString() ?? null,
     createdAt: message.createdAt.toISOString(),
   };
+}
+
+/**
+ * Writes the `type: CALL` history row for a finished call — shared by
+ * `MessagesService.createCallMessage` (API process) and the ring-timeout
+ * processor (worker, no `MessagesService`). The caller has trivially
+ * "read" and "received" their own call row, same as in `sendMessage`, so
+ * it never counts as unread for them.
+ */
+export async function createCallMessageRow(
+  prisma: PrismaService,
+  call: PrismaCall,
+): Promise<PrismaMessageWithAttachment> {
+  return prisma.$transaction(async (tx) => {
+    const updatedChat = await tx.chat.update({
+      where: { id: call.chatId },
+      data: { lastSeq: { increment: 1 }, lastMessageAt: new Date() },
+    });
+    const message = await tx.message.create({
+      data: {
+        chatId: call.chatId,
+        seq: updatedChat.lastSeq,
+        senderId: call.callerId,
+        clientMessageId: randomUUID(),
+        type: "CALL",
+        callId: call.id,
+      },
+      include: MESSAGE_INCLUDE,
+    });
+    await tx.chatMember.update({
+      where: { chatId_userId: { chatId: call.chatId, userId: call.callerId } },
+      data: { lastReadSeq: updatedChat.lastSeq, lastDeliveredSeq: updatedChat.lastSeq },
+    });
+    return message;
+  });
 }

@@ -127,4 +127,12 @@ describe("chatPreview", () => {
     });
     expect(chatPreview(chat, "me")).toBe("Видео · 0:05");
   });
+
+  it("phrases a call row like its bubble", () => {
+    const call = { status: "missed", video: false, durationMs: null } as const;
+    const chat = makeChat({
+      lastMessage: makeMessage({ senderId: "peer-1", type: "call", text: null, call }),
+    });
+    expect(chatPreview(chat, "me")).toBe("Пропущенный аудиозвонок");
+  });
 });

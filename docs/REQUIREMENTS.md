@@ -562,6 +562,7 @@ model UserSettings {
 | сервер → клиент | `chat:updated` | Информация, участники, роли |
 | сервер → клиент | `chat:removed` | Пользователя удалили из чата или чат удалён |
 | сервер → клиент | `read:updated` | `chatId`, `userId`, `lastReadSeq` |
+| сервер → клиент | `delivered:updated` | `chatId`, `userId`, `lastDeliveredSeq` — сообщение доставлено (галочка «доставлено» у отправителя) |
 | сервер → клиент | `presence` | `userId`, `online`, `lastSeenAt` |
 | сервер → клиент | `typing` | `chatId`, `userId`, `action`: `typing` / `voice` / `video` |
 | сервер → клиент | `call:incoming` | Звонок целиком (§5.14) — новый входящий звонок |

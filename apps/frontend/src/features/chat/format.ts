@@ -1,5 +1,5 @@
 import type { ChatListItem } from "../../entities/chat";
-import { formatDuration, type Message } from "../../entities/message";
+import { formatCallLabel, formatDuration, type Message } from "../../entities/message";
 
 /** `Избранное` (Saved Messages) has no `peer` — REQUIREMENTS.md §5.4. */
 export function chatDisplayName(chat: ChatListItem): string {
@@ -23,7 +23,7 @@ export function formatTrackDate(iso: string): string {
   return `${day} в ${time}`;
 }
 
-function previewForType(message: Message): string {
+function previewForType(message: Message, mine: boolean): string {
   switch (message.type) {
     case "image":
       return "Фото";
@@ -39,6 +39,8 @@ function previewForType(message: Message): string {
       return message.durationMs != null
         ? `Видеосообщение · ${formatDuration(message.durationMs)}`
         : "Видеосообщение";
+    case "call":
+      return message.call ? formatCallLabel(message.call, mine) : "Звонок";
     case "text":
     default:
       return "";
@@ -51,7 +53,7 @@ export function chatPreview(chat: ChatListItem, currentUserId: string | null): s
   const last = chat.lastMessage;
   if (!last) return "";
   if (last.deletedAt) return "Сообщение удалено";
-  const text = last.type === "text" ? (last.text ?? "") : previewForType(last);
   const mine = last.senderId !== null && last.senderId === currentUserId;
+  const text = last.type === "text" ? (last.text ?? "") : previewForType(last, mine);
   return mine ? `Вы: ${text}` : text;
 }

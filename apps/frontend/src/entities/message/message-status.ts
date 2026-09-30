@@ -23,7 +23,8 @@ export function formatMessageMeta(
   isLastOutgoing: boolean,
 ): MessageMeta {
   const time = formatTime(message.createdAt);
-  if (!isOwn) return { text: time, accent: false };
+  // A call row is history, not something that gets delivered/read.
+  if (!isOwn || message.type === "call") return { text: time, accent: false };
 
   if (message.failed) return { text: `${time} · не отправлено`, accent: false };
   if (message.pending) {

@@ -461,9 +461,7 @@ describe("CallsService", () => {
 
       expect(ended.status).toBe("ended");
       expect(fakeMessages.createCallMessage).toHaveBeenCalledWith(
-        chatId,
-        "alice",
-        expect.objectContaining({ status: "ENDED" }),
+        expect.objectContaining({ status: "ENDED", chatId, callerId: "alice" }),
       );
       expect(fakeNotifications.notifyCallClosed).toHaveBeenCalledWith(
         expect.objectContaining({ status: "ended" }),
@@ -552,9 +550,7 @@ describe("CallsService", () => {
       await service.applyWebhookEvent("participant_left", `call:${started.call.id}`);
 
       expect(fakeMessages.createCallMessage).toHaveBeenCalledWith(
-        chatId,
-        "alice",
-        expect.objectContaining({ status: "ENDED" }),
+        expect.objectContaining({ status: "ENDED", chatId, callerId: "alice" }),
       );
     });
 

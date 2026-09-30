@@ -69,4 +69,12 @@ describe("lastOutgoingIndex", () => {
     expect(lastOutgoingIndex(messages, null)).toBe(-1);
     expect(lastOutgoingIndex(messages, "a")).toBe(-1);
   });
+
+  it("skips call rows — they get no status word", () => {
+    const messages = [
+      makeMessage({ id: "1", senderId: "a" }),
+      makeMessage({ id: "2", senderId: "a", type: "call" }),
+    ];
+    expect(lastOutgoingIndex(messages, "a")).toBe(0);
+  });
 });

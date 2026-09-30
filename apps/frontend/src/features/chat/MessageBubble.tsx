@@ -12,6 +12,7 @@ import {
   type MediaSource,
 } from "../../entities/attachment";
 import {
+  formatCallLabel,
   formatDuration,
   formatMessageMeta,
   useFreshMessageStore,
@@ -562,12 +563,6 @@ function VideoNoteBubble({ message }: { message: ChatMessage }) {
 // itself always carries the real one from the recorder.
 const DEFAULT_BARS = Array.from({ length: 28 }, () => 140);
 
-const CALL_STATUS_LABEL: Record<"missed" | "declined" | "cancelled", string> = {
-  missed: "Пропущенный",
-  declined: "Отклонённый",
-  cancelled: "Отменённый",
-};
-
 /** History row for a `type: "call"` message (calls plan) — phrased from
  * `message.call.status`/`video`/`durationMs` and whether the current user
  * placed the call ("Исходящий видеозвонок · 5:23") or received it
@@ -585,13 +580,7 @@ function CallBubble({
   const call = message.call;
   if (!call) return null;
 
-  const kindLabel = call.video ? "видеозвонок" : "аудиозвонок";
-  const statusPrefix = call.status === "ended" ? null : CALL_STATUS_LABEL[call.status];
-  const label = statusPrefix
-    ? `${statusPrefix} ${kindLabel}`
-    : `${isOwn ? "Исходящий" : "Входящий"} ${kindLabel}${
-        call.durationMs != null ? ` · ${formatDuration(call.durationMs)}` : ""
-      }`;
+  const label = formatCallLabel(call, isOwn);
 
   return (
     <button
