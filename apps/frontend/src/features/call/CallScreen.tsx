@@ -1,6 +1,5 @@
 import { ConnectionQuality, ConnectionState } from "livekit-client";
-import type { Track } from "livekit-client";
-import { useCallback, useEffect } from "react";
+import { useEffect } from "react";
 
 import { playRingback, useCallActions, useCallStore } from "../../entities/call";
 import { formatDuration } from "../../entities/message";
@@ -16,6 +15,7 @@ import {
 import { useCallPeer } from "./use-call-peer";
 import type { CallSessionHandle } from "./use-call-session";
 import { useElapsedMs } from "./use-call-timer";
+import { useTrackAttach } from "./use-track-attach";
 import { useWakeLock } from "./use-wake-lock";
 
 function mapConnectionState(state: ConnectionState): CallConnectionState {
@@ -30,28 +30,6 @@ function mapQuality(quality: ConnectionQuality): CallConnectionQuality {
   if (quality === ConnectionQuality.Good) return "good";
   if (quality === ConnectionQuality.Poor) return "poor";
   return "unknown";
-}
-
-/** Attaches/detaches a LiveKit `Track` to a real `<video>`/`<audio>` element
- * imperatively (the SDK's own attach model) instead of guessing at
- * `@livekit/components-react`'s `TrackReference` prop shape — see
- * `use-call-session.ts`'s doc comment for why.
- *
- * A callback ref, not `useRef` + `useEffect([track])`: the `<video>` is
- * rendered conditionally (camera toggled, screen minimized → restored), so
- * the element can remount while `track` stays the same — an effect keyed on
- * `track` alone would never attach to the new element (black video). */
-function useTrackAttach(track: Track | null) {
-  return useCallback(
-    (el: HTMLMediaElement | null) => {
-      if (!track || !el) return;
-      track.attach(el);
-      return () => {
-        track.detach(el);
-      };
-    },
-    [track],
-  );
 }
 
 function MicIcon({ off }: { off: boolean }) {
@@ -186,7 +164,8 @@ export interface CallScreenProps {
  * nothing outside an outgoing/connecting/active/reconnecting call this
  * device isn't currently minimizing — minimizing just stops rendering this,
  * it does *not* tear down `session` (that lives in `CallRoot`, unaffected by
- * this component unmounting).
+ * this component unmounting). Remote audio is played by `CallRoot`, not
+ * here, so it keeps playing while this is minimized.
  */
 export function CallScreen({ session }: CallScreenProps) {
   const phase = useCallStore((state) => state.phase);
@@ -223,7 +202,6 @@ export function CallScreen({ session }: CallScreenProps) {
     remoteSpeaking,
     localVideoTrack,
     remoteVideoTrack,
-    remoteAudioTrack,
     micEnabled,
     cameraEnabled,
     mediaError,
@@ -235,7 +213,6 @@ export function CallScreen({ session }: CallScreenProps) {
 
   const localVideoRef = useTrackAttach(localVideoTrack);
   const remoteVideoRef = useTrackAttach(remoteVideoTrack);
-  const remoteAudioRef = useTrackAttach(remoteAudioTrack);
 
   if (minimized) return null;
 
@@ -263,8 +240,6 @@ export function CallScreen({ session }: CallScreenProps) {
       aria-label="Звонок"
       className="fixed inset-0 z-50 flex flex-col bg-desk text-white"
     >
-      <audio ref={remoteAudioRef} autoPlay />
-
       <ConnectionQualityBanner
         connectionState={mapConnectionState(connectionState)}
         quality={mapQuality(quality)}
