@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from "@nestjs/common";
@@ -19,6 +20,7 @@ import { CurrentUserId } from "../auth/current-user.decorator";
 import { EditMessageDto } from "./dto/edit-message.dto";
 import { ListMessagesQueryDto } from "./dto/list-messages.dto";
 import { SendMessageDto } from "./dto/send-message.dto";
+import { SetReactionDto } from "./dto/set-reaction.dto";
 import { MessagesService } from "./messages.service";
 
 @Controller("messages")
@@ -43,6 +45,23 @@ export class MessagesController {
     @Body() dto: EditMessageDto,
   ): Promise<Message> {
     return this.messagesService.editMessage(userId, messageId, dto.text);
+  }
+
+  @Put(":id/reaction")
+  react(
+    @CurrentUserId() userId: string,
+    @Param("id", ParseUUIDPipe) messageId: string,
+    @Body() dto: SetReactionDto,
+  ): Promise<Message> {
+    return this.messagesService.setReaction(userId, messageId, dto.emoji);
+  }
+
+  @Delete(":id/reaction")
+  unreact(
+    @CurrentUserId() userId: string,
+    @Param("id", ParseUUIDPipe) messageId: string,
+  ): Promise<Message> {
+    return this.messagesService.setReaction(userId, messageId, null);
   }
 
   @Delete(":id")

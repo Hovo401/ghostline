@@ -2,6 +2,7 @@ import { CallEnded } from "./CallEnded";
 import { CallScreen } from "./CallScreen";
 import { IncomingCall } from "./IncomingCall";
 import { useCallSession } from "./use-call-session";
+import { useTrackAttach } from "./use-track-attach";
 
 /**
  * The one call mount (`routes/app.tsx`, replacing the previous three
@@ -11,12 +12,18 @@ import { useCallSession } from "./use-call-session";
  * self-gating components below renders anything) never tears the `Room`
  * down and reconnects it. Every child here is self-gating on `call-store`'s
  * `phase`/`minimized`, so it's safe to always render all of them.
+ *
+ * The remote `<audio>` lives here rather than in `CallScreen` for the same
+ * reason: `CallScreen` renders nothing while minimized, which would detach
+ * the track and silence the peer.
  */
 export function CallRoot() {
   const session = useCallSession();
+  const remoteAudioRef = useTrackAttach(session.remoteAudioTrack);
 
   return (
     <>
+      {session.remoteAudioTrack && <audio ref={remoteAudioRef} autoPlay />}
       <IncomingCall />
       <CallEnded />
       <CallScreen session={session} />

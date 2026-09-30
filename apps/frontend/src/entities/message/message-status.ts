@@ -22,8 +22,9 @@ export function formatMessageMeta(
   isOwn: boolean,
   isLastOutgoing: boolean,
 ): MessageMeta {
-  const time = formatTime(message.createdAt);
-  if (!isOwn) return { text: time, accent: false };
+  const time = `${message.editedAt ? "изменено " : ""}${formatTime(message.createdAt)}`;
+  // A call row is history, not something that gets delivered/read.
+  if (!isOwn || message.type === "call") return { text: time, accent: false };
 
   if (message.failed) return { text: `${time} · не отправлено`, accent: false };
   if (message.pending) {
@@ -40,4 +41,50 @@ export function formatMessageMeta(
     default:
       return { text: time, accent: false };
   }
+}
+
+/** Types whose `text` the sender can change — the message itself or a
+ * photo/video/file caption (mirrors the backend's `editMessage` check). */
+const EDITABLE_TYPES: ReadonlySet<ChatMessage["type"]> = new Set([
+  "text",
+  "image",
+  "video",
+  "file",
+]);
+
+function isSettledOwn(message: ChatMessage, currentUserId: string | null): boolean {
+  return (
+    currentUserId !== null &&
+    message.senderId === currentUserId &&
+    !message.pending &&
+    !message.failed &&
+    !message.deletedAt
+  );
+}
+
+/** FR-MSG-05: own, already-sent messages that carry user-authored text. */
+export function canEditMessage(message: ChatMessage, currentUserId: string | null): boolean {
+  return isSettledOwn(message, currentUserId) && EDITABLE_TYPES.has(message.type);
+}
+
+/** FR-MSG-06 (MVP): "delete for everyone", own already-sent messages only. */
+export function canDeleteMessage(message: ChatMessage, currentUserId: string | null): boolean {
+  return isSettledOwn(message, currentUserId);
+}
+
+/** FR-MSG-13: anyone in the chat can react to a sent, live message — a call
+ * row is history, not something you react to. */
+export function canReactToMessage(message: ChatMessage): boolean {
+  return !message.pending && !message.failed && !message.deletedAt && message.type !== "call";
+}
+
+/** Whether a bubble gets a context menu at all (FR-MSG-11) — every live
+ * message can be reacted to, so only calls and unsent/deleted rows go without. */
+export function hasMessageActions(message: ChatMessage, currentUserId: string | null): boolean {
+  return (
+    canReactToMessage(message) ||
+    !!message.text ||
+    canEditMessage(message, currentUserId) ||
+    canDeleteMessage(message, currentUserId)
+  );
 }

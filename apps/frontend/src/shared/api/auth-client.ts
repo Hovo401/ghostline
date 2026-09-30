@@ -33,6 +33,11 @@ export async function refreshSession() {
   return AuthTokenResponseSchema.parse(data);
 }
 
+/** Revokes the server-side session and clears the refresh cookie (204). */
+export async function logout(): Promise<void> {
+  await apiFetch("/auth/logout", { method: "POST" });
+}
+
 export async function fetchMe() {
   const data = await apiFetch("/me");
   return MeResponseSchema.parse(data);

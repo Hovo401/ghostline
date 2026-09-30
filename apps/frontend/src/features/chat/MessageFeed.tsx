@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   useAudioPlayerStore,
@@ -10,12 +10,14 @@ import { useCallActions } from "../../entities/call";
 import {
   type ChatMessage,
   groupMessages,
+  hasMessageActions,
   lastOutgoingIndex,
   useSendMessage,
 } from "../../entities/message";
 import { Dots } from "../../shared/ui/dots";
 
 import { MessageBubble } from "./MessageBubble";
+import { MessageContextMenu, type MenuPoint } from "./MessageContextMenu";
 
 /** Cascade step for decrypting the last few messages on open — DESIGN-
  * BRIEF.md §5 ("шаг 70 ms"). Only applied to a short tail so opening a long
@@ -49,6 +51,13 @@ export function MessageFeed({
   const groups = groupMessages(messages, currentUserId);
   const lastOwnIndex = lastOutgoingIndex(messages, currentUserId);
   const openViewer = useMediaViewerStore((state) => state.open);
+  const [menu, setMenu] = useState<{ messageId: string; point: MenuPoint } | null>(null);
+  // Looked up by id so the menu closes by itself if the message disappears
+  // (deleted elsewhere) or reflects its latest version while open.
+  const menuMessage = menu ? messages.find((message) => message.id === menu.messageId) : undefined;
+  const openMenu = (message: ChatMessage, point: MenuPoint): void => {
+    setMenu({ messageId: message.id, point });
+  };
 
   // Tapping a call-history row (F-CALL history in the feed) calls back into
   // the same chat, in the same mode (audio/video) the original call was.
@@ -141,6 +150,7 @@ export function MessageFeed({
               onOpenImage={openImageMessage}
               onCallBack={callBack}
               onPlayVoice={playVoice}
+              onOpenMenu={hasMessageActions(message, currentUserId) ? openMenu : undefined}
             />
           </div>
         );
@@ -149,6 +159,16 @@ export function MessageFeed({
         <div className="mt-2.5 self-start rounded-bubble border border-line bg-in px-4 py-3.5 text-mute">
           <Dots />
         </div>
+      )}
+      {menu && menuMessage && (
+        <MessageContextMenu
+          message={menuMessage}
+          point={menu.point}
+          currentUserId={currentUserId}
+          onClose={() => {
+            setMenu(null);
+          }}
+        />
       )}
     </div>
   );

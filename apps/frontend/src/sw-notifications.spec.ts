@@ -33,6 +33,7 @@ const MESSAGE = {
   waveform: null,
   replyToId: null,
   call: null,
+  reactions: [],
   status: "sent" as const,
   editedAt: null,
   deletedAt: null,

@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 
 import type { SendMessageRequest } from "@ghostline/contracts";
-import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { Prisma } from "@prisma/client";
 import { describe, expect, it } from "vitest";
@@ -50,6 +55,12 @@ interface FakeMessageRow {
   createdAt: Date;
 }
 
+interface FakeReactionRow {
+  messageId: string;
+  userId: string;
+  emoji: string;
+}
+
 interface FakeAttachmentRow {
   id: string;
   uploaderId: string;
@@ -77,6 +88,12 @@ function createFakePrisma(
   attachments: Map<string, FakeAttachmentRow>,
 ) {
   const messages = new Map<string, FakeMessageRow>();
+  const reactions: FakeReactionRow[] = [];
+  // `MESSAGE_INCLUDE` loads `reactions` with every message row.
+  const withReactions = (row: FakeMessageRow) => ({
+    ...row,
+    reactions: reactions.filter((r) => r.messageId === row.id),
+  });
   let lock = Promise.resolve();
 
   const chatMember = {
@@ -159,7 +176,7 @@ function createFakePrisma(
         ...data,
       };
       messages.set(row.id, row);
-      return Promise.resolve(row);
+      return Promise.resolve(withReactions(row));
     },
     findUnique: ({
       where,
@@ -169,16 +186,55 @@ function createFakePrisma(
         senderId_clientMessageId?: { senderId: string; clientMessageId: string };
       };
     }) => {
-      if (where.id) return Promise.resolve(messages.get(where.id) ?? null);
+      if (where.id) {
+        const row = messages.get(where.id);
+        return Promise.resolve(row ? withReactions(row) : null);
+      }
       if (where.senderId_clientMessageId) {
         const { senderId, clientMessageId } = where.senderId_clientMessageId;
-        return Promise.resolve(
-          [...messages.values()].find(
-            (m) => m.senderId === senderId && m.clientMessageId === clientMessageId,
-          ) ?? null,
+        const row = [...messages.values()].find(
+          (m) => m.senderId === senderId && m.clientMessageId === clientMessageId,
         );
+        return Promise.resolve(row ? withReactions(row) : null);
       }
       return Promise.resolve(null);
+    },
+    update: ({ where, data }: { where: { id: string }; data: Partial<FakeMessageRow> }) => {
+      const existing = messages.get(where.id);
+      if (!existing) throw new Error("message not found");
+      const updated = { ...existing, ...data };
+      messages.set(where.id, updated);
+      return Promise.resolve(withReactions(updated));
+    },
+    findUniqueOrThrow: ({ where }: { where: { id: string } }) => {
+      const row = messages.get(where.id);
+      if (!row) throw new Error("message not found");
+      return Promise.resolve(withReactions(row));
+    },
+  };
+
+  const reaction = {
+    upsert: ({
+      where,
+      create,
+      update,
+    }: {
+      where: { messageId_userId: { messageId: string; userId: string } };
+      create: FakeReactionRow;
+      update: { emoji: string };
+    }) => {
+      const { messageId, userId } = where.messageId_userId;
+      const existing = reactions.find((r) => r.messageId === messageId && r.userId === userId);
+      if (existing) existing.emoji = update.emoji;
+      else reactions.push({ ...create });
+      return Promise.resolve({});
+    },
+    deleteMany: ({ where }: { where: { messageId: string; userId: string } }) => {
+      const index = reactions.findIndex(
+        (r) => r.messageId === where.messageId && r.userId === where.userId,
+      );
+      if (index >= 0) reactions.splice(index, 1);
+      return Promise.resolve({ count: index >= 0 ? 1 : 0 });
     },
   };
 
@@ -191,7 +247,7 @@ function createFakePrisma(
       Promise.resolve(attachments.get(where.id) ?? null),
   };
 
-  const prisma = { chatMember, chat, message, user, attachment };
+  const prisma = { chatMember, chat, message, reaction, user, attachment };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test double for a $transaction callback taking the same shape as PrismaService
   (prisma as any).$transaction = async (fn: (tx: typeof prisma) => Promise<unknown>) => {
@@ -248,12 +304,23 @@ async function buildMessagesService(
 
   const { prisma, messages } = createFakePrisma(chats, members, attachments);
 
-  const fakeUsers = { isBlockedEitherWay: () => Promise.resolve(options.blocked ?? false) };
+  const state = { blocked: options.blocked ?? false };
+  const fakeUsers = { isBlockedEitherWay: () => Promise.resolve(state.blocked) };
   const fakeChats = {
-    assertMember: () => Promise.resolve(),
+    assertMember: (id: string, userId: string) =>
+      members.has(memberKey(id, userId))
+        ? Promise.resolve()
+        : Promise.reject(new ForbiddenException("not a member")),
     getChatListItemForUser: () => Promise.resolve({}),
   };
-  const fakeEvents = { server: { to: () => ({ emit: () => undefined }) } };
+  const emitted: { room: string; event: string; payload: unknown }[] = [];
+  const fakeEvents = {
+    server: {
+      to: (room: string) => ({
+        emit: (event: string, payload: unknown) => void emitted.push({ room, event, payload }),
+      }),
+    },
+  };
   const fakeRedis = { scard: () => Promise.resolve(0) };
   const fakeStorage = { createDownloadUrl: () => Promise.resolve("http://example.test/signed") };
   const fakeNotifications = { notifyNewMessage: () => Promise.resolve() };
@@ -271,7 +338,7 @@ async function buildMessagesService(
     ],
   }).compile();
 
-  return { service: moduleRef.get(MessagesService), chatId, messages };
+  return { service: moduleRef.get(MessagesService), chatId, messages, emitted, state };
 }
 
 function sendDto(chatId: string, text: string): SendMessageRequest {
@@ -379,6 +446,161 @@ describe("MessagesService", () => {
         height: 600,
         url: "http://example.test/signed",
       });
+    });
+  });
+
+  describe("editMessage (FR-MSG-05)", () => {
+    it("edits own text and marks it edited", async () => {
+      const { service, chatId } = await buildMessagesService();
+      const sent = await service.sendMessage("alice", sendDto(chatId, "helo"));
+
+      const edited = await service.editMessage("alice", sent.id, "hello");
+
+      expect(edited.text).toBe("hello");
+      expect(edited.editedAt).not.toBeNull();
+    });
+
+    it("edits the caption of own photo", async () => {
+      const attachment = fakeAttachment({ uploaderId: "alice" });
+      const { service, chatId } = await buildMessagesService({ attachments: [attachment] });
+      const sent = await service.sendMessage("alice", sendImageDto(chatId, attachment.id));
+
+      const edited = await service.editMessage("alice", sent.id, "caption");
+
+      expect(edited.text).toBe("caption");
+      expect(edited.attachmentId).toBe(attachment.id);
+    });
+
+    it("rejects editing a voice message", async () => {
+      const attachment = fakeAttachment({ uploaderId: "alice", mime: "audio/webm" });
+      const { service, chatId } = await buildMessagesService({ attachments: [attachment] });
+      const sent = await service.sendMessage("alice", {
+        chatId,
+        clientMessageId: randomUUID(),
+        type: "voice",
+        attachmentId: attachment.id,
+        durationMs: 1000,
+      });
+
+      await expect(service.editMessage("alice", sent.id, "x")).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    });
+
+    it("rejects editing someone else's message", async () => {
+      const { service, chatId } = await buildMessagesService();
+      const sent = await service.sendMessage("alice", sendDto(chatId, "hi"));
+
+      await expect(service.editMessage("bob", sent.id, "x")).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+
+    it("404s on a deleted message", async () => {
+      const { service, chatId } = await buildMessagesService();
+      const sent = await service.sendMessage("alice", sendDto(chatId, "hi"));
+      await service.deleteMessage("alice", sent.id);
+
+      await expect(service.editMessage("alice", sent.id, "x")).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe("setReaction (FR-MSG-13)", () => {
+    it("adds a reaction and broadcasts message:updated to every member", async () => {
+      const { service, chatId, emitted } = await buildMessagesService();
+      const sent = await service.sendMessage("alice", sendDto(chatId, "hi"));
+
+      const reacted = await service.setReaction("bob", sent.id, "👍");
+
+      expect(reacted.reactions).toEqual([{ emoji: "👍", count: 1, userIds: ["bob"] }]);
+      const updates = emitted.filter((e) => e.event === "message:updated");
+      expect(updates.map((e) => e.room).sort()).toEqual(["user:alice", "user:bob"]);
+    });
+
+    it("replaces the user's previous reaction instead of stacking a second one", async () => {
+      const { service, chatId } = await buildMessagesService();
+      const sent = await service.sendMessage("alice", sendDto(chatId, "hi"));
+      await service.setReaction("bob", sent.id, "👍");
+
+      const reacted = await service.setReaction("bob", sent.id, "❤️");
+
+      expect(reacted.reactions).toEqual([{ emoji: "❤️", count: 1, userIds: ["bob"] }]);
+    });
+
+    it("counts several users on the same emoji", async () => {
+      const { service, chatId } = await buildMessagesService();
+      const sent = await service.sendMessage("alice", sendDto(chatId, "hi"));
+      await service.setReaction("alice", sent.id, "🔥");
+
+      const reacted = await service.setReaction("bob", sent.id, "🔥");
+
+      expect(reacted.reactions).toEqual([{ emoji: "🔥", count: 2, userIds: ["alice", "bob"] }]);
+    });
+
+    it("removes the reaction when cleared", async () => {
+      const { service, chatId } = await buildMessagesService();
+      const sent = await service.sendMessage("alice", sendDto(chatId, "hi"));
+      await service.setReaction("bob", sent.id, "👍");
+
+      const cleared = await service.setReaction("bob", sent.id, null);
+
+      expect(cleared.reactions).toEqual([]);
+    });
+
+    it("rejects a user who isn't in the chat", async () => {
+      const { service, chatId } = await buildMessagesService();
+      const sent = await service.sendMessage("alice", sendDto(chatId, "hi"));
+
+      await expect(service.setReaction("mallory", sent.id, "👍")).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+
+    it("rejects reacting once blocked, but still lets the user clear an earlier reaction", async () => {
+      const { service, chatId, state } = await buildMessagesService();
+      const sent = await service.sendMessage("alice", sendDto(chatId, "hi"));
+      await service.setReaction("bob", sent.id, "👍");
+      state.blocked = true;
+
+      await expect(service.setReaction("bob", sent.id, "❤️")).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      const cleared = await service.setReaction("bob", sent.id, null);
+      expect(cleared.reactions).toEqual([]);
+    });
+
+    it("404s on a deleted message", async () => {
+      const { service, chatId } = await buildMessagesService();
+      const sent = await service.sendMessage("alice", sendDto(chatId, "hi"));
+      await service.deleteMessage("alice", sent.id);
+
+      await expect(service.setReaction("bob", sent.id, "👍")).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe("deleteMessage (FR-MSG-06)", () => {
+    it("soft-deletes own message and wipes its content", async () => {
+      const { service, chatId, messages } = await buildMessagesService();
+      const sent = await service.sendMessage("alice", sendDto(chatId, "secret"));
+
+      await service.deleteMessage("alice", sent.id);
+
+      const row = messages.get(sent.id);
+      expect(row?.deletedAt).not.toBeNull();
+      expect(row?.text).toBeNull();
+    });
+
+    it("rejects deleting someone else's message", async () => {
+      const { service, chatId } = await buildMessagesService();
+      const sent = await service.sendMessage("alice", sendDto(chatId, "hi"));
+
+      await expect(service.deleteMessage("bob", sent.id)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
     });
   });
 });

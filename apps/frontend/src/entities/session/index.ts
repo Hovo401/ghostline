@@ -1,6 +1,7 @@
 export * from "./session-bootstrap";
 export * from "./session.types";
 export * from "./use-login";
+export * from "./use-logout";
 export * from "./use-me";
 export * from "./use-me-realtime";
 export * from "./use-register";

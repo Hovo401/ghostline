@@ -18,6 +18,7 @@ function makeMessage(overrides: Partial<ChatMessage>): ChatMessage {
     waveform: null,
     replyToId: null,
     call: null,
+    reactions: [],
     status: "sent",
     editedAt: null,
     deletedAt: null,
@@ -68,5 +69,13 @@ describe("lastOutgoingIndex", () => {
     const messages = [makeMessage({ id: "1", senderId: "b" })];
     expect(lastOutgoingIndex(messages, null)).toBe(-1);
     expect(lastOutgoingIndex(messages, "a")).toBe(-1);
+  });
+
+  it("skips call rows — they get no status word", () => {
+    const messages = [
+      makeMessage({ id: "1", senderId: "a" }),
+      makeMessage({ id: "2", senderId: "a", type: "call" }),
+    ];
+    expect(lastOutgoingIndex(messages, "a")).toBe(0);
   });
 });

@@ -1,6 +1,5 @@
-import { randomUUID } from "node:crypto";
-
 import type {
+  DeliveredUpdatedPayload,
   ListMessagesQuery,
   Message,
   MessageDeletedPayload,
@@ -14,7 +13,11 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma, type Call as PrismaCall } from "@prisma/client";
+import {
+  Prisma,
+  type Call as PrismaCall,
+  type MessageType as PrismaMessageType,
+} from "@prisma/client";
 import type Redis from "ioredis";
 
 import { ChatsService } from "../chats/chats.service";
@@ -26,9 +29,18 @@ import { REDIS_CLIENT } from "../redis/redis.module";
 import { StorageService } from "../storage/storage.service";
 import { UsersService } from "../users/users.service";
 
-import { resolveMessageStatus, toPrismaMessageType, toWireMessage } from "./message.util";
+import {
+  MESSAGE_INCLUDE,
+  createCallMessageRow,
+  resolveMessageStatus,
+  toPrismaMessageType,
+  toWireMessage,
+} from "./message.util";
 
 const HISTORY_PAGE_SIZE = 50;
+
+/** Types whose `text` is user-authored — the message itself or a media caption. */
+const EDITABLE_TYPES: ReadonlySet<PrismaMessageType> = new Set(["TEXT", "IMAGE", "VIDEO", "FILE"]);
 
 @Injectable()
 export class MessagesService {
@@ -80,7 +92,7 @@ export class MessagesService {
             waveform: dto.waveform ?? Prisma.JsonNull,
             replyToId: dto.replyToId ?? null,
           },
-          include: { attachment: true },
+          include: MESSAGE_INCLUDE,
         });
         // The sender has trivially "read" and "received" their own
         // message — keeps `unreadCount = chat.lastSeq - lastReadSeq`
@@ -97,6 +109,9 @@ export class MessagesService {
       throw error;
     }
 
+    // Before building the wire message, so an online recipient's send already
+    // reads "delivered" (and a stale "sent" can't overwrite the live tick).
+    await this.markDeliveredForOnlineMembers(dto.chatId, created.seq, userId);
     const wireMessage = await toWireMessage(
       created,
       await resolveMessageStatus(this.prisma, created),
@@ -106,7 +121,6 @@ export class MessagesService {
     await this.emitToMembers(dto.chatId, (memberId) =>
       this.events.server.to(`user:${memberId}`).emit("message:new", wireMessage),
     );
-    await this.markDeliveredForOnlineMembers(dto.chatId, created.seq, userId);
     await this.pushChatUpdated(dto.chatId);
     await this.notifyPush(dto.chatId, wireMessage, userId);
 
@@ -121,27 +135,12 @@ export class MessagesService {
    * machinery those don't need; `senderId` is the caller, so the history row
    * reads the same "who called whom" direction a normal message would.
    */
-  async createCallMessage(chatId: string, callerId: string, call: PrismaCall): Promise<Message> {
-    const created = await this.prisma.$transaction(async (tx) => {
-      const updatedChat = await tx.chat.update({
-        where: { id: chatId },
-        data: { lastSeq: { increment: 1 }, lastMessageAt: new Date() },
-      });
-      return tx.message.create({
-        data: {
-          chatId,
-          seq: updatedChat.lastSeq,
-          senderId: callerId,
-          clientMessageId: randomUUID(),
-          type: "CALL",
-          callId: call.id,
-        },
-        include: { attachment: true },
-      });
-    });
+  async createCallMessage(call: PrismaCall): Promise<Message> {
+    const chatId = call.chatId;
+    const created = await createCallMessageRow(this.prisma, call);
 
     const wireMessage = await toWireMessage(
-      { ...created, call },
+      created,
       await resolveMessageStatus(this.prisma, created),
       this.storage,
     );
@@ -149,6 +148,7 @@ export class MessagesService {
     await this.emitToMembers(chatId, (memberId) =>
       this.events.server.to(`user:${memberId}`).emit("message:new", wireMessage),
     );
+    await this.markDeliveredForOnlineMembers(chatId, created.seq, call.callerId);
     await this.pushChatUpdated(chatId);
 
     return wireMessage;
@@ -169,7 +169,7 @@ export class MessagesService {
     });
   }
 
-  /** FR-MSG-05: own text messages only, marked `editedAt`. */
+  /** FR-MSG-05: own text messages and photo/video/file captions, marked `editedAt`. */
   async editMessage(userId: string, messageId: string, text: string): Promise<Message> {
     const message = await this.prisma.message.findUnique({ where: { id: messageId } });
     if (!message || message.deletedAt) {
@@ -178,14 +178,14 @@ export class MessagesService {
     if (message.senderId !== userId) {
       throw new ForbiddenException("can only edit your own messages");
     }
-    if (message.type !== "TEXT") {
-      throw new BadRequestException("only text messages can be edited until T-032/F4 lands media");
+    if (!EDITABLE_TYPES.has(message.type)) {
+      throw new BadRequestException("voice/video notes and call rows have no text to edit");
     }
 
     const updated = await this.prisma.message.update({
       where: { id: messageId },
       data: { text, editedAt: new Date() },
-      include: { attachment: true },
+      include: MESSAGE_INCLUDE,
     });
     const wireMessage = await toWireMessage(
       updated,
@@ -201,6 +201,44 @@ export class MessagesService {
     return wireMessage;
   }
 
+  /**
+   * FR-MSG-13: one reaction per user per message — a new emoji replaces the old one,
+   * `null` removes it. Rides on `message:updated`; the chat-list preview doesn't change.
+   */
+  async setReaction(userId: string, messageId: string, emoji: string | null): Promise<Message> {
+    const message = await this.prisma.message.findUnique({ where: { id: messageId } });
+    if (!message || message.deletedAt) {
+      throw new NotFoundException("message not found");
+    }
+    await this.chats.assertMember(message.chatId, userId);
+
+    const key = { messageId_userId: { messageId, userId } };
+    if (emoji === null) {
+      await this.prisma.reaction.deleteMany({ where: { messageId, userId } });
+    } else {
+      await this.assertNotBlockedInChat(message.chatId, userId);
+      await this.prisma.reaction.upsert({
+        where: key,
+        create: { messageId, userId, emoji },
+        update: { emoji, createdAt: new Date() },
+      });
+    }
+
+    const updated = await this.prisma.message.findUniqueOrThrow({
+      where: { id: messageId },
+      include: MESSAGE_INCLUDE,
+    });
+    const wireMessage = await toWireMessage(
+      updated,
+      await resolveMessageStatus(this.prisma, updated),
+      this.storage,
+    );
+    await this.emitToMembers(updated.chatId, (memberId) =>
+      this.events.server.to(`user:${memberId}`).emit("message:updated", wireMessage),
+    );
+    return wireMessage;
+  }
+
   /** FR-MSG-06 (own messages only — "delete for everyone" is always available for your own). */
   async deleteMessage(userId: string, messageId: string): Promise<void> {
     const message = await this.prisma.message.findUnique({ where: { id: messageId } });
@@ -213,7 +251,13 @@ export class MessagesService {
 
     await this.prisma.message.update({
       where: { id: messageId },
-      data: { deletedAt: new Date(), text: null },
+      data: {
+        deletedAt: new Date(),
+        text: null,
+        attachmentId: null,
+        durationMs: null,
+        waveform: Prisma.JsonNull,
+      },
     });
 
     const payload: MessageDeletedPayload = { chatId: message.chatId, messageId };
@@ -228,7 +272,12 @@ export class MessagesService {
     await this.chats.assertMember(query.chatId, userId);
 
     const catchingUp = query.afterSeq !== undefined;
-    const where: Prisma.MessageWhereInput = { chatId: query.chatId };
+    // History hides deleted rows; a catch-up keeps them so the client can drop
+    // what it still has cached (there's no live `message:deleted` replay).
+    const where: Prisma.MessageWhereInput = {
+      chatId: query.chatId,
+      ...(catchingUp ? {} : { deletedAt: null }),
+    };
     if (catchingUp) {
       where.seq = { gt: query.afterSeq };
     } else if (query.beforeSeq !== undefined) {
@@ -239,7 +288,7 @@ export class MessagesService {
       where,
       orderBy: { seq: catchingUp ? "asc" : "desc" },
       take: HISTORY_PAGE_SIZE,
-      include: { attachment: true },
+      include: MESSAGE_INCLUDE,
     });
     // Paging backwards fetches newest-first for a correct `LIMIT`, then
     // flips to chronological order for the client.
@@ -299,7 +348,7 @@ export class MessagesService {
 
     const existing = await this.prisma.message.findUnique({
       where: { senderId_clientMessageId: { senderId, clientMessageId } },
-      include: { attachment: true },
+      include: MESSAGE_INCLUDE,
     });
     if (!existing) return null;
     return toWireMessage(existing, await resolveMessageStatus(this.prisma, existing), this.storage);
@@ -346,6 +395,7 @@ export class MessagesService {
           where: { chatId_userId: { chatId, userId: member.userId } },
           data: { lastDeliveredSeq: seq },
         });
+        await this.emitDelivered(chatId, member.userId, seq);
       }
     }
   }
@@ -360,6 +410,17 @@ export class MessagesService {
     await this.prisma.chatMember.update({
       where: { chatId_userId: { chatId, userId } },
       data: { lastDeliveredSeq: maxSeq },
+    });
+    await this.emitDelivered(chatId, userId, maxSeq);
+  }
+
+  /** Tells the other members (the senders) that `deliveredTo` now has messages up to `seq`. */
+  private async emitDelivered(chatId: string, deliveredTo: string, seq: bigint): Promise<void> {
+    const payload: DeliveredUpdatedPayload = { chatId, userId: deliveredTo, lastDeliveredSeq: seq };
+    await this.emitToMembers(chatId, (memberId) => {
+      if (memberId !== deliveredTo) {
+        this.events.server.to(`user:${memberId}`).emit("delivered:updated", payload);
+      }
     });
   }
 }

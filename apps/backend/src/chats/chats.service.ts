@@ -11,7 +11,7 @@ import type Redis from "ioredis";
 
 import { toAvatarUrl, toWireAttachment } from "../attachments/attachment.util";
 import { computePresenceView, isMutuallyVisible } from "../common/visibility.util";
-import { resolveMessageStatus, toWireMessage } from "../messages/message.util";
+import { MESSAGE_INCLUDE, resolveMessageStatus, toWireMessage } from "../messages/message.util";
 import { PrismaService } from "../prisma/prisma.service";
 import { ChatEventsGateway } from "../realtime/chat-events.gateway";
 import { isOnline } from "../realtime/presence.service";
@@ -112,6 +112,12 @@ export class ChatsService {
           target > membership.lastDeliveredSeq ? target : membership.lastDeliveredSeq,
       },
     });
+
+    // The reader's own unread count just changed — send the fresh item so a
+    // `chat:updated` computed before this read can't leave a stale badge.
+    this.events.server
+      .to(`user:${userId}`)
+      .emit("chat:updated", await this.getChatListItemForUser(chatId, userId));
 
     const others = await this.prisma.chatMember.findMany({
       where: { chatId, userId: { not: userId } },
@@ -228,7 +234,7 @@ export class ChatsService {
     const lastMessageRow = await this.prisma.message.findFirst({
       where: { chatId },
       orderBy: { seq: "desc" },
-      include: { attachment: true },
+      include: MESSAGE_INCLUDE,
     });
     let lastMessage: ChatListItem["lastMessage"] = null;
     if (lastMessageRow) {

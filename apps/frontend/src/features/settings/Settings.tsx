@@ -4,6 +4,7 @@ import { useState } from "react";
 import { SegmentedTabs } from "../../shared/ui/segmented-tabs";
 
 import { AppearanceTab } from "./AppearanceTab";
+import { LogoutButton } from "./LogoutButton";
 import { NotificationsTab } from "./NotificationsTab";
 import { ProfileTab } from "./ProfileTab";
 
@@ -55,6 +56,7 @@ export function Settings() {
             {item.label}
           </button>
         ))}
+        <LogoutButton className="mt-auto" />
       </div>
 
       <div className="min-w-0 flex-1 overflow-y-auto">
@@ -75,6 +77,10 @@ export function Settings() {
         {tab === "profile" && <ProfileTab />}
         {tab === "appearance" && <AppearanceTab />}
         {tab === "notifications" && <NotificationsTab />}
+
+        <div className="border-t border-line px-11 py-4 md:hidden">
+          <LogoutButton />
+        </div>
       </div>
     </div>
   );

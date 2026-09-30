@@ -30,12 +30,15 @@ export function upsertMessage(
 ): void {
   queryClient.setQueryData<MessagesData>(messagesQueryKey(chatId), (old) => {
     const base: MessagesData = old ?? { pages: [[]], pageParams: [undefined] };
-    const pages = [...base.pages];
-    const newest = pages[0] ?? [];
-    const withoutMatch = newest.filter(
-      (m) => m.id !== message.id && m.clientMessageId !== message.clientMessageId,
+    const isMatch = (m: ChatMessage): boolean =>
+      m.id === message.id || m.clientMessageId === message.clientMessageId;
+    // An edit/update to a message in an older page replaces it where it is —
+    // only a genuinely new message joins the newest page.
+    const pageIndex = base.pages.findIndex((page) => page.some(isMatch));
+    const target = pageIndex === -1 ? 0 : pageIndex;
+    const pages = base.pages.map((page, index) =>
+      index === target ? sortBySeq([...page.filter((m) => !isMatch(m)), message]) : page,
     );
-    pages[0] = sortBySeq([...withoutMatch, message]);
     return { ...base, pages };
   });
 }
@@ -66,6 +69,31 @@ export function markReadUpTo(
         page.map((m) =>
           m.senderId === currentUserId && m.seq <= lastReadSeq && m.status !== "read"
             ? { ...m, status: "read" }
+            : m,
+        ),
+      ),
+    };
+  });
+}
+
+/** `delivered:updated` — same shape as `markReadUpTo`, but only ever lifts
+ * "sent" to "delivered" (never downgrades a "read"). */
+export function markDeliveredUpTo(
+  queryClient: QueryClient,
+  chatId: string,
+  recipientId: string,
+  currentUserId: string | null,
+  lastDeliveredSeq: bigint,
+): void {
+  if (recipientId === currentUserId) return;
+  queryClient.setQueryData<MessagesData>(messagesQueryKey(chatId), (old) => {
+    if (!old) return old;
+    return {
+      ...old,
+      pages: old.pages.map((page) =>
+        page.map((m) =>
+          m.senderId === currentUserId && m.seq <= lastDeliveredSeq && m.status === "sent"
+            ? { ...m, status: "delivered" }
             : m,
         ),
       ),

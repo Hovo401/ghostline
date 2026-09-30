@@ -1,3 +1,5 @@
+import type { MouseEvent } from "react";
+
 import {
   describeUploadError,
   downloadAttachment,
@@ -12,6 +14,7 @@ import {
   type MediaSource,
 } from "../../entities/attachment";
 import {
+  formatCallLabel,
   formatDuration,
   formatMessageMeta,
   useFreshMessageStore,
@@ -24,6 +27,10 @@ import { MediaBackdrop, MediaPlaceholder } from "../../shared/ui/media-placehold
 import { ProgressRing } from "../../shared/ui/progress-ring";
 import { RoundVideo } from "../../shared/ui/round-video";
 import { Scramble } from "../../shared/ui/scramble";
+
+import type { MenuPoint } from "./MessageContextMenu";
+import { ReactionBar } from "./ReactionBar";
+import { useLongPress } from "./use-long-press";
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -42,6 +49,9 @@ interface MessageBubbleProps {
   /** Starts/toggles this voice message in the shared player (or jumps to
    * `startFraction` of it) — only meaningful for `type === "voice"`. */
   onPlayVoice?: (message: ChatMessage, startFraction?: number) => void;
+  /** Opens the copy/edit/delete menu at the pointer (FR-MSG-11) — omitted
+   * when this message has no actions for the viewer. */
+  onOpenMenu?: (message: ChatMessage, point: MenuPoint) => void;
 }
 
 function DownloadIcon() {
@@ -562,12 +572,6 @@ function VideoNoteBubble({ message }: { message: ChatMessage }) {
 // itself always carries the real one from the recorder.
 const DEFAULT_BARS = Array.from({ length: 28 }, () => 140);
 
-const CALL_STATUS_LABEL: Record<"missed" | "declined" | "cancelled", string> = {
-  missed: "Пропущенный",
-  declined: "Отклонённый",
-  cancelled: "Отменённый",
-};
-
 /** History row for a `type: "call"` message (calls plan) — phrased from
  * `message.call.status`/`video`/`durationMs` and whether the current user
  * placed the call ("Исходящий видеозвонок · 5:23") or received it
@@ -585,13 +589,7 @@ function CallBubble({
   const call = message.call;
   if (!call) return null;
 
-  const kindLabel = call.video ? "видеозвонок" : "аудиозвонок";
-  const statusPrefix = call.status === "ended" ? null : CALL_STATUS_LABEL[call.status];
-  const label = statusPrefix
-    ? `${statusPrefix} ${kindLabel}`
-    : `${isOwn ? "Исходящий" : "Входящий"} ${kindLabel}${
-        call.durationMs != null ? ` · ${formatDuration(call.durationMs)}` : ""
-      }`;
+  const label = formatCallLabel(call, isOwn);
 
   return (
     <button
@@ -625,11 +623,26 @@ export function MessageBubble({
   onOpenImage,
   onCallBack,
   onPlayVoice,
+  onOpenMenu,
 }: MessageBubbleProps) {
   const meta = formatMessageMeta(message, isOwn, isLastOutgoing);
+  const longPress = useLongPress((x, y) => {
+    onOpenMenu?.(message, { x, y });
+  });
 
   return (
-    <div className={["flex flex-col gap-1", isOwn ? "items-end" : "items-start"].join(" ")}>
+    <div
+      className={["flex flex-col gap-1", isOwn ? "items-end" : "items-start"].join(" ")}
+      {...(onOpenMenu
+        ? {
+            ...longPress,
+            onContextMenu: (event: MouseEvent) => {
+              event.preventDefault();
+              onOpenMenu(message, { x: event.clientX, y: event.clientY });
+            },
+          }
+        : {})}
+    >
       {message.type === "text" && (
         <div
           className={[
@@ -656,6 +669,7 @@ export function MessageBubble({
       {message.type === "call" && (
         <CallBubble message={message} isOwn={isOwn} onCallBack={onCallBack} />
       )}
+      {message.reactions.length > 0 && <ReactionBar message={message} isOwn={isOwn} />}
       <span
         className={[
           "px-1.5 font-mono text-xs",

@@ -246,3 +246,26 @@ body {
 .animate-dialog-in {
   animation: gl-dialog-in 160ms ease-out;
 }
+
+/* Reaction chip appear — features/chat/ReactionBar.tsx. */
+@keyframes gl-reaction-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.12);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.animate-reaction-pop {
+  animation: gl-reaction-pop 200ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-reaction-pop {
+    animation: none;
+  }
+}
