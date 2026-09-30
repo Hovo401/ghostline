@@ -13,11 +13,15 @@ import {
 import { readVideoDurationMs, useUploadQueueStore, withTimeout } from "../../entities/attachment";
 import { useEmitTyping } from "../../entities/chat";
 import {
+  canEditMessage,
   formatDuration,
   removeMessage,
   sendMediaAttachment,
+  useEditMessage,
+  useMessages,
   useSendMessage,
 } from "../../entities/message";
+import { useCurrentUserId } from "../../entities/user";
 import { Backdrop } from "../../shared/ui/backdrop";
 import { IconButton } from "../../shared/ui/icon-button";
 import { ProgressRing } from "../../shared/ui/progress-ring";
@@ -145,6 +149,13 @@ export function Composer({ chatId }: { chatId: string }) {
   const pendingFiles = useChatUiStore((state) => state.pendingAttachFiles[chatId]);
   const openAttachDialog = useChatUiStore((state) => state.openAttachDialog);
   const closeAttachDialog = useChatUiStore((state) => state.closeAttachDialog);
+  const editing = useChatUiStore((state) => state.editing[chatId]);
+  const startEditing = useChatUiStore((state) => state.startEditing);
+  const setEditingText = useChatUiStore((state) => state.setEditingText);
+  const cancelEditing = useChatUiStore((state) => state.cancelEditing);
+  const editMessage = useEditMessage();
+  const { messages } = useMessages(chatId);
+  const currentUserId = useCurrentUserId();
   const { send, beginMedia } = useSendMessage(chatId);
   const emitTyping = useEmitTyping(chatId);
   const enqueue = useUploadQueueStore((state) => state.enqueue);
@@ -157,6 +168,27 @@ export function Composer({ chatId }: { chatId: string }) {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoPreviewRef = useRef<HTMLVideoElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const editingMessage = editing
+    ? messages.find((message) => message.id === editing.messageId)
+    : undefined;
+  const editingMessageId = editing?.messageId;
+
+  // The message being edited was deleted (here or on another device) — drop
+  // back to the draft instead of PATCHing a message that's gone.
+  useEffect(() => {
+    if (editingMessageId && !messages.some((message) => message.id === editingMessageId)) {
+      cancelEditing(chatId);
+    }
+  }, [editingMessageId, messages, chatId, cancelEditing]);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!editingMessageId || !textarea) return;
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+  }, [editingMessageId]);
 
   useEffect(() => {
     const video = videoPreviewRef.current;
@@ -167,6 +199,15 @@ export function Composer({ chatId }: { chatId: string }) {
   }, [recorder.previewStream]);
 
   const submit = (): void => {
+    if (editing) {
+      const text = editing.text.trim();
+      if (!text) return;
+      if (editingMessage && text !== editing.original) {
+        editMessage.mutate({ message: editingMessage, text });
+      }
+      cancelEditing(chatId);
+      return;
+    }
     if (!draft.trim()) return;
     send(draft);
     setDraft(chatId, "");
@@ -176,6 +217,15 @@ export function Composer({ chatId }: { chatId: string }) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       submit();
+    } else if (e.key === "Escape" && editing) {
+      e.preventDefault();
+      cancelEditing(chatId);
+    } else if (e.key === "ArrowUp" && !editing && !draft) {
+      // FR-MSG-12: ↑ in an empty composer edits the last own message.
+      const last = messages.findLast((message) => canEditMessage(message, currentUserId));
+      if (!last) return;
+      e.preventDefault();
+      startEditing(chatId, last.id, last.text ?? "");
     }
   };
 
@@ -264,7 +314,7 @@ export function Composer({ chatId }: { chatId: string }) {
 
   const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>): void => {
     const files = Array.from(e.clipboardData.files);
-    if (files.length === 0) return;
+    if (files.length === 0 || editing) return;
     e.preventDefault();
     openAttachDialog(chatId, files);
   };
@@ -286,7 +336,7 @@ export function Composer({ chatId }: { chatId: string }) {
     dragCounter.current = 0;
     setDragActive(false);
     const files = Array.from(e.dataTransfer.files);
-    if (files.length === 0) return;
+    if (files.length === 0 || editing) return;
     openAttachDialog(chatId, files);
   };
 
@@ -306,7 +356,7 @@ export function Composer({ chatId }: { chatId: string }) {
     });
   };
 
-  const hasDraft = draft.trim().length > 0;
+  const hasDraft = (editing ? editing.text : draft).trim().length > 0;
   const recordingVoice = recorder.kind === "voice";
   const recordingVideo = recorder.kind === "video";
 
@@ -367,12 +417,35 @@ export function Composer({ chatId }: { chatId: string }) {
         </div>
       )}
 
+      {editing && (
+        <div className="flex items-center gap-3 border-t border-line bg-bg px-4 pt-2.5">
+          <span aria-hidden className="h-8 w-0.5 flex-none rounded-full bg-accent" />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="text-[13px] font-medium text-accent-text">Редактирование</span>
+            <span className="truncate text-[13px] text-mute">{editing.original}</span>
+          </div>
+          <button
+            type="button"
+            aria-label="Отменить редактирование"
+            onClick={() => {
+              cancelEditing(chatId);
+            }}
+            className="flex h-8 w-8 flex-none items-center justify-center rounded-full text-mute hover:bg-bg2 hover:text-fg"
+          >
+            {"✕"}
+          </button>
+        </div>
+      )}
+
       <div
         onDragEnter={onDragEnter}
         onDragLeave={onDragLeave}
         onDragOver={onDragOver}
         onDrop={onDrop}
-        className="relative flex items-center gap-2 border-t border-line bg-bg px-4 pt-3 pb-4"
+        className={[
+          "relative flex items-center gap-2 bg-bg px-4 pt-3 pb-4",
+          editing ? "" : "border-t border-line",
+        ].join(" ")}
       >
         {dragActive && (
           <div
@@ -459,17 +532,24 @@ export function Composer({ chatId }: { chatId: string }) {
           </>
         ) : (
           <>
-            <IconButton
-              icon={<AttachIcon />}
-              label="Прикрепить"
-              onClick={() => {
-                setAttachOpen((open) => !open);
-              }}
-              className={attachOpen ? "bg-bg2" : undefined}
-            />
+            {!editing && (
+              <IconButton
+                icon={<AttachIcon />}
+                label="Прикрепить"
+                onClick={() => {
+                  setAttachOpen((open) => !open);
+                }}
+                className={attachOpen ? "bg-bg2" : undefined}
+              />
+            )}
             <textarea
-              value={draft}
+              ref={textareaRef}
+              value={editing ? editing.text : draft}
               onChange={(e) => {
+                if (editing) {
+                  setEditingText(chatId, e.target.value);
+                  return;
+                }
                 setDraft(chatId, e.target.value);
                 emitTyping();
               }}
@@ -479,7 +559,15 @@ export function Composer({ chatId }: { chatId: string }) {
               rows={1}
               className="h-11.5 max-h-32 min-w-0 flex-1 resize-none rounded-[23px] border border-line bg-bg2 px-4 py-2.5 text-[15px] text-fg outline-none focus-visible:border-accent-text"
             />
-            {hasDraft ? (
+            {editing ? (
+              <IconButton
+                icon={<span aria-hidden>{"✓"}</span>}
+                label="Сохранить"
+                variant="accent"
+                onClick={submit}
+                disabled={!hasDraft}
+              />
+            ) : hasDraft ? (
               <IconButton
                 icon={<span aria-hidden>{"↑"}</span>}
                 label="Отправить"

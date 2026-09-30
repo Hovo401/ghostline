@@ -39,7 +39,7 @@ skeletons, `User`/`Session` Prisma models, health checks. What's left:
 - [ ] T-010 — Chat + ChatMember + Message Prisma models, `seq` allocation (REQUIREMENTS §7.4).
 - [ ] T-011 — Direct chats + Saved Messages: create-on-first-message, `directKey` uniqueness.
       FR-CHAT-01–02.
-- [ ] T-012 — Send/edit/delete text messages over REST; `message:new`/`updated`/`deleted` over
+- [x] T-012 — Send/edit/delete text messages over REST; `message:new`/`updated`/`deleted` over
       WS. FR-MSG-01–02, 05–08.
 - [ ] T-013 — Read receipts (`lastReadSeq`) + delivery (`lastDeliveredSeq`), synced across a
       user's devices. FR-RT-04.
@@ -57,6 +57,8 @@ skeletons, `User`/`Session` Prisma models, health checks. What's left:
 - [ ] T-022 — Reply, forward-free MVP scope check — reply only (forward is v1). FR-MSG-04.
 - [ ] T-023 — User search (username/name). FR-USER-02.
 - [ ] T-024 — Block user. FR-USER-05.
+- [ ] T-025 — "Delete for me" (per-user hidden messages) + group admins deleting any message.
+      FR-MSG-06 remainder; admin part depends on T-020.
 - [ ] T-025 — Disappearing messages: per-chat TTL, `expiresAt` on send, worker sweep + client-side
       hide. FR-CHAT-10–12. Depends on T-010, T-020 (owner/admin can set it in groups).
 

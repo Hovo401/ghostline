@@ -22,7 +22,7 @@ export function formatMessageMeta(
   isOwn: boolean,
   isLastOutgoing: boolean,
 ): MessageMeta {
-  const time = formatTime(message.createdAt);
+  const time = `${message.editedAt ? "изменено " : ""}${formatTime(message.createdAt)}`;
   // A call row is history, not something that gets delivered/read.
   if (!isOwn || message.type === "call") return { text: time, accent: false };
 
@@ -41,4 +41,43 @@ export function formatMessageMeta(
     default:
       return { text: time, accent: false };
   }
+}
+
+/** Types whose `text` the sender can change — the message itself or a
+ * photo/video/file caption (mirrors the backend's `editMessage` check). */
+const EDITABLE_TYPES: ReadonlySet<ChatMessage["type"]> = new Set([
+  "text",
+  "image",
+  "video",
+  "file",
+]);
+
+function isSettledOwn(message: ChatMessage, currentUserId: string | null): boolean {
+  return (
+    currentUserId !== null &&
+    message.senderId === currentUserId &&
+    !message.pending &&
+    !message.failed &&
+    !message.deletedAt
+  );
+}
+
+/** FR-MSG-05: own, already-sent messages that carry user-authored text. */
+export function canEditMessage(message: ChatMessage, currentUserId: string | null): boolean {
+  return isSettledOwn(message, currentUserId) && EDITABLE_TYPES.has(message.type);
+}
+
+/** FR-MSG-06 (MVP): "delete for everyone", own already-sent messages only. */
+export function canDeleteMessage(message: ChatMessage, currentUserId: string | null): boolean {
+  return isSettledOwn(message, currentUserId);
+}
+
+/** Whether a bubble gets a context menu at all (FR-MSG-11) — a peer's voice
+ * message has no text to copy and isn't ours to edit/delete. */
+export function hasMessageActions(message: ChatMessage, currentUserId: string | null): boolean {
+  return (
+    !!message.text ||
+    canEditMessage(message, currentUserId) ||
+    canDeleteMessage(message, currentUserId)
+  );
 }

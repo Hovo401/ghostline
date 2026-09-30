@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { formatMessageMeta } from "./message-status";
+import {
+  canDeleteMessage,
+  canEditMessage,
+  formatMessageMeta,
+  hasMessageActions,
+} from "./message-status";
 import type { ChatMessage } from "./message.types";
 
 function makeMessage(overrides: Partial<ChatMessage>): ChatMessage {
@@ -59,5 +64,41 @@ describe("formatMessageMeta", () => {
     expect(formatMessageMeta(makeMessage({ failed: true }), true, false).text).toMatch(
       /не отправлено$/,
     );
+  });
+
+  it("marks an edited message for both sides", () => {
+    const edited = makeMessage({ editedAt: "2026-01-01T12:40:00.000Z" });
+    expect(formatMessageMeta(edited, false, false).text).toMatch(/^изменено /);
+    expect(formatMessageMeta(edited, true, true).text).toMatch(/^изменено .*отправлено$/);
+  });
+});
+
+describe("canEditMessage / canDeleteMessage", () => {
+  it("allows own sent text and captioned media", () => {
+    expect(canEditMessage(makeMessage({}), "user-a")).toBe(true);
+    expect(canEditMessage(makeMessage({ type: "image" }), "user-a")).toBe(true);
+    expect(canDeleteMessage(makeMessage({}), "user-a")).toBe(true);
+  });
+
+  it("never allows someone else's message", () => {
+    expect(canEditMessage(makeMessage({}), "user-b")).toBe(false);
+    expect(canDeleteMessage(makeMessage({}), "user-b")).toBe(false);
+  });
+
+  it("allows deleting but not editing voice/video notes/calls", () => {
+    for (const type of ["voice", "video_note", "call"] as const) {
+      expect(canEditMessage(makeMessage({ type }), "user-a")).toBe(false);
+      expect(canDeleteMessage(makeMessage({ type }), "user-a")).toBe(true);
+    }
+  });
+
+  it("disallows both while a message is still pending or failed", () => {
+    expect(canEditMessage(makeMessage({ pending: true }), "user-a")).toBe(false);
+    expect(canDeleteMessage(makeMessage({ failed: true }), "user-a")).toBe(false);
+  });
+
+  it("gives a peer's text a menu (copy) but not a peer's voice message", () => {
+    expect(hasMessageActions(makeMessage({}), "user-b")).toBe(true);
+    expect(hasMessageActions(makeMessage({ type: "voice", text: null }), "user-b")).toBe(false);
   });
 });

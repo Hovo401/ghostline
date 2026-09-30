@@ -42,7 +42,7 @@ export const SendMessageRequestSchema = z
   });
 export type SendMessageRequest = z.infer<typeof SendMessageRequestSchema>;
 
-/** `PATCH /messages/:id` body — text messages only (media is edited by re-sending, F4). */
+/** `PATCH /messages/:id` body — a text message's text or a photo/video/file caption. */
 export const EditMessageRequestSchema = z.object({
   text: z.string().min(1).max(4000),
 });

@@ -11,6 +11,14 @@ import { persist } from "zustand/middleware";
  */
 export const CHAT_UI_STORAGE_KEY = "ghostline:chat-drafts";
 
+export interface EditingState {
+  messageId: string;
+  /** The text as sent — shown in the "Редактирование" strip, and compared
+   * against `text` to skip a no-op PATCH. */
+  original: string;
+  text: string;
+}
+
 interface ChatUiState {
   selectedChatId: string | null;
   profilePanelOpen: boolean;
@@ -23,6 +31,10 @@ interface ChatUiState {
    * persisted: `File` objects aren't serializable, and this is a
    * transient, in-session-only selection anyway. */
   pendingAttachFiles: Record<string, File[]>;
+  /** The own message `Composer` is editing instead of composing a new one
+   * (FR-MSG-05) — keyed by chat like `drafts`, which it leaves untouched so
+   * the draft comes back once editing ends. Not persisted. */
+  editing: Record<string, EditingState>;
   selectChat: (chatId: string) => void;
   closeChat: () => void;
   openProfilePanel: () => void;
@@ -33,6 +45,9 @@ interface ChatUiState {
   setDraft: (chatId: string, text: string) => void;
   openAttachDialog: (chatId: string, files: File[]) => void;
   closeAttachDialog: (chatId: string) => void;
+  startEditing: (chatId: string, messageId: string, text: string) => void;
+  setEditingText: (chatId: string, text: string) => void;
+  cancelEditing: (chatId: string) => void;
 }
 
 export const useChatUiStore = create<ChatUiState>()(
@@ -44,6 +59,7 @@ export const useChatUiStore = create<ChatUiState>()(
       listFilter: "",
       drafts: {},
       pendingAttachFiles: {},
+      editing: {},
       selectChat: (chatId) => {
         set({ selectedChatId: chatId, profilePanelOpen: false });
       },
@@ -77,6 +93,24 @@ export const useChatUiStore = create<ChatUiState>()(
         set((state) => {
           const { [chatId]: _removed, ...rest } = state.pendingAttachFiles;
           return { pendingAttachFiles: rest };
+        });
+      },
+      startEditing: (chatId, messageId, text) => {
+        set((state) => ({
+          editing: { ...state.editing, [chatId]: { messageId, original: text, text } },
+        }));
+      },
+      setEditingText: (chatId, text) => {
+        set((state) => {
+          const current = state.editing[chatId];
+          if (!current) return state;
+          return { editing: { ...state.editing, [chatId]: { ...current, text } } };
+        });
+      },
+      cancelEditing: (chatId) => {
+        set((state) => {
+          const { [chatId]: _removed, ...rest } = state.editing;
+          return { editing: rest };
         });
       },
     }),

@@ -13,7 +13,11 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma, type Call as PrismaCall } from "@prisma/client";
+import {
+  Prisma,
+  type Call as PrismaCall,
+  type MessageType as PrismaMessageType,
+} from "@prisma/client";
 import type Redis from "ioredis";
 
 import { ChatsService } from "../chats/chats.service";
@@ -34,6 +38,9 @@ import {
 } from "./message.util";
 
 const HISTORY_PAGE_SIZE = 50;
+
+/** Types whose `text` is user-authored — the message itself or a media caption. */
+const EDITABLE_TYPES: ReadonlySet<PrismaMessageType> = new Set(["TEXT", "IMAGE", "VIDEO", "FILE"]);
 
 @Injectable()
 export class MessagesService {
@@ -162,7 +169,7 @@ export class MessagesService {
     });
   }
 
-  /** FR-MSG-05: own text messages only, marked `editedAt`. */
+  /** FR-MSG-05: own text messages and photo/video/file captions, marked `editedAt`. */
   async editMessage(userId: string, messageId: string, text: string): Promise<Message> {
     const message = await this.prisma.message.findUnique({ where: { id: messageId } });
     if (!message || message.deletedAt) {
@@ -171,8 +178,8 @@ export class MessagesService {
     if (message.senderId !== userId) {
       throw new ForbiddenException("can only edit your own messages");
     }
-    if (message.type !== "TEXT") {
-      throw new BadRequestException("only text messages can be edited until T-032/F4 lands media");
+    if (!EDITABLE_TYPES.has(message.type)) {
+      throw new BadRequestException("voice/video notes and call rows have no text to edit");
     }
 
     const updated = await this.prisma.message.update({

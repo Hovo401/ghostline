@@ -1,3 +1,5 @@
+import type { MouseEvent } from "react";
+
 import {
   describeUploadError,
   downloadAttachment,
@@ -26,6 +28,9 @@ import { ProgressRing } from "../../shared/ui/progress-ring";
 import { RoundVideo } from "../../shared/ui/round-video";
 import { Scramble } from "../../shared/ui/scramble";
 
+import type { MenuPoint } from "./MessageContextMenu";
+import { useLongPress } from "./use-long-press";
+
 interface MessageBubbleProps {
   message: ChatMessage;
   isOwn: boolean;
@@ -43,6 +48,9 @@ interface MessageBubbleProps {
   /** Starts/toggles this voice message in the shared player (or jumps to
    * `startFraction` of it) — only meaningful for `type === "voice"`. */
   onPlayVoice?: (message: ChatMessage, startFraction?: number) => void;
+  /** Opens the copy/edit/delete menu at the pointer (FR-MSG-11) — omitted
+   * when this message has no actions for the viewer. */
+  onOpenMenu?: (message: ChatMessage, point: MenuPoint) => void;
 }
 
 function DownloadIcon() {
@@ -614,11 +622,26 @@ export function MessageBubble({
   onOpenImage,
   onCallBack,
   onPlayVoice,
+  onOpenMenu,
 }: MessageBubbleProps) {
   const meta = formatMessageMeta(message, isOwn, isLastOutgoing);
+  const longPress = useLongPress((x, y) => {
+    onOpenMenu?.(message, { x, y });
+  });
 
   return (
-    <div className={["flex flex-col gap-1", isOwn ? "items-end" : "items-start"].join(" ")}>
+    <div
+      className={["flex flex-col gap-1", isOwn ? "items-end" : "items-start"].join(" ")}
+      {...(onOpenMenu
+        ? {
+            ...longPress,
+            onContextMenu: (event: MouseEvent) => {
+              event.preventDefault();
+              onOpenMenu(message, { x: event.clientX, y: event.clientY });
+            },
+          }
+        : {})}
+    >
       {message.type === "text" && (
         <div
           className={[

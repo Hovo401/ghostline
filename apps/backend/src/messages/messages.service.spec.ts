@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 
 import type { SendMessageRequest } from "@ghostline/contracts";
-import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { Prisma } from "@prisma/client";
 import { describe, expect, it } from "vitest";
@@ -179,6 +184,13 @@ function createFakePrisma(
         );
       }
       return Promise.resolve(null);
+    },
+    update: ({ where, data }: { where: { id: string }; data: Partial<FakeMessageRow> }) => {
+      const existing = messages.get(where.id);
+      if (!existing) throw new Error("message not found");
+      const updated = { ...existing, ...data };
+      messages.set(where.id, updated);
+      return Promise.resolve(updated);
     },
   };
 
@@ -379,6 +391,86 @@ describe("MessagesService", () => {
         height: 600,
         url: "http://example.test/signed",
       });
+    });
+  });
+
+  describe("editMessage (FR-MSG-05)", () => {
+    it("edits own text and marks it edited", async () => {
+      const { service, chatId } = await buildMessagesService();
+      const sent = await service.sendMessage("alice", sendDto(chatId, "helo"));
+
+      const edited = await service.editMessage("alice", sent.id, "hello");
+
+      expect(edited.text).toBe("hello");
+      expect(edited.editedAt).not.toBeNull();
+    });
+
+    it("edits the caption of own photo", async () => {
+      const attachment = fakeAttachment({ uploaderId: "alice" });
+      const { service, chatId } = await buildMessagesService({ attachments: [attachment] });
+      const sent = await service.sendMessage("alice", sendImageDto(chatId, attachment.id));
+
+      const edited = await service.editMessage("alice", sent.id, "caption");
+
+      expect(edited.text).toBe("caption");
+      expect(edited.attachmentId).toBe(attachment.id);
+    });
+
+    it("rejects editing a voice message", async () => {
+      const attachment = fakeAttachment({ uploaderId: "alice", mime: "audio/webm" });
+      const { service, chatId } = await buildMessagesService({ attachments: [attachment] });
+      const sent = await service.sendMessage("alice", {
+        chatId,
+        clientMessageId: randomUUID(),
+        type: "voice",
+        attachmentId: attachment.id,
+        durationMs: 1000,
+      });
+
+      await expect(service.editMessage("alice", sent.id, "x")).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    });
+
+    it("rejects editing someone else's message", async () => {
+      const { service, chatId } = await buildMessagesService();
+      const sent = await service.sendMessage("alice", sendDto(chatId, "hi"));
+
+      await expect(service.editMessage("bob", sent.id, "x")).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+
+    it("404s on a deleted message", async () => {
+      const { service, chatId } = await buildMessagesService();
+      const sent = await service.sendMessage("alice", sendDto(chatId, "hi"));
+      await service.deleteMessage("alice", sent.id);
+
+      await expect(service.editMessage("alice", sent.id, "x")).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe("deleteMessage (FR-MSG-06)", () => {
+    it("soft-deletes own message and wipes its content", async () => {
+      const { service, chatId, messages } = await buildMessagesService();
+      const sent = await service.sendMessage("alice", sendDto(chatId, "secret"));
+
+      await service.deleteMessage("alice", sent.id);
+
+      const row = messages.get(sent.id);
+      expect(row?.deletedAt).not.toBeNull();
+      expect(row?.text).toBeNull();
+    });
+
+    it("rejects deleting someone else's message", async () => {
+      const { service, chatId } = await buildMessagesService();
+      const sent = await service.sendMessage("alice", sendDto(chatId, "hi"));
+
+      await expect(service.deleteMessage("bob", sent.id)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
     });
   });
 });
