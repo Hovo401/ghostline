@@ -1,9 +1,9 @@
 // Ghostline — Prisma schema.
 //
 // MVP build (docs/tasks/BACKLOG.md's M0-M5, tracked in docs/tasks/PROGRESS.md).
-// Groups, invites, reactions, disappearing messages and the recovery phrase
-// are out of scope for this build (see BACKLOG.md's "Отложено") and their
-// fields/models are intentionally absent.
+// Groups, invites, disappearing messages and the recovery phrase are out of
+// scope for this build (see BACKLOG.md's "Отложено") and their fields/models
+// are intentionally absent.
 
 generator client {
   provider      = "prisma-client-js"
@@ -38,6 +38,7 @@ model User {
   sessions          Session[]
   chatMemberships   ChatMember[]
   messages          Message[]
+  reactions         Reaction[]
   attachments       Attachment[]
   blocksMade        Block[]           @relation("BlockedBy")
   blocksReceived    Block[]           @relation("Blocked")
@@ -130,10 +131,25 @@ model Message {
   sender     User?       @relation(fields: [senderId], references: [id], onDelete: SetNull)
   attachment Attachment? @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
   call       Call?       @relation(fields: [callId], references: [id], onDelete: SetNull)
+  reactions  Reaction[]
 
   @@unique([chatId, seq])
   @@unique([senderId, clientMessageId])
   @@map("messages")
+}
+
+/// FR-MSG-13: one emoji reaction per user per message (docs/adr/0015).
+model Reaction {
+  messageId String   @db.Uuid
+  userId    String   @db.Uuid
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId])
+  @@map("reactions")
 }
 
 enum MessageType {

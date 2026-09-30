@@ -151,9 +151,8 @@ export function usePushSubscription() {
     }
   }, []);
 
-  /** Also called on logout (once a logout action exists — none does yet,
-   * see BACKLOG.md) so a signed-out device stops receiving this account's
-   * pushes. */
+  /** Also called on logout (`features/settings/LogoutButton`) so a
+   * signed-out device stops receiving this account's pushes. */
   const unsubscribe = useCallback(async (): Promise<void> => {
     if (!isPushSupported()) return;
     const registration = await readyRegistration();

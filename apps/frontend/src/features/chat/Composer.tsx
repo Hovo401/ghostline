@@ -28,6 +28,7 @@ import { ProgressRing } from "../../shared/ui/progress-ring";
 
 import { AttachPreviewDialog } from "./AttachPreviewDialog";
 import { useChatUiStore } from "./chat-ui-store";
+import { EmojiPicker } from "./EmojiPicker";
 import { VIDEO_NOTE_MAX_MS } from "./recorder-store";
 import { useRecorder } from "./use-recorder";
 
@@ -46,6 +47,25 @@ function AttachIcon() {
       strokeLinejoin="round"
     >
       <path d="M21 11.5l-8.6 8.6a5 5 0 01-7.1-7.1l8.6-8.6a3.3 3.3 0 014.7 4.7l-8.6 8.6a1.7 1.7 0 01-2.4-2.4l7.9-7.9" />
+    </svg>
+  );
+}
+
+function SmileIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8.5 14a4.2 4.2 0 007 0" />
+      <path d="M9 9.5h.01M15 9.5h.01" strokeWidth="2.4" />
     </svg>
   );
 }
@@ -163,6 +183,7 @@ export function Composer({ chatId }: { chatId: string }) {
   const recorder = useRecorder();
 
   const [attachOpen, setAttachOpen] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const dragCounter = useRef(0);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -227,6 +248,27 @@ export function Composer({ chatId }: { chatId: string }) {
       e.preventDefault();
       startEditing(chatId, last.id, last.text ?? "");
     }
+  };
+
+  // FR-MSG-03: inserts at the caret (or replaces the selection) and keeps the
+  // panel open so several emoji can go in; focus stays off the textarea so a
+  // phone's keyboard doesn't pop up over the panel.
+  const insertEmoji = (emoji: string): void => {
+    const textarea = textareaRef.current;
+    const value = editing ? editing.text : draft;
+    const start = textarea?.selectionStart ?? value.length;
+    const end = textarea?.selectionEnd ?? value.length;
+    const next = value.slice(0, start) + emoji + value.slice(end);
+    if (editing) {
+      setEditingText(chatId, next);
+    } else {
+      setDraft(chatId, next);
+      emitTyping();
+    }
+    const caret = start + emoji.length;
+    requestAnimationFrame(() => {
+      textarea?.setSelectionRange(caret, caret);
+    });
   };
 
   const startRecording = async (kind: "voice" | "video"): Promise<void> => {
@@ -485,6 +527,22 @@ export function Composer({ chatId }: { chatId: string }) {
             </button>
           </div>
         )}
+        <Backdrop
+          open={emojiOpen}
+          onClose={() => {
+            setEmojiOpen(false);
+          }}
+          className="bg-transparent"
+        />
+        {emojiOpen && (
+          <div
+            role="dialog"
+            aria-label="Эмодзи"
+            className="absolute bottom-18 left-4 z-50 flex h-90 w-[min(340px,calc(100%-2rem))] animate-dialog-in flex-col overflow-hidden rounded-2xl border border-line bg-panel shadow-[0_18px_50px_rgba(0,0,0,.3)]"
+          >
+            <EmojiPicker onSelect={insertEmoji} className="h-full" />
+          </div>
+        )}
         <input
           ref={photoInputRef}
           type="file"
@@ -537,11 +595,21 @@ export function Composer({ chatId }: { chatId: string }) {
                 icon={<AttachIcon />}
                 label="Прикрепить"
                 onClick={() => {
+                  setEmojiOpen(false);
                   setAttachOpen((open) => !open);
                 }}
                 className={attachOpen ? "bg-bg2" : undefined}
               />
             )}
+            <IconButton
+              icon={<SmileIcon />}
+              label="Эмодзи"
+              onClick={() => {
+                setAttachOpen(false);
+                setEmojiOpen((open) => !open);
+              }}
+              className={emojiOpen ? "bg-bg2" : undefined}
+            />
             <textarea
               ref={textareaRef}
               value={editing ? editing.text : draft}

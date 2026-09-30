@@ -21,6 +21,7 @@ function makeMessage(overrides: Partial<ChatMessage>): ChatMessage {
     waveform: null,
     replyToId: null,
     call: null,
+    reactions: [],
     status: "sent",
     editedAt: null,
     deletedAt: null,

@@ -43,6 +43,7 @@ function makeImageMessage(id: string, attachmentId: string): ChatMessage {
     waveform: null,
     replyToId: null,
     call: null,
+    reactions: [],
     status: "sent",
     editedAt: null,
     deletedAt: null,

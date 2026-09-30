@@ -8,6 +8,7 @@ import {
   MESSAGE_INCLUDE,
   computeMessageStatus,
   createCallMessageRow,
+  groupReactions,
   toWireMessage,
 } from "./message.util";
 
@@ -78,7 +79,9 @@ const CALL = {
   endedAt: new Date("2026-01-01T00:00:10.000Z"),
 } as unknown as PrismaCall;
 
-function messageRow(overrides: Partial<PrismaMessage> = {}) {
+function messageRow(
+  overrides: Partial<PrismaMessage> & { reactions?: { userId: string; emoji: string }[] } = {},
+) {
   return {
     id: "m1",
     chatId: "chat-1",
@@ -96,8 +99,13 @@ function messageRow(overrides: Partial<PrismaMessage> = {}) {
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     attachment: null,
     call: CALL,
+    reactions: [],
     ...overrides,
-  } as PrismaMessage & { attachment: null; call: PrismaCall };
+  } as PrismaMessage & {
+    attachment: null;
+    call: PrismaCall;
+    reactions: { userId: string; emoji: string }[];
+  };
 }
 
 describe("toWireMessage", () => {
@@ -113,6 +121,37 @@ describe("toWireMessage", () => {
       {} as StorageService,
     );
     expect(wire).toMatchObject({ text: null, attachment: null, attachmentId: null, call: null });
+  });
+
+  it("groups reactions by emoji and drops them from a deleted message", async () => {
+    const reactions = [{ userId: "alice", emoji: "👍" }];
+    const live = await toWireMessage(messageRow({ reactions }), "sent", {} as StorageService);
+    expect(live.reactions).toEqual([{ emoji: "👍", count: 1, userIds: ["alice"] }]);
+
+    const deleted = await toWireMessage(
+      messageRow({ reactions, deletedAt: new Date() }),
+      "sent",
+      {} as StorageService,
+    );
+    expect(deleted.reactions).toEqual([]);
+  });
+});
+
+describe("groupReactions", () => {
+  it("returns nothing for no reactions", () => {
+    expect(groupReactions([])).toEqual([]);
+  });
+
+  it("groups by emoji, ordered by each emoji's first reaction", () => {
+    const grouped = groupReactions([
+      { userId: "a", emoji: "🔥" },
+      { userId: "b", emoji: "👍" },
+      { userId: "c", emoji: "🔥" },
+    ]);
+    expect(grouped).toEqual([
+      { emoji: "🔥", count: 2, userIds: ["a", "c"] },
+      { emoji: "👍", count: 1, userIds: ["b"] },
+    ]);
   });
 });
 

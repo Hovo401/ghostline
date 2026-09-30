@@ -95,7 +95,7 @@ skeletons, `User`/`Session` Prisma models, health checks. What's left:
 ## M6 — v1
 
 1:1 calls (LiveKit) + Web Push are broken into tasks below (docs/adr/0009, 0010, 0011). The rest
-of M6 — reactions, forward, pinned messages, in-chat message search, admin UI (stats;
+of M6 — forward, pinned messages, in-chat message search, admin UI (stats;
 invites/users CRUD already partly in M0), remaining settings sections — isn't broken into tasks
 yet; do that when this wave is done. FR IDs: see REQUIREMENTS.md's "v1" priority rows.
 
@@ -131,10 +131,27 @@ yet; do that when this wave is done. FR IDs: see REQUIREMENTS.md's "v1" priority
       (`?chat=`/`?call=&answer=1` deep link when no tab is open), per-platform hint in
       `NotificationsTab` (iOS install-to-Home-Screen / Android background permission / desktop
       background-apps setting), `call:missed` push TTL raised to 1 day. Depends on T-067.
-- [ ] T-069 — Add a logout action (no "Выйти" UI exists yet — `entities/session`'s `clearSession`
-      is only called from a failed silent-refresh) that also unsubscribes this device's push
-      subscription (`usePushSubscription().unsubscribe()`) before clearing the session, for
-      privacy on a shared device. Depends on T-067.
+- [x] T-069 — Logout action: "Выйти из аккаунта" in settings (`features/settings/LogoutButton`)
+      unsubscribes this device's push subscription, then `POST /auth/logout`, clears the session
+      and the query cache, and redirects to `/login`. Depends on T-067.
+
+### Emoji panel + reactions (FR-MSG-03, FR-MSG-13; docs/adr/0015)
+
+Stickers are not part of this wave (`Later`) — see docs/adr/0015 for the sources considered.
+
+- [x] T-070 — `packages/contracts`: `ReactionEmojiSchema` (one grapheme, emoji-only),
+      `SetReactionRequest`, `MessageReaction`, `Message.reactions`. Prisma `Reaction` model
+      (PK `(messageId, userId)`, cascades) + migration.
+- [x] T-071 — Backend: `MESSAGE_INCLUDE` loads reactions, `groupReactions`, `PUT`/`DELETE
+      /messages/:id/reaction` via `MessagesService.setReaction` (member-only, block-aware, rides
+      on `message:updated`). Depends on T-070.
+- [x] T-072 — Frontend emoji panel in `Composer` (`features/chat/EmojiPicker`, frimousse, ru data
+      served from our origin by `emojibase.plugin.ts`, "Недавние" in `emoji-recent-store`).
+- [x] T-073 — Frontend reactions: `ReactionBar` chips under the bubble, quick-reaction row +
+      "＋" picker in `MessageContextMenu`, optimistic `useSetReaction`. Depends on T-070, T-071,
+      T-072.
+- [ ] T-074 — Reactions don't advance `seq`, so the `afterSeq` catch-up after a reconnect misses
+      them until the history reloads (same as edits today, FR-RT-05). Decide with the edit case.
 
 ## M7 — Open source
 

@@ -60,6 +60,9 @@ export {
   MessageCallInfoSchema,
   SendMessageRequestSchema,
   EditMessageRequestSchema,
+  ReactionEmojiSchema,
+  SetReactionRequestSchema,
+  MessageReactionSchema,
   ListMessagesQuerySchema,
   MessageSchema,
 } from "./message/message.schema";
@@ -69,6 +72,9 @@ export type {
   MessageCallInfo,
   SendMessageRequest,
   EditMessageRequest,
+  ReactionEmoji,
+  SetReactionRequest,
+  MessageReaction,
   ListMessagesQuery,
   Message,
 } from "./message/message.schema";

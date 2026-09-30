@@ -201,6 +201,44 @@ export class MessagesService {
     return wireMessage;
   }
 
+  /**
+   * FR-MSG-13: one reaction per user per message — a new emoji replaces the old one,
+   * `null` removes it. Rides on `message:updated`; the chat-list preview doesn't change.
+   */
+  async setReaction(userId: string, messageId: string, emoji: string | null): Promise<Message> {
+    const message = await this.prisma.message.findUnique({ where: { id: messageId } });
+    if (!message || message.deletedAt) {
+      throw new NotFoundException("message not found");
+    }
+    await this.chats.assertMember(message.chatId, userId);
+
+    const key = { messageId_userId: { messageId, userId } };
+    if (emoji === null) {
+      await this.prisma.reaction.deleteMany({ where: { messageId, userId } });
+    } else {
+      await this.assertNotBlockedInChat(message.chatId, userId);
+      await this.prisma.reaction.upsert({
+        where: key,
+        create: { messageId, userId, emoji },
+        update: { emoji, createdAt: new Date() },
+      });
+    }
+
+    const updated = await this.prisma.message.findUniqueOrThrow({
+      where: { id: messageId },
+      include: MESSAGE_INCLUDE,
+    });
+    const wireMessage = await toWireMessage(
+      updated,
+      await resolveMessageStatus(this.prisma, updated),
+      this.storage,
+    );
+    await this.emitToMembers(updated.chatId, (memberId) =>
+      this.events.server.to(`user:${memberId}`).emit("message:updated", wireMessage),
+    );
+    return wireMessage;
+  }
+
   /** FR-MSG-06 (own messages only — "delete for everyone" is always available for your own). */
   async deleteMessage(userId: string, messageId: string): Promise<void> {
     const message = await this.prisma.message.findUnique({ where: { id: messageId } });

@@ -29,6 +29,7 @@ import { RoundVideo } from "../../shared/ui/round-video";
 import { Scramble } from "../../shared/ui/scramble";
 
 import type { MenuPoint } from "./MessageContextMenu";
+import { ReactionBar } from "./ReactionBar";
 import { useLongPress } from "./use-long-press";
 
 interface MessageBubbleProps {
@@ -668,6 +669,7 @@ export function MessageBubble({
       {message.type === "call" && (
         <CallBubble message={message} isOwn={isOwn} onCallBack={onCallBack} />
       )}
+      {message.reactions.length > 0 && <ReactionBar message={message} isOwn={isOwn} />}
       <span
         className={[
           "px-1.5 font-mono text-xs",

@@ -23,6 +23,33 @@ export const MessageCallInfoSchema = z.object({
 });
 export type MessageCallInfo = z.infer<typeof MessageCallInfoSchema>;
 
+const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+// Emoji presentation (ZWJ sequences and skin tones are one grapheme), keycaps and flags.
+// The `v`-flag `\p{RGI_Emoji}` isn't available at our ES2023 target.
+const EMOJI_PATTERN =
+  /\p{Extended_Pictographic}|^[#*0-9]\uFE0F?\u20E3$|^\p{Regional_Indicator}{2}$/u;
+
+/** One emoji reaction — exactly one grapheme that is an emoji. */
+export const ReactionEmojiSchema = z
+  .string()
+  .max(32)
+  .refine((v) => [...graphemeSegmenter.segment(v)].length === 1 && EMOJI_PATTERN.test(v), {
+    message: "reaction must be a single emoji",
+  });
+export type ReactionEmoji = z.infer<typeof ReactionEmojiSchema>;
+
+/** `PUT /messages/:id/reaction` body. A user holds at most one reaction per message. */
+export const SetReactionRequestSchema = z.object({ emoji: ReactionEmojiSchema });
+export type SetReactionRequest = z.infer<typeof SetReactionRequestSchema>;
+
+/** Reactions grouped by emoji, in order of the first reaction. `userIds` lets each client find "mine". */
+export const MessageReactionSchema = z.object({
+  emoji: z.string(),
+  count: z.number().int().positive(),
+  userIds: z.array(z.string().uuid()).min(1),
+});
+export type MessageReaction = z.infer<typeof MessageReactionSchema>;
+
 export const MessageStatusSchema = z.enum(["sent", "delivered", "read"]);
 export type MessageStatus = z.infer<typeof MessageStatusSchema>;
 
@@ -78,6 +105,7 @@ export const MessageSchema = z.object({
   replyToId: z.string().uuid().nullable(),
   // Set only when `type === "call"` — see `MessageCallInfoSchema`.
   call: MessageCallInfoSchema.nullable(),
+  reactions: z.array(MessageReactionSchema),
   status: MessageStatusSchema,
   editedAt: z.string().datetime().nullable(),
   deletedAt: z.string().datetime().nullable(),

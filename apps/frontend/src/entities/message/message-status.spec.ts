@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   canDeleteMessage,
   canEditMessage,
+  canReactToMessage,
   formatMessageMeta,
   hasMessageActions,
 } from "./message-status";
@@ -23,6 +24,7 @@ function makeMessage(overrides: Partial<ChatMessage>): ChatMessage {
     waveform: null,
     replyToId: null,
     call: null,
+    reactions: [],
     status: "sent",
     editedAt: null,
     deletedAt: null,
@@ -97,8 +99,33 @@ describe("canEditMessage / canDeleteMessage", () => {
     expect(canDeleteMessage(makeMessage({ failed: true }), "user-a")).toBe(false);
   });
 
-  it("gives a peer's text a menu (copy) but not a peer's voice message", () => {
+  it("gives a peer's text and voice message a menu (copy / reactions)", () => {
     expect(hasMessageActions(makeMessage({}), "user-b")).toBe(true);
-    expect(hasMessageActions(makeMessage({ type: "voice", text: null }), "user-b")).toBe(false);
+    expect(hasMessageActions(makeMessage({ type: "voice", text: null }), "user-b")).toBe(true);
+  });
+
+  it("gives a peer's call row, and unsent or deleted rows, no menu at all", () => {
+    expect(hasMessageActions(makeMessage({ type: "call", text: null }), "user-b")).toBe(false);
+    expect(hasMessageActions(makeMessage({ pending: true, text: null }), "user-b")).toBe(false);
+    expect(
+      hasMessageActions(
+        makeMessage({ deletedAt: "2026-01-01T00:00:00.000Z", text: null }),
+        "user-b",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("canReactToMessage", () => {
+  it("allows any live, sent message — own or a peer's, text or media", () => {
+    expect(canReactToMessage(makeMessage({}))).toBe(true);
+    expect(canReactToMessage(makeMessage({ type: "voice", text: null }))).toBe(true);
+  });
+
+  it("refuses calls, unsent, failed and deleted messages", () => {
+    expect(canReactToMessage(makeMessage({ type: "call" }))).toBe(false);
+    expect(canReactToMessage(makeMessage({ pending: true }))).toBe(false);
+    expect(canReactToMessage(makeMessage({ failed: true }))).toBe(false);
+    expect(canReactToMessage(makeMessage({ deletedAt: "2026-01-01T00:00:00.000Z" }))).toBe(false);
   });
 });

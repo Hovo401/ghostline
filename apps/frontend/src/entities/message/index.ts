@@ -3,6 +3,7 @@ export * from "./format-call";
 export * from "./format-duration";
 export * from "./message-cache";
 export * from "./message-grouping";
+export * from "./message-reactions";
 export * from "./message-status";
 export * from "./send-media";
 export * from "./use-messages";

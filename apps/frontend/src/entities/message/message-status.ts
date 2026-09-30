@@ -72,10 +72,17 @@ export function canDeleteMessage(message: ChatMessage, currentUserId: string | n
   return isSettledOwn(message, currentUserId);
 }
 
-/** Whether a bubble gets a context menu at all (FR-MSG-11) — a peer's voice
- * message has no text to copy and isn't ours to edit/delete. */
+/** FR-MSG-13: anyone in the chat can react to a sent, live message — a call
+ * row is history, not something you react to. */
+export function canReactToMessage(message: ChatMessage): boolean {
+  return !message.pending && !message.failed && !message.deletedAt && message.type !== "call";
+}
+
+/** Whether a bubble gets a context menu at all (FR-MSG-11) — every live
+ * message can be reacted to, so only calls and unsent/deleted rows go without. */
 export function hasMessageActions(message: ChatMessage, currentUserId: string | null): boolean {
   return (
+    canReactToMessage(message) ||
     !!message.text ||
     canEditMessage(message, currentUserId) ||
     canDeleteMessage(message, currentUserId)

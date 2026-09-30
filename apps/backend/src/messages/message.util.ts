@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
 
-import type { Message, MessageCallInfo, MessageStatus, MessageType } from "@ghostline/contracts";
+import type {
+  Message,
+  MessageCallInfo,
+  MessageReaction,
+  MessageStatus,
+  MessageType,
+} from "@ghostline/contracts";
 import type {
   Attachment as PrismaAttachment,
   Call as PrismaCall,
@@ -143,13 +149,34 @@ export async function resolveMessageStatus(
 }
 
 /** Relations `toWireMessage` needs — every query that feeds it must use this. */
-export const MESSAGE_INCLUDE = { attachment: true, call: true } as const;
+export const MESSAGE_INCLUDE = {
+  attachment: true,
+  call: true,
+  reactions: { select: { userId: true, emoji: true }, orderBy: { createdAt: "asc" } },
+} as const;
+
+interface ReactionRow {
+  userId: string;
+  emoji: string;
+}
 
 /** A `Message` row loaded with `MESSAGE_INCLUDE`. */
 export type PrismaMessageWithAttachment = PrismaMessage & {
   attachment: PrismaAttachment | null;
   call: PrismaCall | null;
+  reactions: ReactionRow[];
 };
+
+/** Groups reaction rows (oldest first) by emoji; groups keep the order of their first reaction. */
+export function groupReactions(rows: ReactionRow[]): MessageReaction[] {
+  const groups = new Map<string, string[]>();
+  for (const { emoji, userId } of rows) {
+    const userIds = groups.get(emoji);
+    if (userIds) userIds.push(userId);
+    else groups.set(emoji, [userId]);
+  }
+  return [...groups].map(([emoji, userIds]) => ({ emoji, count: userIds.length, userIds }));
+}
 
 export async function toWireMessage(
   message: PrismaMessageWithAttachment,
@@ -174,6 +201,7 @@ export async function toWireMessage(
     waveform: message.waveform as number[] | null,
     replyToId: message.replyToId,
     call: message.call && !deleted ? toWireMessageCallInfo(message.call) : null,
+    reactions: deleted ? [] : groupReactions(message.reactions),
     status,
     editedAt: message.editedAt?.toISOString() ?? null,
     deletedAt: message.deletedAt?.toISOString() ?? null,

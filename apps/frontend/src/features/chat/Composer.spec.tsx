@@ -17,6 +17,20 @@ vi.mock("../../shared/api/socket-client", () => ({
   getSocketClient: () => ({ emit: vi.fn() }),
 }));
 
+// The real grid needs layout jsdom lacks; the composer only needs an `onSelect` source.
+vi.mock("./EmojiPicker", () => ({
+  EmojiPicker: ({ onSelect }: { onSelect: (emoji: string) => void }) => (
+    <button
+      type="button"
+      onClick={() => {
+        onSelect("🎉");
+      }}
+    >
+      pick-party
+    </button>
+  ),
+}));
+
 const CHAT_ID = "22222222-2222-2222-2222-222222222222";
 const ME = "33333333-3333-3333-3333-333333333333";
 
@@ -35,6 +49,7 @@ function makeMessage(overrides: Partial<ChatMessage>): ChatMessage {
     waveform: null,
     replyToId: null,
     call: null,
+    reactions: [],
     status: "sent",
     editedAt: null,
     deletedAt: null,
@@ -118,5 +133,53 @@ describe("Composer — editing (FR-MSG-05/12)", () => {
 
     expect(apiFetch).not.toHaveBeenCalled();
     expect(useChatUiStore.getState().editing[CHAT_ID]).toBeUndefined();
+  });
+});
+
+describe("Composer — emoji panel (FR-MSG-03)", () => {
+  it("opens from the smiley button and closes on Escape", () => {
+    renderComposer([]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Эмодзи" }));
+    expect(screen.getByRole("dialog", { name: "Эмодзи" })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Эмодзи" })).not.toBeInTheDocument();
+  });
+
+  it("inserts the emoji at the caret and keeps the panel open", () => {
+    useChatUiStore.setState({ drafts: { [CHAT_ID]: "ab" } });
+    const textarea = renderComposer([]) as HTMLTextAreaElement;
+    textarea.setSelectionRange(1, 1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Эмодзи" }));
+    fireEvent.click(screen.getByRole("button", { name: "pick-party" }));
+
+    expect(useChatUiStore.getState().drafts[CHAT_ID]).toBe("a🎉b");
+    expect(screen.getByRole("dialog", { name: "Эмодзи" })).toBeInTheDocument();
+  });
+
+  it("replaces the selected text", () => {
+    useChatUiStore.setState({ drafts: { [CHAT_ID]: "abc" } });
+    const textarea = renderComposer([]) as HTMLTextAreaElement;
+    textarea.setSelectionRange(0, 2);
+
+    fireEvent.click(screen.getByRole("button", { name: "Эмодзи" }));
+    fireEvent.click(screen.getByRole("button", { name: "pick-party" }));
+
+    expect(useChatUiStore.getState().drafts[CHAT_ID]).toBe("🎉c");
+  });
+
+  it("goes into the edited text while editing a message", () => {
+    const message = makeMessage({});
+    useChatUiStore.getState().startEditing(CHAT_ID, message.id, "helo");
+    const textarea = renderComposer([message]) as HTMLTextAreaElement;
+    textarea.setSelectionRange(4, 4);
+
+    fireEvent.click(screen.getByRole("button", { name: "Эмодзи" }));
+    fireEvent.click(screen.getByRole("button", { name: "pick-party" }));
+
+    expect(useChatUiStore.getState().editing[CHAT_ID]?.text).toBe("helo🎉");
+    expect(useChatUiStore.getState().drafts[CHAT_ID]).toBeUndefined();
   });
 });

@@ -18,6 +18,7 @@
         "@fontsource/jetbrains-mono",
         "@fontsource/pixelify-sans",
         "@fontsource/pt-serif",
+        "emojibase-data",
         "tailwindcss",
         "@ghostline/contracts",
         "socket.io-client"

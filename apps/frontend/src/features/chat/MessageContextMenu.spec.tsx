@@ -12,6 +12,20 @@ vi.mock("../../shared/api/http-client", () => ({
   apiFetch: vi.fn(),
 }));
 
+// The real grid needs layout jsdom lacks; the "＋" button only has to mount it.
+vi.mock("./EmojiPicker", () => ({
+  EmojiPicker: ({ onSelect }: { onSelect: (emoji: string) => void }) => (
+    <button
+      type="button"
+      onClick={() => {
+        onSelect("🎉");
+      }}
+    >
+      pick-party
+    </button>
+  ),
+}));
+
 function makeMessage(overrides: Partial<ChatMessage>): ChatMessage {
   return {
     id: "m1",
@@ -27,6 +41,7 @@ function makeMessage(overrides: Partial<ChatMessage>): ChatMessage {
     waveform: null,
     replyToId: null,
     call: null,
+    reactions: [],
     status: "sent",
     editedAt: null,
     deletedAt: null,
@@ -73,6 +88,69 @@ describe("MessageContextMenu", () => {
     expect(screen.getByRole("menuitem", { name: "Копировать" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Изменить" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Удалить" })).toBeInTheDocument();
+  });
+
+  it("offers quick reactions on any live message, own or a peer's", () => {
+    renderFeed([makeMessage({ senderId: "user-b" })]);
+
+    openMenuOn("привет");
+
+    const row = screen.getByRole("group", { name: "Быстрые реакции" });
+    expect(row).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Реакция 👍" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Больше реакций" })).toBeInTheDocument();
+  });
+
+  it("a quick reaction is PUT to the message and closes the menu", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined);
+    renderFeed([makeMessage({ senderId: "user-b" })]);
+
+    openMenuOn("привет");
+    fireEvent.click(screen.getByRole("button", { name: "Реакция ❤️" }));
+
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledWith("/messages/m1/reaction", {
+        method: "PUT",
+        body: { emoji: "❤️" },
+      });
+    });
+    expect(screen.queryByRole("group", { name: "Быстрые реакции" })).not.toBeInTheDocument();
+  });
+
+  it("marks your current reaction and clears it when picked again", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined);
+    renderFeed([
+      makeMessage({
+        senderId: "user-b",
+        reactions: [{ emoji: "👍", count: 1, userIds: ["user-a"] }],
+      }),
+    ]);
+
+    openMenuOn("привет");
+    const thumbs = screen.getByRole("button", { name: "Реакция 👍" });
+    expect(thumbs).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(thumbs);
+
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledWith("/messages/m1/reaction", { method: "DELETE" });
+    });
+  });
+
+  it("'＋' opens the full picker in place of the menu, and a pick becomes the reaction", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined);
+    renderFeed([makeMessage({ senderId: "user-b" })]);
+
+    openMenuOn("привет");
+    fireEvent.click(screen.getByRole("button", { name: "Больше реакций" }));
+    expect(screen.queryByRole("menuitem", { name: "Копировать" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "pick-party" }));
+
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledWith("/messages/m1/reaction", {
+        method: "PUT",
+        body: { emoji: "🎉" },
+      });
+    });
   });
 
   it("offers only copy on a peer's message", () => {

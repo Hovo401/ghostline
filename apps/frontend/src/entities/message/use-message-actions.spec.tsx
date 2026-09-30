@@ -8,7 +8,7 @@ import { useToastStore } from "../../shared/ui/toast-store";
 
 import { flattenMessages, upsertMessage, type MessagesData } from "./message-cache";
 import type { ChatMessage } from "./message.types";
-import { useDeleteMessage, useEditMessage } from "./use-message-actions";
+import { useDeleteMessage, useEditMessage, useSetReaction } from "./use-message-actions";
 
 vi.mock("../../shared/api/http-client", () => ({
   apiFetch: vi.fn(),
@@ -30,6 +30,7 @@ const MESSAGE: ChatMessage = {
   waveform: null,
   replyToId: null,
   call: null,
+  reactions: [],
   status: "sent",
   editedAt: null,
   deletedAt: null,
@@ -111,6 +112,71 @@ describe("useDeleteMessage", () => {
 
     result.current.mutate(MESSAGE);
 
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+    });
+    expect(cached()).toEqual([MESSAGE]);
+    expect(useToastStore.getState().toasts).toHaveLength(1);
+  });
+});
+
+describe("useSetReaction", () => {
+  const USER_ID = "55555555-5555-5555-5555-555555555555";
+
+  beforeEach(() => {
+    vi.mocked(apiFetch).mockReset();
+    useToastStore.setState({ toasts: [] });
+  });
+
+  it("PUTs the emoji and keeps the server's version", async () => {
+    const reacted = {
+      ...MESSAGE,
+      reactions: [{ emoji: "👍", count: 1, userIds: [USER_ID] }],
+    };
+    vi.mocked(apiFetch).mockResolvedValue({ ...reacted, seq: "1" });
+    const { result, cached } = renderWithClient(() => useSetReaction());
+
+    result.current.mutate({ message: MESSAGE, userId: USER_ID, emoji: "👍" });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+    expect(apiFetch).toHaveBeenCalledWith(`/messages/${MESSAGE.id}/reaction`, {
+      method: "PUT",
+      body: { emoji: "👍" },
+    });
+    expect(cached()).toEqual([reacted]);
+  });
+
+  it("DELETEs when the reaction is cleared", async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ ...MESSAGE, seq: "1" });
+    const { result } = renderWithClient(() => useSetReaction());
+
+    result.current.mutate({ message: MESSAGE, userId: USER_ID, emoji: null });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+    expect(apiFetch).toHaveBeenCalledWith(`/messages/${MESSAGE.id}/reaction`, {
+      method: "DELETE",
+    });
+  });
+
+  it("shows the reaction at once, then rolls back and toasts on failure", async () => {
+    let fail: (error: Error) => void = () => undefined;
+    vi.mocked(apiFetch).mockReturnValue(
+      new Promise((_resolve, reject) => {
+        fail = reject as (error: Error) => void;
+      }),
+    );
+    const { result, cached } = renderWithClient(() => useSetReaction());
+
+    result.current.mutate({ message: MESSAGE, userId: USER_ID, emoji: "🔥" });
+
+    await waitFor(() => {
+      expect(cached()[0]?.reactions).toEqual([{ emoji: "🔥", count: 1, userIds: [USER_ID] }]);
+    });
+    fail(new Error("boom"));
     await waitFor(() => {
       expect(result.current.isError).toBe(true);
     });

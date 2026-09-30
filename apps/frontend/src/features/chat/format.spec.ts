@@ -20,6 +20,7 @@ function makeMessage(overrides: Partial<Message>): Message {
     waveform: null,
     replyToId: null,
     call: null,
+    reactions: [],
     status: "sent",
     editedAt: null,
     deletedAt: null,

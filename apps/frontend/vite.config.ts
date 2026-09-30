@@ -6,6 +6,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
+import { emojibaseData } from "./emojibase.plugin";
 import { vitePwaOptions } from "./pwa.config";
 
 export default defineConfig({
@@ -15,6 +16,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA(vitePwaOptions),
+    emojibaseData(),
   ],
   resolve: {
     alias: { "@": path.resolve(import.meta.dirname, "./src") },
