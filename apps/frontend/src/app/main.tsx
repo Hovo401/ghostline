@@ -8,6 +8,7 @@ import { createRoot } from "react-dom/client";
 import "../shared/theme/theme.css";
 import { registerServiceWorker } from "../entities/notification";
 import { routeTree } from "../routeTree.gen";
+import { listenForInstallPrompt } from "../shared/lib/pwa-install";
 import { useApplyAppearance } from "../shared/theme/use-apply-appearance";
 
 const router = createRouter({ routeTree });
@@ -16,6 +17,7 @@ const router = createRouter({ routeTree });
 // service workers aren't supported at all; safe to call unconditionally at
 // boot since it doesn't itself request notification permission or subscribe.
 registerServiceWorker();
+listenForInstallPrompt();
 
 declare module "@tanstack/react-router" {
   interface Register {

@@ -57,7 +57,7 @@ describe("AccessTokenGuard", () => {
 
   it("allows a valid token and attaches the userId to the request", async () => {
     const { guard, tokens } = await buildGuard();
-    const token = tokens.signAccessToken("user-7");
+    const token = tokens.signAccessToken("user-7", "session-1");
     const context = contextWithHeader(`Bearer ${token}`);
 
     expect(guard.canActivate(context)).toBe(true);

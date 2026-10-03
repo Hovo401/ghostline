@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AppConfigService } from "../config/app-config.service";
 import { NOTIFICATIONS_QUEUE } from "../jobs/notifications.processor";
 import { PrismaService } from "../prisma/prisma.service";
+import { StorageService } from "../storage/storage.service";
 
 import { NotificationsService } from "./notifications.service";
 
@@ -41,7 +42,7 @@ function fakeMessage() {
   };
 }
 
-async function buildService(members: FakeMemberRow[]) {
+async function buildService(members: FakeMemberRow[], nativeDeviceCount = 0) {
   const chatMember = {
     findMany: ({ where }: { where: { chatId: string; userId: { not: string }; muted: boolean } }) =>
       Promise.resolve(
@@ -75,7 +76,12 @@ async function buildService(members: FakeMemberRow[]) {
     upsert: vi.fn(() => Promise.resolve()),
     deleteMany: vi.fn(() => Promise.resolve({ count: 1 })),
   };
-  const prisma = { chatMember, user, pushSubscription };
+  const nativePushDevice = {
+    upsert: vi.fn(() => Promise.resolve()),
+    deleteMany: vi.fn(() => Promise.resolve({ count: 0 })),
+    count: vi.fn(() => Promise.resolve(nativeDeviceCount)),
+  };
+  const prisma = { chatMember, user, pushSubscription, nativePushDevice };
   const config = {
     vapid: { publicKey: "pub", privateKey: "priv", subject: "mailto:test@example.com" },
     jwt: { accessSecret: "a".repeat(32), refreshSecret: "b".repeat(32) },
@@ -87,11 +93,12 @@ async function buildService(members: FakeMemberRow[]) {
       NotificationsService,
       { provide: PrismaService, useValue: prisma },
       { provide: AppConfigService, useValue: config },
+      { provide: StorageService, useValue: { createDownloadUrl: () => Promise.resolve("") } },
       { provide: getQueueToken(NOTIFICATIONS_QUEUE), useValue: { add } },
     ],
   }).compile();
 
-  return { service: moduleRef.get(NotificationsService), add, pushSubscription };
+  return { service: moduleRef.get(NotificationsService), add, pushSubscription, nativePushDevice };
 }
 
 describe("NotificationsService", () => {
@@ -213,6 +220,99 @@ describe("NotificationsService", () => {
       await service.sendTest("alice");
 
       expect(add).toHaveBeenCalledWith("push", { userId: "alice", payload: { kind: "test" } });
+    });
+
+    it("rings a test call on the Android app only, 5s later", async () => {
+      const { service, add } = await buildService([]);
+
+      await service.sendTest("alice", "call");
+
+      expect(add).toHaveBeenCalledWith(
+        "push",
+        {
+          userId: "alice",
+          payload: { kind: "test-call", callerName: "Ghostline" },
+          transports: ["native"],
+        },
+        { delay: 5_000 },
+      );
+    });
+  });
+
+  describe("native devices", () => {
+    const body = {
+      deviceId: "7f0c2f4e-0000-4000-8000-0000000000d1",
+      fcmToken: "fcm-token",
+      deviceKey: "A".repeat(43) + "=",
+      appVersionCode: 3,
+      platform: "android" as const,
+    };
+
+    it("upserts by device id, tied to the registering session", async () => {
+      const { service, nativePushDevice } = await buildService([]);
+
+      await service.registerNativeDevice("alice", "session-1", body);
+
+      expect(nativePushDevice.upsert).toHaveBeenCalledWith({
+        where: { deviceId: body.deviceId },
+        create: {
+          deviceId: body.deviceId,
+          userId: "alice",
+          sessionId: "session-1",
+          fcmToken: "fcm-token",
+          encKey: body.deviceKey,
+          appVersionCode: 3,
+        },
+        update: {
+          userId: "alice",
+          sessionId: "session-1",
+          fcmToken: "fcm-token",
+          encKey: body.deviceKey,
+          appVersionCode: 3,
+        },
+      });
+    });
+
+    it("drops a stale install that still holds the same FCM token", async () => {
+      const { service, nativePushDevice } = await buildService([]);
+
+      await service.registerNativeDevice("alice", "session-1", body);
+
+      expect(nativePushDevice.deleteMany).toHaveBeenCalledWith({
+        where: { fcmToken: "fcm-token", deviceId: { not: body.deviceId } },
+      });
+    });
+
+    it("scopes unregistering to the requesting user", async () => {
+      const { service, nativePushDevice } = await buildService([]);
+
+      await service.unregisterNativeDevice("alice", body.deviceId);
+
+      expect(nativePushDevice.deleteMany).toHaveBeenCalledWith({
+        where: { userId: "alice", deviceId: body.deviceId },
+      });
+    });
+  });
+
+  describe("notifyChatRead", () => {
+    it("sends a native-only chat:read push to a user with the app", async () => {
+      const { service, add } = await buildService([], 1);
+
+      await service.notifyChatRead("alice", "chat-1", 42n);
+
+      expect(add).toHaveBeenCalledWith("push", {
+        userId: "alice",
+        payload: { kind: "chat:read", chatId: "chat-1", readSeq: "42" },
+        transports: ["native"],
+      });
+    });
+
+    it("doesn't touch the queue for a user without the app", async () => {
+      const { service, add } = await buildService([], 0);
+
+      await service.notifyChatRead("alice", "chat-1", 42n);
+
+      expect(add).not.toHaveBeenCalled();
     });
   });
 

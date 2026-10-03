@@ -153,6 +153,29 @@ Stickers are not part of this wave (`Later`) — see docs/adr/0015 for the sourc
 - [ ] T-074 — Reactions don't advance `seq`, so the `afterSeq` catch-up after a reconnect misses
       them until the history reloads (same as edits today, FR-RT-05). Decide with the edit case.
 
+### Android app — Capacitor (docs/adr/0017, spec: [T-080-android-app.md](T-080-android-app.md))
+
+WebView loads the live site; native Kotlin owns push (FCM, encrypted), ringing, the full-screen
+call screen, the ongoing-call service, audio routes and PiP. APK served from our server.
+
+- [ ] T-080a — Capacitor shell in `apps/mobile` (`server.url`, `offline.html`), `MainActivity`
+      media/SW/permission setup, back button, App Links, `shared/native`, SW precache.
+- [ ] T-082 — CI-signed APK, `/downloads/android/` + `latest.json` on both deploy paths,
+      "Скачать для Android" on Android web, in-app update banner (FR-APP-01). Depends on T-080a.
+- [x] T-083 — Backend native transport: contracts, `NativePushDevice`, `sid` in the access token,
+      optional FCM env, FCM HTTP v1 + AES-GCM, transport routing, action tokens + reply/read
+      routes, `chat:read` push, test call.
+- [ ] T-083b — Android push client: messaging service, device key, registration from JS, logout
+      unregister, settings status. Depends on T-080a, T-083.
+- [ ] T-084 — Message notifications (reply/read/dismiss), channels, permissions screen +
+      checklist (FR-APP-05/07). Depends on T-083b.
+- [ ] T-085 — Native incoming call: ringing FGS, system ringtone, CallStyle + Compose
+      `IncomingCallActivity`, token decline, timeout, missed call (FR-APP-02/06). Depends on T-083b.
+- [ ] T-086 — Answer flow, `use-native-call-bridge`, ongoing-call FGS with chronometer,
+      core-telecom (FR-APP-03). Depends on T-085.
+- [ ] T-087 — Audio routes, proximity, GSM hold, headset button (FR-APP-04). Depends on T-086.
+- [ ] T-088 — Picture-in-picture for video calls (FR-APP-08). Depends on T-086.
+
 ## M7 — Open source
 
 License file, CONTRIBUTING.md, self-host guide (expand README.md's quickstart), "write your own

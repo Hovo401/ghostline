@@ -4,6 +4,7 @@ import { RealtimeEmitter } from "../realtime/realtime-emitter";
 import { StorageModule } from "../storage/storage.module";
 
 import { CallRingTimeoutProcessor } from "./calls.processor";
+import { FcmClient } from "./fcm.client";
 import { JobsModule } from "./jobs.module";
 import { MediaProcessor } from "./media.processor";
 import { NotificationsProcessor } from "./notifications.processor";
@@ -11,6 +12,12 @@ import { NotificationsProcessor } from "./notifications.processor";
 /** Imported only by WorkerModule — see worker.module.ts. */
 @Module({
   imports: [JobsModule, StorageModule],
-  providers: [MediaProcessor, CallRingTimeoutProcessor, NotificationsProcessor, RealtimeEmitter],
+  providers: [
+    MediaProcessor,
+    CallRingTimeoutProcessor,
+    NotificationsProcessor,
+    FcmClient,
+    RealtimeEmitter,
+  ],
 })
 export class ProcessorsModule {}

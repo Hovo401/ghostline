@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
-import type { Env } from "./env.schema";
+import { FcmServiceAccountSchema, type Env } from "./env.schema";
 
 /**
  * Typed facade over `@nestjs/config`. Nothing else in the app should read
@@ -81,6 +81,19 @@ export class AppConfigService {
       publicKey: this.config.get("VAPID_PUBLIC_KEY", { infer: true }),
       privateKey: this.config.get("VAPID_PRIVATE_KEY", { infer: true }),
       subject: this.config.get("VAPID_SUBJECT", { infer: true }),
+    };
+  }
+
+  /** `null` when FCM isn't configured — native push is then skipped entirely. */
+  get fcm(): { projectId: string; clientEmail: string; privateKey: string } | null {
+    const raw = this.config.get("FCM_SERVICE_ACCOUNT_JSON", { infer: true });
+    if (!raw) return null;
+    // Shape already checked by env.schema.ts at boot.
+    const key = FcmServiceAccountSchema.parse(JSON.parse(raw));
+    return {
+      projectId: key.project_id,
+      clientEmail: key.client_email,
+      privateKey: key.private_key,
     };
   }
 }

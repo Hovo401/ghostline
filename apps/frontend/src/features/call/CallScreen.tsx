@@ -3,6 +3,7 @@ import { useEffect } from "react";
 
 import { playRingback, useCallActions, useCallStore } from "../../entities/call";
 import { formatDuration } from "../../entities/message";
+import { useBackToClose } from "../../shared/lib/use-back-to-close";
 import { Avatar } from "../../shared/ui/avatar";
 import { HangupIcon } from "../../shared/ui/call-icons";
 import { IconButton } from "../../shared/ui/icon-button";
@@ -180,6 +181,10 @@ export function CallScreen({ session }: CallScreenProps) {
 
   const elapsedMs = useElapsedMs(phase === "active" ? (call?.answeredAt ?? null) : null);
   useWakeLock(phase === "active");
+  // Back on the fullscreen call minimizes it to the mini-bar, like Telegram
+  // — it never hangs up. Mirrors the render conditions below.
+  const connected = phase === "connecting" || phase === "active" || phase === "reconnecting";
+  useBackToClose(!minimized && (phase === "outgoing" || (connected && call !== null)), minimize);
 
   useEffect(() => {
     if (phase === "idle" || phase === "ended") return;
@@ -227,7 +232,6 @@ export function CallScreen({ session }: CallScreenProps) {
     );
   }
 
-  const connected = phase === "connecting" || phase === "active" || phase === "reconnecting";
   if (!connected || !call) return null;
 
   const showRemoteVideo = remoteVideoTrack !== null;

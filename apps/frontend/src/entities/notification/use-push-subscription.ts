@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
+import { create } from "zustand";
 
 import { apiFetch } from "../../shared/api/http-client";
 
@@ -78,6 +79,22 @@ async function registerSubscription(
 /** Several components mount this hook at once — sync with the server once per page load. */
 let syncOnce: Promise<void> | null = null;
 
+function initialStatus(): PushSubscriptionStatus {
+  return isPushSupported() ? "pending" : "unsupported";
+}
+
+/** One status for every mount: the first-open prompt, the chat-list banner
+ * and the settings tab are on screen together, and enabling push in one
+ * must flip the others too — per-mount state left the banner offering
+ * «Включить» right after the prompt had subscribed. */
+const usePushStatusStore = create<{ status: PushSubscriptionStatus }>(() => ({
+  status: initialStatus(),
+}));
+
+function setStatus(status: PushSubscriptionStatus): void {
+  usePushStatusStore.setState({ status });
+}
+
 /** Asks the server to push a test notification to every device of the
  * signed-in user — the same path real messages take. */
 export async function sendTestPush(): Promise<void> {
@@ -87,6 +104,7 @@ export async function sendTestPush(): Promise<void> {
 /** Test-only: forget the per-page-load sync. */
 export function resetPushSyncForTests(): void {
   syncOnce = null;
+  setStatus(initialStatus());
 }
 
 /**
@@ -97,9 +115,7 @@ export function resetPushSyncForTests(): void {
  * will even prompt, let alone grant.
  */
 export function usePushSubscription() {
-  const [status, setStatus] = useState<PushSubscriptionStatus>(
-    isPushSupported() ? "pending" : "unsupported",
-  );
+  const status = usePushStatusStore((state) => state.status);
 
   const refresh = useCallback(async (): Promise<void> => {
     if (!isPushSupported()) {

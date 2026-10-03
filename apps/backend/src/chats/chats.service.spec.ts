@@ -2,6 +2,7 @@ import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { describe, expect, it, vi } from "vitest";
 
+import { NotificationsService } from "../notifications/notifications.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { ChatEventsGateway } from "../realtime/chat-events.gateway";
 import { REDIS_CLIENT } from "../redis/redis.module";
@@ -69,6 +70,7 @@ async function buildChatsService(
       { provide: UsersService, useValue: fakeUsers },
       { provide: ChatEventsGateway, useValue: fakeEvents },
       { provide: StorageService, useValue: fakeStorage },
+      { provide: NotificationsService, useValue: { notifyChatRead: () => Promise.resolve() } },
       { provide: REDIS_CLIENT, useValue: fakeRedis },
     ],
   }).compile();

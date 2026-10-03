@@ -83,6 +83,7 @@ describe("buildNotificationOptions", () => {
       kind: "call:incoming",
       call: CALL,
       callerName: "Олег",
+      callerAvatarUrl: null,
       declineToken: "signed-token",
     };
     const built = buildNotificationOptions(payload);

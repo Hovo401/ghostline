@@ -26,8 +26,8 @@ export class TokenService {
     private readonly config: AppConfigService,
   ) {}
 
-  signAccessToken(userId: string): string {
-    const payload: AccessTokenPayload = { sub: userId };
+  signAccessToken(userId: string, sessionId: string): string {
+    const payload: AccessTokenPayload = { sub: userId, sid: sessionId };
     return this.jwt.sign(payload, {
       secret: this.config.jwt.accessSecret,
       expiresIn: ACCESS_TOKEN_TTL,

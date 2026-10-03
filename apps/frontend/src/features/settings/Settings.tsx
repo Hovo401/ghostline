@@ -1,19 +1,15 @@
-import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { getRouteApi } from "@tanstack/react-router";
 
+import { useInAppBack } from "../../shared/lib/use-in-app-back";
 import { SegmentedTabs } from "../../shared/ui/segmented-tabs";
 
 import { AppearanceTab } from "./AppearanceTab";
 import { LogoutButton } from "./LogoutButton";
 import { NotificationsTab } from "./NotificationsTab";
 import { ProfileTab } from "./ProfileTab";
+import { SETTINGS_TABS, type SettingsTab } from "./settings-tabs";
 
-const SETTINGS_TABS = [
-  { value: "profile", label: "Профиль" },
-  { value: "appearance", label: "Внешний вид" },
-  { value: "notifications", label: "Уведомления" },
-] as const;
-type SettingsTab = (typeof SETTINGS_TABS)[number]["value"];
+const settingsRoute = getRouteApi("/app/settings");
 
 /**
  * `onSettings` screen (DESIGN-BRIEF.md §7.3): desktop back arrow + section list,
@@ -25,20 +21,28 @@ type SettingsTab = (typeof SETTINGS_TABS)[number]["value"];
  * ("remaining settings sections").
  */
 export function Settings() {
-  const [tab, setTab] = useState<SettingsTab>("profile");
+  // The section lives in `?tab=` so links can deep-link into it; switching
+  // replaces rather than pushes — sections aren't steps Back should walk.
+  const tab = settingsRoute.useSearch({ select: (search) => search.tab }) ?? "profile";
+  const navigate = settingsRoute.useNavigate();
+  const setTab = (next: SettingsTab): void => {
+    void navigate({ search: { tab: next }, replace: true });
+  };
+  const goBack = useInAppBack();
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-bg text-fg">
+    <div className="flex h-full w-full overflow-hidden bg-bg text-fg">
       <div className="hidden w-65 flex-none flex-col gap-0.5 border-r border-line px-3 py-5.5 md:flex">
         <div className="flex items-center gap-1 pb-4">
-          <Link
-            to="/app"
+          <button
+            type="button"
+            onClick={goBack}
             aria-label="Назад к чатам"
             title="Назад к чатам"
             className="flex h-11 w-11 items-center justify-center rounded-xl text-xl hover:bg-bg2"
           >
             {"←"}
-          </Link>
+          </button>
           <span className="text-2xl font-medium tracking-tight">Настройки</span>
         </div>
         {SETTINGS_TABS.map((item) => (
@@ -61,13 +65,14 @@ export function Settings() {
 
       <div className="min-w-0 flex-1 overflow-y-auto">
         <div className="flex h-14 items-center gap-1.5 border-b border-line px-2.5 md:hidden">
-          <Link
-            to="/app"
+          <button
+            type="button"
+            onClick={goBack}
             aria-label="Назад"
             className="flex h-11 w-11 items-center justify-center text-xl"
           >
             {"←"}
-          </Link>
+          </button>
           <span className="text-[15px] text-mute">Настройки</span>
         </div>
         <div className="px-14 pt-4 md:hidden">

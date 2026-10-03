@@ -323,7 +323,10 @@ async function buildMessagesService(
   };
   const fakeRedis = { scard: () => Promise.resolve(0) };
   const fakeStorage = { createDownloadUrl: () => Promise.resolve("http://example.test/signed") };
-  const fakeNotifications = { notifyNewMessage: () => Promise.resolve() };
+  const fakeNotifications = {
+    notifyNewMessage: () => Promise.resolve(),
+    notifyChatRead: () => Promise.resolve(),
+  };
 
   const moduleRef = await Test.createTestingModule({
     providers: [

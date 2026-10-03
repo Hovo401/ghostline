@@ -8,6 +8,7 @@ import { IconButton } from "../../shared/ui/icon-button";
 import { TextField } from "../../shared/ui/text-field";
 
 import { useChatUiStore } from "./chat-ui-store";
+import { useOpenChat } from "./use-chat-navigation";
 
 /**
  * "Новый" → search users by username/name → open (or reuse) a direct chat
@@ -20,15 +21,18 @@ export function NewChatModal() {
   const { data: results, isLoading } = useUserSearch(query);
   const openDirectChat = useOpenDirectChat();
   const closeNewChatModal = useChatUiStore((state) => state.closeNewChatModal);
-  const selectChat = useChatUiStore((state) => state.selectChat);
+  const openChat = useOpenChat();
 
   const handlePick = (userId: string): void => {
     openDirectChat.mutate(
       { userId },
       {
+        // Replaces the modal's own history entry (`useOpenChat` sees it
+        // on top), and that replacement is what closes the modal
+        // (`useBackToClose` in its `Backdrop`) — Back from the chat then
+        // returns to the list, not to a dead "modal" step.
         onSuccess: (chat) => {
-          selectChat(chat.id);
-          closeNewChatModal();
+          openChat(chat.id);
         },
       },
     );

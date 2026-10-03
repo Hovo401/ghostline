@@ -123,6 +123,9 @@ export class MessagesService {
     );
     await this.pushChatUpdated(dto.chatId);
     await this.notifyPush(dto.chatId, wireMessage, userId);
+    // Sending marked the chat read for the sender (above) — their phones
+    // drop its notification, e.g. after replying from the PC.
+    await this.notifications.notifyChatRead(userId, dto.chatId, created.seq);
 
     return wireMessage;
   }

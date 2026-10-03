@@ -47,6 +47,8 @@ const pushCallIncomingPayloadSchema = z.object({
   kind: z.literal("call:incoming"),
   call: CallSchema,
   callerName: z.string(),
+  /** Presigned, short-lived — the Android call screen's avatar; `null` shows initials. */
+  callerAvatarUrl: z.string().url().nullable(),
   /** HMAC-signed, lets the SW's "Decline" action reject without an access token. */
   declineToken: z.string(),
 });
@@ -81,3 +83,114 @@ export type PushMessagePayload = z.infer<typeof pushMessagePayloadSchema>;
 export type PushCallIncomingPayload = z.infer<typeof pushCallIncomingPayloadSchema>;
 export type PushCallClosedPayload = z.infer<typeof pushCallClosedPayloadSchema>;
 export type PushCallMissedPayload = z.infer<typeof pushCallMissedPayloadSchema>;
+
+/**
+ * Android app (docs/adr/0017): `POST /notifications/native-devices`. The app
+ * generates `deviceKey` itself (AES-256, base64) and the worker encrypts
+ * every FCM payload for this device with it, so FCM only carries ciphertext.
+ */
+export const RegisterNativeDeviceBodySchema = z.object({
+  /** Stable per install — re-registering (FCM token rotation) upserts by it. */
+  deviceId: z.string().uuid(),
+  fcmToken: z.string().min(1).max(4096),
+  deviceKey: z.string().regex(/^[A-Za-z0-9+/]{43}=$/, "deviceKey must be 32 bytes, base64"),
+  appVersionCode: z.number().int().positive(),
+  platform: z.literal("android"),
+});
+export type RegisterNativeDeviceBody = z.infer<typeof RegisterNativeDeviceBodySchema>;
+
+/** `POST /notifications/test?kind=` — `call` sends the Android app a test call screen 5s later. */
+export const NotificationTestKindSchema = z.enum(["message", "call"]);
+export type NotificationTestKind = z.infer<typeof NotificationTestKindSchema>;
+
+/** `POST /messages/notification-reply?t=<actionToken>` — inline reply from the Android shade. */
+export const NotificationReplyBodySchema = z.object({
+  clientMessageId: z.string().uuid(),
+  text: z.string().min(1).max(4000),
+});
+export type NotificationReplyBody = z.infer<typeof NotificationReplyBodySchema>;
+
+/**
+ * What the Android app decrypts out of an FCM data message — a flat, compact
+ * projection of `PushPayload` (FCM data is capped at 4 KB) plus two
+ * native-only kinds: `chat:read` (dismiss a chat's notification after it was
+ * read on another device — Web Push can't send these, every push there must
+ * show a notification) and `test-call` ("Проверить звонок"). Text is already
+ * preview-resolved and truncated server-side, so the app never decides what
+ * to hide. `seq` travels as a decimal string (it's a bigint).
+ */
+const nativeMessagePushSchema = z.object({
+  kind: z.literal("message"),
+  chatId: z.string().uuid(),
+  messageId: z.string().uuid(),
+  seq: z.string(),
+  title: z.string(),
+  body: z.string(),
+  sentAt: z.string().datetime(),
+  /** Authorizes reply/mark-read for this chat without an access token. */
+  actionToken: z.string(),
+});
+
+const nativeCallIncomingPushSchema = z.object({
+  kind: z.literal("call:incoming"),
+  callId: z.string().uuid(),
+  chatId: z.string().uuid(),
+  callerName: z.string(),
+  callerAvatarUrl: z.string().url().nullable(),
+  video: z.boolean(),
+  declineToken: z.string(),
+  createdAt: z.string().datetime(),
+});
+
+const nativeCallClosedPushSchema = z.object({
+  kind: z.literal("call:closed"),
+  callId: z.string().uuid(),
+  reason: z.enum(["answered-elsewhere", "ended"]),
+});
+
+const nativeCallMissedPushSchema = z.object({
+  kind: z.literal("call:missed"),
+  callId: z.string().uuid(),
+  chatId: z.string().uuid(),
+  callerName: z.string(),
+  video: z.boolean(),
+});
+
+const nativeChatReadPushSchema = z.object({
+  kind: z.literal("chat:read"),
+  chatId: z.string().uuid(),
+  readSeq: z.string(),
+});
+
+const nativeTestPushSchema = z.object({ kind: z.literal("test") });
+
+const nativeTestCallPushSchema = z.object({
+  kind: z.literal("test-call"),
+  callerName: z.string(),
+});
+
+export const NativePushPayloadSchema = z.discriminatedUnion("kind", [
+  nativeMessagePushSchema,
+  nativeCallIncomingPushSchema,
+  nativeCallClosedPushSchema,
+  nativeCallMissedPushSchema,
+  nativeChatReadPushSchema,
+  nativeTestPushSchema,
+  nativeTestCallPushSchema,
+]);
+export type NativePushPayload = z.infer<typeof NativePushPayloadSchema>;
+export type NativeChatReadPush = z.infer<typeof nativeChatReadPushSchema>;
+export type NativeTestCallPush = z.infer<typeof nativeTestCallPushSchema>;
+
+/**
+ * The FCM `data` map (all values strings, per FCM): AES-256-GCM over the
+ * JSON of a `NativePushPayload`, keyed by the device's `deviceKey`, with the
+ * device's `deviceId` as additional authenticated data. `ct` includes the
+ * 16-byte GCM tag at its end (the layout `javax.crypto` expects).
+ */
+export const NativePushEnvelopeSchema = z.object({
+  v: z.literal("1"),
+  iv: z.string(),
+  ct: z.string(),
+});
+export type NativePushEnvelope = z.infer<typeof NativePushEnvelopeSchema>;

@@ -7,6 +7,13 @@
 
 export interface AccessTokenPayload {
   sub: string;
+  /**
+   * The login session (`Session.id`) this token was issued under — lets a
+   * route tie per-device state (an Android app's push registration,
+   * docs/adr/0017) to the session, so logging out removes it. Optional only
+   * for tokens minted before it existed; those expire within the 15 min TTL.
+   */
+  sid?: string;
 }
 
 export interface RefreshTokenPayload {

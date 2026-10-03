@@ -1,3 +1,5 @@
+import { isIosUserAgent } from "../../shared/lib/pwa-install";
+
 /**
  * Platform-specific nudge shown in `NotificationsTab` about what it takes to
  * actually receive pushes/calls with the app or browser closed (calls plan
@@ -10,12 +12,11 @@ export interface PlatformHint {
   text: string;
 }
 
-const IOS_UA_PATTERN = /iphone|ipad|ipod/i;
 const ANDROID_UA_PATTERN = /android/i;
 const DESKTOP_CHROMIUM_UA_PATTERN = /chrome|edg/i;
 
 export function detectPlatformHint(userAgent: string, standalone: boolean): PlatformHint | null {
-  if (IOS_UA_PATTERN.test(userAgent)) {
+  if (isIosUserAgent(userAgent)) {
     if (standalone) return null;
     return {
       kind: "ios",
@@ -40,16 +41,4 @@ export function detectPlatformHint(userAgent: string, standalone: boolean): Plat
   }
 
   return null;
-}
-
-/** Whether the page is currently running installed to the home screen /
- * standalone — the one bit `detectPlatformHint` needs beyond the UA string,
- * pulled out so the component can pass it in instead of the function
- * reaching for `window` itself. */
-export function isStandaloneDisplay(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(display-mode: standalone)").matches
-  );
 }

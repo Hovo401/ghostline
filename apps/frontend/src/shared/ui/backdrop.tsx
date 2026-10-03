@@ -1,8 +1,12 @@
 import { useEffect } from "react";
 
+import { useBackToClose } from "../lib/use-back-to-close";
+
 /**
  * Dimmed full-screen layer under a modal/side panel — clicking it or
- * pressing Escape closes whatever sits on top. Stays mounted while closed
+ * pressing Escape closes whatever sits on top, and so does the browser/phone
+ * Back (`useBackToClose` — every modal, side panel and popover built on
+ * this gets Telegram-style Back for free). Stays mounted while closed
  * (`open=false` fades it out and lets clicks through) so callers can
  * animate their own panel alongside it.
  */
@@ -14,6 +18,7 @@ export interface BackdropProps {
 }
 
 export function Backdrop({ open, onClose, className }: BackdropProps) {
+  useBackToClose(open, onClose);
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent): void => {

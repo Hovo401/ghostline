@@ -105,7 +105,10 @@ function LoginForm({ onSwitchToRegister }: { onSwitchToRegister: () => void }) {
       onSubmit={(event) => {
         event.preventDefault();
         if (!canSubmit) return;
-        login.mutate({ username, password }, { onSuccess: () => void navigate({ to: "/app" }) });
+        login.mutate(
+          { username, password },
+          { onSuccess: () => void navigate({ to: "/app", replace: true }) },
+        );
       }}
       className="flex flex-col gap-5.5"
     >
@@ -201,7 +204,7 @@ function RegisterForm() {
         // default it to the username; editable later in profile settings.
         register.mutate(
           { username: rawUsername, password, displayName: rawUsername },
-          { onSuccess: () => void navigate({ to: "/app" }) },
+          { onSuccess: () => void navigate({ to: "/app", replace: true }) },
         );
       }}
       className="flex flex-col gap-5.5"

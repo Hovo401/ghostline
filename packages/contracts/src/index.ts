@@ -139,6 +139,11 @@ export {
   NotificationSettingsSchema,
   NotificationSettingsPatchSchema,
   PushPayloadSchema,
+  RegisterNativeDeviceBodySchema,
+  NotificationTestKindSchema,
+  NotificationReplyBodySchema,
+  NativePushPayloadSchema,
+  NativePushEnvelopeSchema,
 } from "./notification/notification.schema";
 export type {
   PushSubscriptionKeys,
@@ -150,4 +155,11 @@ export type {
   PushCallIncomingPayload,
   PushCallClosedPayload,
   PushCallMissedPayload,
+  RegisterNativeDeviceBody,
+  NotificationTestKind,
+  NotificationReplyBody,
+  NativePushPayload,
+  NativeChatReadPush,
+  NativeTestCallPush,
+  NativePushEnvelope,
 } from "./notification/notification.schema";

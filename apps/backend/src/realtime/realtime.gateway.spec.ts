@@ -91,7 +91,7 @@ describe("RealtimeGateway", () => {
 
     it("joins the user's room and stores the verified userId for a valid token", async () => {
       const { gateway, tokens } = await buildGateway();
-      const token = tokens.signAccessToken("user-42");
+      const token = tokens.signAccessToken("user-42", "session-1");
       const socket = fakeSocket(token);
 
       gateway.handleConnection(socket as never);
@@ -111,7 +111,7 @@ describe("RealtimeGateway", () => {
       const { server, emitted } = createFakeServer();
       gateway.server = server as never;
 
-      const token = tokens.signAccessToken("user-42");
+      const token = tokens.signAccessToken("user-42", "session-1");
       const socket = fakeSocket(token);
       gateway.handleConnection(socket as never);
 
@@ -139,7 +139,7 @@ describe("RealtimeGateway", () => {
       const { server, emitted } = createFakeServer();
       gateway.server = server as never;
 
-      const token = tokens.signAccessToken("user-42");
+      const token = tokens.signAccessToken("user-42", "session-1");
       const socket = fakeSocket(token);
       gateway.handleConnection(socket as never);
 

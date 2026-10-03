@@ -16,3 +16,5 @@ livekit_api_secret: ""
 # npx web-push generate-vapid-keys
 vapid_public_key: ""
 vapid_private_key: ""
+# Firebase service-account key JSON (docs/adr/0017), optional — empty disables Android push.
+fcm_service_account_json: ""

@@ -24,7 +24,7 @@ export function LogoutButton({ className }: { className?: string }) {
       });
     }
     logout.mutate(undefined, {
-      onSettled: () => void navigate({ to: "/login" }),
+      onSettled: () => void navigate({ to: "/login", replace: true }),
     });
   };
 

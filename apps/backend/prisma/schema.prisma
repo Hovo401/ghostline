@@ -45,6 +45,7 @@ model User {
   callsMade         Call[]            @relation("CallCaller")
   callsReceived     Call[]            @relation("CallCallee")
   pushSubscriptions PushSubscription[]
+  nativePushDevices NativePushDevice[]
 
   @@map("users")
 }
@@ -66,6 +67,8 @@ model Session {
   expiresAt  DateTime
   revokedAt  DateTime?
   createdAt  DateTime  @default(now())
+
+  nativePushDevices NativePushDevice[]
 
   @@index([userId])
   @@index([familyId])
@@ -263,4 +266,27 @@ model PushSubscription {
 
   @@index([userId])
   @@map("push_subscriptions")
+}
+
+/// One installed Android app (docs/adr/0017). Tied to the login session that
+/// registered it: logging out (or the session's refresh family being revoked)
+/// deletes it, so a logged-out phone stops ringing. `encKey` is the
+/// device-generated AES-256 key every FCM payload for it is encrypted with.
+model NativePushDevice {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @db.Uuid
+  sessionId      String    @db.Uuid
+  deviceId       String    @unique @db.Uuid
+  fcmToken       String    @unique
+  encKey         String
+  appVersionCode Int
+  createdAt      DateTime  @default(now())
+  lastSuccessAt  DateTime?
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@map("native_push_devices")
 }

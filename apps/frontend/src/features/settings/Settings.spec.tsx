@@ -3,6 +3,7 @@ import {
   RouterProvider,
   createMemoryHistory,
   createRootRoute,
+  createRoute,
   createRouter,
 } from "@tanstack/react-router";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
@@ -12,6 +13,7 @@ import { apiFetch } from "../../shared/api/http-client";
 import { useSessionStore } from "../../shared/api/session-store";
 
 import { Settings } from "./Settings";
+import { isSettingsTab } from "./settings-tabs";
 
 vi.mock("../../shared/api/http-client", () => ({
   apiFetch: vi.fn(),
@@ -30,13 +32,20 @@ const ME = {
   readReceipts: true,
 };
 
-// Same idea as features/chat/Chat.spec.tsx — a single-root-route router is
-// enough for a component that only uses `Link`, no nested route matching.
-function renderSettings() {
-  const rootRoute = createRootRoute({ component: Settings });
+// Mirrors `routes/app/settings.tsx`'s id and `?tab=` validation — Settings
+// reads its section through `getRouteApi("/app/settings")`.
+function renderSettings(path = "/app/settings") {
+  const rootRoute = createRootRoute();
+  const settingsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/app/settings",
+    validateSearch: (search: Record<string, unknown>) =>
+      isSettingsTab(search.tab) ? { tab: search.tab } : {},
+    component: Settings,
+  });
   const router = createRouter({
-    routeTree: rootRoute,
-    history: createMemoryHistory({ initialEntries: ["/settings"] }),
+    routeTree: rootRoute.addChildren([settingsRoute]),
+    history: createMemoryHistory({ initialEntries: [path] }),
   });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -46,8 +55,8 @@ function renderSettings() {
   );
 }
 
-async function renderAndSettle() {
-  const view = renderSettings();
+async function renderAndSettle(path?: string) {
+  const view = renderSettings(path);
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
@@ -81,6 +90,14 @@ describe("Settings", () => {
     // `"button"` — this targets the desktop section-list item specifically.
     fireEvent.click(screen.getByRole("button", { name: "Внешний вид" }));
 
-    expect(screen.getByRole("heading", { name: "Внешний вид" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Внешний вид" })).toBeInTheDocument();
+  });
+
+  // Regression: the chat list's notifications banner linked to settings and
+  // always landed on «Профиль».
+  it("opens the section named in ?tab=", async () => {
+    await renderAndSettle("/app/settings?tab=notifications");
+
+    expect(await screen.findByRole("heading", { name: "Уведомления" })).toBeInTheDocument();
   });
 });
