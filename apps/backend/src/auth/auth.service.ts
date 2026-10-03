@@ -103,10 +103,15 @@ export class AuthService {
         where: { familyId: session.familyId, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+      // Revoking is a soft update, so the `onDelete: Cascade` never fires —
+      // a phone of a hijacked family must stop receiving pushes now.
+      await this.prisma.nativePushDevice.deleteMany({
+        where: { session: { familyId: session.familyId } },
+      });
       throw new UnauthorizedException("refresh token reuse detected");
     }
 
-    const accessToken = this.tokens.signAccessToken(session.userId);
+    const accessToken = this.tokens.signAccessToken(session.userId, session.id);
     const refreshToken = this.tokens.signRefreshToken({
       sub: session.userId,
       sid: session.id,
@@ -138,6 +143,8 @@ export class AuthService {
         where: { id: payload.sid, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+      // A logged-out phone must stop ringing (docs/adr/0017).
+      await this.prisma.nativePushDevice.deleteMany({ where: { sessionId: payload.sid } });
     } catch {
       // Invalid/expired token: nothing to revoke, cookie gets cleared by
       // the caller regardless.
@@ -159,7 +166,7 @@ export class AuthService {
       },
     });
 
-    return { accessToken: this.tokens.signAccessToken(userId), refreshToken };
+    return { accessToken: this.tokens.signAccessToken(userId, sessionId), refreshToken };
   }
 
   /**

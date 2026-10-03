@@ -10,6 +10,8 @@ import { TokenService } from "./token.service";
 export interface AuthenticatedRequest {
   headers: { authorization?: string };
   userId: string;
+  /** Absent only on tokens minted before `sid` existed — see `AccessTokenPayload`. */
+  sessionId?: string;
 }
 
 /**
@@ -30,6 +32,7 @@ export class AccessTokenGuard implements CanActivate {
     }
     const payload = this.tokens.verifyAccessToken(token);
     request.userId = payload.sub;
+    request.sessionId = payload.sid;
     return true;
   }
 }

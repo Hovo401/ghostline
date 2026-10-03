@@ -9,6 +9,7 @@ import { UsersModule } from "../users/users.module";
 
 import { MessagesController } from "./messages.controller";
 import { MessagesService } from "./messages.service";
+import { NotificationReplyController } from "./notification-reply.controller";
 
 @Module({
   imports: [
@@ -19,7 +20,7 @@ import { MessagesService } from "./messages.service";
     StorageModule,
     NotificationsModule,
   ],
-  controllers: [MessagesController],
+  controllers: [MessagesController, NotificationReplyController],
   providers: [MessagesService],
   exports: [MessagesService],
 })

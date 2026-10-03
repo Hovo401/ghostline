@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import type { Call, CallStatus } from "@ghostline/contracts";
+import type { Call, CallStatus, PushCallIncomingPayload } from "@ghostline/contracts";
 import type { Call as PrismaCall, CallStatus as PrismaCallStatus } from "@prisma/client";
 
 /**
@@ -56,6 +56,25 @@ export function busyLockKey(userId: string): string {
  */
 export function signDeclineToken(secret: string, callId: string): string {
   return createHmac("sha256", secret).update(callId).digest("base64url");
+}
+
+/**
+ * The `call:incoming` push, built in one place for both its first send
+ * (`NotificationsService.notifyCallIncoming`) and the worker's ring repeats.
+ */
+export function callIncomingPush(
+  call: Call,
+  callerName: string,
+  callerAvatarUrl: string | null,
+  secret: string,
+): PushCallIncomingPayload {
+  return {
+    kind: "call:incoming",
+    call,
+    callerName,
+    callerAvatarUrl,
+    declineToken: signDeclineToken(secret, call.id),
+  };
 }
 
 export function verifyDeclineToken(secret: string, callId: string, token: string): boolean {

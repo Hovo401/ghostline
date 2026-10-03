@@ -22,7 +22,7 @@ export const Route = createFileRoute("/login")({
       // TanStack Router's redirect() is meant to be thrown from `beforeLoad`
       // — it's a plain routing signal, not an Error subclass.
       // eslint-disable-next-line @typescript-eslint/only-throw-error
-      throw redirect({ to: "/app" });
+      throw redirect({ to: "/app", replace: true });
     }
   },
   component: Auth,

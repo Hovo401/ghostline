@@ -1,5 +1,7 @@
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 
+import { IOS_INSTALL_HINT, usePwaInstall } from "../../shared/lib/pwa-install";
 import { GhostField } from "../../shared/ui/ghost-field";
 import { Scramble } from "../../shared/ui/scramble";
 
@@ -49,6 +51,35 @@ function scrollToNextStage() {
   window.scrollTo({ top: window.innerHeight, behavior: "smooth" });
 }
 
+/** Nav "Установить" — only where the app can be installed and isn't yet
+ * (`usePwaInstall`). iOS Safari has no install API, so there it reveals the
+ * manual steps under the button instead. */
+function InstallAppButton() {
+  const { mode, install } = usePwaInstall();
+  const [showIosHint, setShowIosHint] = useState(false);
+  if (mode === null) return null;
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => {
+          if (mode === "prompt") void install();
+          else setShowIosHint((shown) => !shown);
+        }}
+        className="flex h-10 cursor-pointer items-center rounded-xl border border-line bg-bg px-4.5 text-sm"
+      >
+        Установить
+      </button>
+      {showIosHint && (
+        <p className="absolute top-12 right-0 w-56 rounded-xl border border-line bg-panel p-3 text-xs text-mute">
+          {IOS_INSTALL_HINT}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function Landing() {
   return (
     <div className="text-fg">
@@ -80,6 +111,7 @@ export function Landing() {
                 <span>Возможности</span>
                 <span>Помощь</span>
               </div>
+              <InstallAppButton />
               <Link
                 to="/login"
                 search={{ tab: "login" }}

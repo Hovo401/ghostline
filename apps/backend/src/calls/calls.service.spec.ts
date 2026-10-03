@@ -284,7 +284,7 @@ describe("CallsService", () => {
       );
       expect(fakeNotifications.notifyCallIncoming).toHaveBeenCalledWith(
         expect.objectContaining({ id: join.call.id }),
-        "Alice",
+        expect.objectContaining({ displayName: "Alice" }),
       );
       expect(fakeQueue.add).toHaveBeenCalledWith(
         "ring-timeout",

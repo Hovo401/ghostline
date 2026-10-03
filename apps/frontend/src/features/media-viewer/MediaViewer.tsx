@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 
 import { downloadAttachment, useMediaSource, useMediaViewerStore } from "../../entities/attachment";
 import { formatDuration } from "../../entities/message";
+import { useBackToClose } from "../../shared/lib/use-back-to-close";
 import { IconButton } from "../../shared/ui/icon-button";
 import { RoundVideo } from "../../shared/ui/round-video";
 
@@ -156,6 +157,7 @@ export function MediaViewer() {
     mode === "gallery" ? attachment !== null : mode === "text" && textAttachment !== null;
   const dialogRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  useBackToClose(isOpen, close);
   // A copy the chat already cached opens instantly and offline; otherwise
   // the plain URL — the browser renders/streams it progressively.
   const cached = useMediaSource(attachment, { autoDownload: false, observe: false });

@@ -1,16 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { selectActiveUploadCount, useUploadQueueStore } from "../../entities/attachment";
 import { useCallActions, useCallStore } from "../../entities/call";
 import { type ChatListItem, useMarkChatRead, useTypingStore } from "../../entities/chat";
 import { useMessages } from "../../entities/message";
 import { useCurrentUserId } from "../../entities/user";
+import { useInAppBack } from "../../shared/lib/use-in-app-back";
 import { Avatar } from "../../shared/ui/avatar";
 import { PhoneIcon, VideoCameraIcon } from "../../shared/ui/call-icons";
 import { IconButton } from "../../shared/ui/icon-button";
 
 import { AudioPlayerBar } from "./AudioPlayerBar";
-import { useChatUiStore } from "./chat-ui-store";
 import { Composer } from "./Composer";
 import { chatDisplayName } from "./format";
 import { MessageFeed } from "./MessageFeed";
@@ -29,10 +29,16 @@ export function ChatThreadPanel({ chat, className }: ChatThreadPanelProps) {
   const markRead = useMarkChatRead();
   const { start: startCall } = useCallActions();
   const callInProgress = useCallStore((state) => state.phase !== "idle");
-  const closeChat = useChatUiStore((state) => state.closeChat);
-  const profilePanelOpen = useChatUiStore((state) => state.profilePanelOpen);
-  const openProfilePanel = useChatUiStore((state) => state.openProfilePanel);
-  const closeProfilePanel = useChatUiStore((state) => state.closeProfilePanel);
+  const closeChat = useInAppBack();
+  // Local, not store state: this panel is keyed per chat (Chat.tsx), so a
+  // chat switch starts with the profile closed for free.
+  const [profilePanelOpen, setProfilePanelOpen] = useState(false);
+  const openProfilePanel = (): void => {
+    setProfilePanelOpen(true);
+  };
+  const closeProfilePanel = (): void => {
+    setProfilePanelOpen(false);
+  };
   const peerId = chat.peer?.id;
   const peerTyping = useTypingStore(
     (state) => peerId !== undefined && state.byChat[chat.id]?.userId === peerId,

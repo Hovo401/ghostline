@@ -2,7 +2,8 @@ import { InjectQueue, Processor, WorkerHost } from "@nestjs/bullmq";
 import { Logger } from "@nestjs/common";
 import type { Job, Queue } from "bullmq";
 
-import { signDeclineToken, toWireCall } from "../calls/call.util";
+import { toAvatarUrl } from "../attachments/attachment.util";
+import { callIncomingPush, toWireCall } from "../calls/call.util";
 import { AppConfigService } from "../config/app-config.service";
 import {
   createCallMessageRow,
@@ -62,7 +63,8 @@ export class CallRingTimeoutProcessor extends WorkerHost {
    * `CallsService.start`, which schedules up to `RING_REPEAT_COUNT` of
    * these). A call already resolved by the time this fires is a no-op —
    * nothing to cancel, the remaining scheduled repeats just do the same
-   * check and no-op too.
+   * check and no-op too. Web Push only: the Android app rings continuously
+   * on its own from the first push (docs/adr/0017), a repeat would restart it.
    */
   private async processRingRepeat(callId: string): Promise<void> {
     const call = await this.prisma.call.findUnique({ where: { id: callId } });
@@ -76,17 +78,18 @@ export class CallRingTimeoutProcessor extends WorkerHost {
 
     const caller = await this.prisma.user.findUniqueOrThrow({
       where: { id: call.callerId },
-      select: { displayName: true },
+      select: { displayName: true, avatarKey: true },
     });
 
     await this.notifications.add("push", {
       userId: call.calleeId,
-      payload: {
-        kind: "call:incoming",
-        call: toWireCall(call),
-        callerName: caller.displayName,
-        declineToken: signDeclineToken(this.config.jwt.accessSecret, call.id),
-      },
+      payload: callIncomingPush(
+        toWireCall(call),
+        caller.displayName,
+        await toAvatarUrl(caller.avatarKey, this.storage),
+        this.config.jwt.accessSecret,
+      ),
+      transports: ["web"],
     });
   }
 

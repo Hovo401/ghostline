@@ -1,9 +1,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook } from "@testing-library/react";
-import type { ReactNode } from "react";
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from "@tanstack/react-router";
+import { act, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useChatUiStore } from "./chat-ui-store";
 import { useServiceWorkerMessages } from "./use-service-worker-messages";
 
 const acceptMock = vi.fn();
@@ -28,17 +33,39 @@ function stubServiceWorker(): void {
   });
 }
 
-function renderWithClient(): void {
-  const queryClient = new QueryClient();
-  const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+function Probe() {
+  useServiceWorkerMessages();
+  return null;
+}
+
+async function renderInApp() {
+  const rootRoute = createRootRoute();
+  const appRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/app",
+    component: Probe,
+    validateSearch: (search: Record<string, unknown>) => search,
+  });
+  const router = createRouter({
+    routeTree: rootRoute.addChildren([appRoute]),
+    history: createMemoryHistory({ initialEntries: ["/app"] }),
+  });
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
   );
-  renderHook(
-    () => {
-      useServiceWorkerMessages();
-    },
-    { wrapper },
-  );
+  await act(async () => {
+    await Promise.resolve();
+  });
+  return router;
+}
+
+async function postMessage(data: unknown): Promise<void> {
+  await act(async () => {
+    listeners.get("message")?.({ data } as MessageEvent);
+    await Promise.resolve();
+  });
 }
 
 describe("useServiceWorkerMessages", () => {
@@ -46,7 +73,6 @@ describe("useServiceWorkerMessages", () => {
     listeners.clear();
     acceptMock.mockClear();
     stubServiceWorker();
-    useChatUiStore.setState({ selectedChatId: null });
   });
 
   afterEach(() => {
@@ -54,26 +80,22 @@ describe("useServiceWorkerMessages", () => {
     delete navigator.serviceWorker;
   });
 
-  it("selects the chat handed off from a message notification click", () => {
-    renderWithClient();
-    listeners.get("message")?.({
-      data: { source: "ghostline-notification-click", chatId: "chat-1" },
-    } as MessageEvent);
-    expect(useChatUiStore.getState().selectedChatId).toBe("chat-1");
+  it("opens the chat handed off from a message notification click", async () => {
+    const router = await renderInApp();
+    await postMessage({ source: "ghostline-notification-click", chatId: "chat-1" });
+    expect(router.state.location.search).toEqual({ chat: "chat-1" });
   });
 
-  it("accepts the call handed off from an incoming-call notification click", () => {
-    renderWithClient();
-    listeners.get("message")?.({
-      data: { source: "ghostline-notification-click", callId: "call-1", answer: true },
-    } as MessageEvent);
+  it("accepts the call handed off from an incoming-call notification click", async () => {
+    await renderInApp();
+    await postMessage({ source: "ghostline-notification-click", callId: "call-1", answer: true });
     expect(acceptMock).toHaveBeenCalledWith("call-1");
   });
 
-  it("ignores messages from a different source", () => {
-    renderWithClient();
-    listeners.get("message")?.({ data: { source: "something-else" } } as MessageEvent);
+  it("ignores messages from a different source", async () => {
+    const router = await renderInApp();
+    await postMessage({ source: "something-else" });
     expect(acceptMock).not.toHaveBeenCalled();
-    expect(useChatUiStore.getState().selectedChatId).toBeNull();
+    expect(router.state.location.search).toEqual({});
   });
 });

@@ -12,6 +12,7 @@ import type Redis from "ioredis";
 import { toAvatarUrl, toWireAttachment } from "../attachments/attachment.util";
 import { computePresenceView, isMutuallyVisible } from "../common/visibility.util";
 import { MESSAGE_INCLUDE, resolveMessageStatus, toWireMessage } from "../messages/message.util";
+import { NotificationsService } from "../notifications/notifications.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { ChatEventsGateway } from "../realtime/chat-events.gateway";
 import { isOnline } from "../realtime/presence.service";
@@ -30,6 +31,7 @@ export class ChatsService {
     private readonly users: UsersService,
     private readonly events: ChatEventsGateway,
     private readonly storage: StorageService,
+    private readonly notifications: NotificationsService,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
   ) {}
 
@@ -118,6 +120,8 @@ export class ChatsService {
     this.events.server
       .to(`user:${userId}`)
       .emit("chat:updated", await this.getChatListItemForUser(chatId, userId));
+    // Same for the reader's phones: the chat's notification has nothing left to show.
+    await this.notifications.notifyChatRead(userId, chatId, target);
 
     const others = await this.prisma.chatMember.findMany({
       where: { chatId, userId: { not: userId } },

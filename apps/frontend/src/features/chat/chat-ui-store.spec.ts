@@ -4,8 +4,6 @@ import { useChatUiStore } from "./chat-ui-store";
 
 function reset(): void {
   useChatUiStore.setState({
-    selectedChatId: null,
-    profilePanelOpen: false,
     newChatModalOpen: false,
     listFilter: "",
     drafts: {},
@@ -15,24 +13,6 @@ function reset(): void {
 
 describe("useChatUiStore", () => {
   beforeEach(reset);
-
-  it("selecting a chat opens it and closes the profile panel", () => {
-    useChatUiStore.getState().openProfilePanel();
-    useChatUiStore.getState().selectChat("chat-1");
-
-    expect(useChatUiStore.getState().selectedChatId).toBe("chat-1");
-    expect(useChatUiStore.getState().profilePanelOpen).toBe(false);
-  });
-
-  it("closeChat clears the selected chat and the profile panel", () => {
-    useChatUiStore.getState().selectChat("chat-1");
-    useChatUiStore.getState().openProfilePanel();
-
-    useChatUiStore.getState().closeChat();
-
-    expect(useChatUiStore.getState().selectedChatId).toBeNull();
-    expect(useChatUiStore.getState().profilePanelOpen).toBe(false);
-  });
 
   it("keeps drafts per chat independently", () => {
     useChatUiStore.getState().setDraft("chat-1", "Привет");

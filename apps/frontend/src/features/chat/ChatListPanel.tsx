@@ -9,7 +9,9 @@ import { Avatar } from "../../shared/ui/avatar";
 import { useChatUiStore } from "./chat-ui-store";
 import { ChatListRow } from "./ChatListRow";
 import { chatDisplayName } from "./format";
+import { InstallAppBanner } from "./InstallAppBanner";
 import { NotificationInviteBanner } from "./NotificationInviteBanner";
+import { useOpenChat, useSelectedChatId } from "./use-chat-navigation";
 
 /** Chat list column — DESIGN-BRIEF.md §7.2: header + "Новый", search, rows
  * (avatar/name/time/preview or typing, unread badge). On phone this is the
@@ -17,8 +19,8 @@ import { NotificationInviteBanner } from "./NotificationInviteBanner";
 export function ChatListPanel({ className }: { className?: string }) {
   const { data: chats, isLoading } = useChats();
   const currentUserId = useCurrentUserId();
-  const selectedChatId = useChatUiStore((state) => state.selectedChatId);
-  const selectChat = useChatUiStore((state) => state.selectChat);
+  const selectedChatId = useSelectedChatId();
+  const openChat = useOpenChat();
   const listFilter = useChatUiStore((state) => state.listFilter);
   const setListFilter = useChatUiStore((state) => state.setListFilter);
   const me = useSessionStore((state) => state.user);
@@ -53,7 +55,8 @@ export function ChatListPanel({ className }: { className?: string }) {
             Новый
           </button>
           <Link
-            to="/settings"
+            to="/app/settings"
+            state={{ inAppBack: true }}
             aria-label="Настройки"
             title="Настройки"
             className="flex h-8.5 w-8.5 items-center justify-center rounded-xl border border-line text-base md:hidden"
@@ -72,6 +75,7 @@ export function ChatListPanel({ className }: { className?: string }) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 pb-2">
+        <InstallAppBanner />
         <NotificationInviteBanner />
         {isLoading && <p className="p-3 font-mono text-xs text-mute">Загрузка…</p>}
         {!isLoading && filtered.length === 0 && (
@@ -83,7 +87,7 @@ export function ChatListPanel({ className }: { className?: string }) {
             chat={chat}
             active={chat.id === selectedChatId}
             currentUserId={currentUserId}
-            onSelect={selectChat}
+            onSelect={openChat}
           />
         ))}
       </div>
@@ -92,7 +96,8 @@ export function ChatListPanel({ className }: { className?: string }) {
        * the settings button lives in the header instead. */}
       {me && (
         <Link
-          to="/settings"
+          to="/app/settings"
+          state={{ inAppBack: true }}
           className="hidden items-center gap-3 border-t border-line px-4.5 pt-3 pb-4 hover:bg-bg2 md:flex"
         >
           <Avatar name={me.displayName} src={me.avatarUrl ?? undefined} size={46} />

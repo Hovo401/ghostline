@@ -22,7 +22,7 @@ async function buildTokenService() {
 describe("TokenService", () => {
   it("round-trips an access token", async () => {
     const tokens = await buildTokenService();
-    const token = tokens.signAccessToken("user-1");
+    const token = tokens.signAccessToken("user-1", "session-1");
     // `verify` also returns the standard `iat`/`exp` claims jsonwebtoken adds
     // on sign — only the claims this service put there are asserted here.
     expect(tokens.verifyAccessToken(token)).toMatchObject({ sub: "user-1" });

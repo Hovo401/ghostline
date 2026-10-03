@@ -1,21 +1,26 @@
-import type { NotificationSettings } from "@ghostline/contracts";
+import { NotificationTestKindSchema, type NotificationSettings } from "@ghostline/contracts";
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
   HttpCode,
+  Param,
+  ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from "@nestjs/common";
 
 import { AccessTokenGuard } from "../auth/access-token.guard";
-import { CurrentUserId } from "../auth/current-user.decorator";
+import { CurrentSessionId, CurrentUserId } from "../auth/current-user.decorator";
 
 import { NotificationSettingsPatchDto } from "./dto/notification-settings-patch.dto";
 import { PushSubscriptionDto } from "./dto/push-subscription.dto";
+import { RegisterNativeDeviceDto } from "./dto/register-native-device.dto";
 import { UnsubscribeDto } from "./dto/unsubscribe.dto";
 import { NotificationsService } from "./notifications.service";
 
@@ -50,10 +55,31 @@ export class NotificationsController {
     return this.notifications.unsubscribe(userId, dto.endpoint);
   }
 
+  @Post("native-devices")
+  @HttpCode(204)
+  registerNativeDevice(
+    @CurrentUserId() userId: string,
+    @CurrentSessionId() sessionId: string,
+    @Body() dto: RegisterNativeDeviceDto,
+  ): Promise<void> {
+    return this.notifications.registerNativeDevice(userId, sessionId, dto);
+  }
+
+  @Delete("native-devices/:deviceId")
+  @HttpCode(204)
+  unregisterNativeDevice(
+    @CurrentUserId() userId: string,
+    @Param("deviceId", ParseUUIDPipe) deviceId: string,
+  ): Promise<void> {
+    return this.notifications.unregisterNativeDevice(userId, deviceId);
+  }
+
   @Post("test")
   @HttpCode(204)
-  sendTest(@CurrentUserId() userId: string): Promise<void> {
-    return this.notifications.sendTest(userId);
+  sendTest(@CurrentUserId() userId: string, @Query("kind") kind?: string): Promise<void> {
+    const parsed = NotificationTestKindSchema.optional().safeParse(kind);
+    if (!parsed.success) throw new BadRequestException("kind must be message or call");
+    return this.notifications.sendTest(userId, parsed.data);
   }
 
   @Get("settings")

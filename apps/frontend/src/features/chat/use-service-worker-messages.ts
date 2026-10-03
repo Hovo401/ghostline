@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 import { useCallActions } from "../../entities/call";
 
-import { useChatUiStore } from "./chat-ui-store";
+import { useOpenChat } from "./use-chat-navigation";
 
 interface NotificationClickHandoffMessage {
   source: "ghostline-notification-click";
@@ -25,7 +25,7 @@ function isNotificationClickHandoff(data: unknown): data is NotificationClickHan
  * which chat it was for, so the page opens straight to it instead of
  * landing on whatever was already selected; clicking (or hitting "Ответить"
  * on) a call push's notification posts `callId`+`answer` instead, so this
- * tab actually answers the call. Mount once (`Chat.tsx`).
+ * tab actually answers the call. Mount once (`useMessengerSession`).
  *
  * The push-time visible-tab handoff (`source: "ghostline-push"`) isn't
  * handled here — a visible tab already has the real update over the WS
@@ -34,7 +34,7 @@ function isNotificationClickHandoff(data: unknown): data is NotificationClickHan
  * this app doesn't have yet (see `sw.ts`'s matching comment).
  */
 export function useServiceWorkerMessages(): void {
-  const selectChat = useChatUiStore((state) => state.selectChat);
+  const openChat = useOpenChat();
   const { accept } = useCallActions();
 
   useEffect(() => {
@@ -42,7 +42,7 @@ export function useServiceWorkerMessages(): void {
 
     const handleMessage = (event: MessageEvent): void => {
       if (!isNotificationClickHandoff(event.data)) return;
-      if (event.data.chatId) selectChat(event.data.chatId);
+      if (event.data.chatId) openChat(event.data.chatId);
       if (event.data.callId && event.data.answer) accept(event.data.callId);
     };
 
@@ -50,5 +50,5 @@ export function useServiceWorkerMessages(): void {
     return () => {
       navigator.serviceWorker.removeEventListener("message", handleMessage);
     };
-  }, [selectChat, accept]);
+  }, [openChat, accept]);
 }

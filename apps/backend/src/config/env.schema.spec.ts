@@ -40,4 +40,35 @@ describe("validateEnv", () => {
       /JWT_ACCESS_SECRET/,
     );
   });
+
+  describe("FCM_SERVICE_ACCOUNT_JSON", () => {
+    const serviceAccount = JSON.stringify({
+      project_id: "ghostline",
+      client_email: "push@ghostline.iam.gserviceaccount.com",
+      private_key: "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n",
+    });
+
+    it("is optional, and an empty value counts as unset", () => {
+      expect(validateEnv(validConfig).FCM_SERVICE_ACCOUNT_JSON).toBeUndefined();
+      expect(
+        validateEnv({ ...validConfig, FCM_SERVICE_ACCOUNT_JSON: "" }).FCM_SERVICE_ACCOUNT_JSON,
+      ).toBeUndefined();
+    });
+
+    it("accepts a service-account key JSON", () => {
+      expect(
+        validateEnv({ ...validConfig, FCM_SERVICE_ACCOUNT_JSON: serviceAccount })
+          .FCM_SERVICE_ACCOUNT_JSON,
+      ).toBe(serviceAccount);
+    });
+
+    it("rejects something that isn't one", () => {
+      expect(() => validateEnv({ ...validConfig, FCM_SERVICE_ACCOUNT_JSON: "{}" })).toThrow(
+        /FCM_SERVICE_ACCOUNT_JSON/,
+      );
+      expect(() => validateEnv({ ...validConfig, FCM_SERVICE_ACCOUNT_JSON: "not json" })).toThrow(
+        /FCM_SERVICE_ACCOUNT_JSON/,
+      );
+    });
+  });
 });

@@ -34,7 +34,7 @@ async function buildProcessor(call: FakeCallRow, notifyCalls = true) {
     },
     user: {
       findUnique: vi.fn(() => Promise.resolve({ notifyCalls })),
-      findUniqueOrThrow: vi.fn(() => Promise.resolve({ displayName: "Alice" })),
+      findUniqueOrThrow: vi.fn(() => Promise.resolve({ displayName: "Alice", avatarKey: null })),
     },
   };
   const config = { jwt: { accessSecret: ACCESS_SECRET, refreshSecret: ACCESS_SECRET } };
@@ -99,6 +99,8 @@ describe("CallRingTimeoutProcessor — ring-repeat", () => {
       expect.objectContaining({
         userId: "bob",
         payload: expect.objectContaining({ kind: "call:incoming", callerName: "Alice" }),
+        // The Android app rings on its own — repeats are for Web Push only.
+        transports: ["web"],
       }),
     );
   });

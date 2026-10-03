@@ -70,4 +70,4 @@ silent-with-no-notification push looks identical to a bug from the user's side.
 
 A full lock-screen call experience like a native messenger's requires a native wrapper (e.g.
 Capacitor/TWA with FCM + `ConnectionService`) — out of scope here; this ADR's decision covers what
-a browser-only client can do.
+a browser-only client can do. The Android app that does this is docs/adr/0017.

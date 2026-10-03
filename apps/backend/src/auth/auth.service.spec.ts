@@ -44,10 +44,33 @@ interface FakeSessionRow {
 function createFakePrisma() {
   const users = new Map<string, FakeUserRow>();
   const sessions = new Map<string, FakeSessionRow>();
+  /** `NativePushDevice` rows, by device id → owning session id. */
+  const nativeDevices = new Map<string, string>();
 
   return {
     users,
     sessions,
+    nativeDevices,
+    nativePushDevice: {
+      deleteMany: ({
+        where,
+      }: {
+        where: { sessionId?: string; session?: { familyId: string } };
+      }) => {
+        let count = 0;
+        for (const [deviceId, sessionId] of nativeDevices) {
+          const matches =
+            where.sessionId !== undefined
+              ? sessionId === where.sessionId
+              : sessions.get(sessionId)?.familyId === where.session?.familyId;
+          if (matches) {
+            nativeDevices.delete(deviceId);
+            count += 1;
+          }
+        }
+        return Promise.resolve({ count });
+      },
+    },
     user: {
       findUnique: ({ where }: { where: { id?: string; username?: string } }) => {
         if (where.id) return Promise.resolve(users.get(where.id) ?? null);
@@ -277,6 +300,36 @@ describe("AuthService", () => {
       const session = ctx.fakePrisma.sessions.get(payload.sid);
       expect(session?.revokedAt).not.toBeNull();
     });
+
+    it("deletes the family's native push devices on reuse, so a hijacked phone stops ringing", async () => {
+      const registered = await ctx.authService.register({
+        username: "frank",
+        password: "password123",
+        displayName: "Frank",
+      });
+      const { sid } = ctx.tokenService.verifyRefreshToken(registered.refreshToken);
+      ctx.fakePrisma.nativeDevices.set("device-1", sid);
+
+      await ctx.authService.refresh(registered.refreshToken);
+      await expect(ctx.authService.refresh(registered.refreshToken)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+
+      expect(ctx.fakePrisma.nativeDevices.size).toBe(0);
+    });
+
+    it("keeps the session id in the rotated access token", async () => {
+      const registered = await ctx.authService.register({
+        username: "gina",
+        password: "password123",
+        displayName: "Gina",
+      });
+      const { sid } = ctx.tokenService.verifyRefreshToken(registered.refreshToken);
+
+      const rotated = await ctx.authService.refresh(registered.refreshToken);
+
+      expect(ctx.tokenService.verifyAccessToken(rotated.accessToken).sid).toBe(sid);
+    });
   });
 
   describe("logout", () => {
@@ -292,6 +345,27 @@ describe("AuthService", () => {
       await expect(ctx.authService.refresh(registered.refreshToken)).rejects.toBeInstanceOf(
         UnauthorizedException,
       );
+    });
+
+    it("deletes only this session's native push devices", async () => {
+      const first = await ctx.authService.register({
+        username: "hank",
+        password: "password123",
+        displayName: "Hank",
+      });
+      const second = await ctx.authService.login({ username: "hank", password: "password123" });
+      ctx.fakePrisma.nativeDevices.set(
+        "phone",
+        ctx.tokenService.verifyRefreshToken(first.refreshToken).sid,
+      );
+      ctx.fakePrisma.nativeDevices.set(
+        "tablet",
+        ctx.tokenService.verifyRefreshToken(second.refreshToken).sid,
+      );
+
+      await ctx.authService.logout(first.refreshToken);
+
+      expect([...ctx.fakePrisma.nativeDevices.keys()]).toEqual(["tablet"]);
     });
 
     it("is a no-op for a missing token", async () => {

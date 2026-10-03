@@ -1,5 +1,20 @@
 import { z } from "zod";
 
+/** The fields `FcmClient` needs out of a Firebase service-account key file. */
+export const FcmServiceAccountSchema = z.object({
+  project_id: z.string().min(1),
+  client_email: z.string().email(),
+  private_key: z.string().includes("PRIVATE KEY"),
+});
+
+function parseJson(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * All process env vars the backend needs, validated once at boot.
  * Add a var here first — `AppConfigService` is the only place allowed to
@@ -42,6 +57,21 @@ export const envSchema = z.object({
   VAPID_PUBLIC_KEY: z.string().min(1),
   VAPID_PRIVATE_KEY: z.string().min(1),
   VAPID_SUBJECT: z.string().min(1),
+
+  // Android app push via FCM (docs/adr/0017) — the service-account key JSON
+  // the Firebase console downloads, on one line. Optional: without it the
+  // worker sends no native pushes and the app only rings while it's open.
+  // An empty value (as left by an env template) counts as unset.
+  FCM_SERVICE_ACCOUNT_JSON: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z
+      .string()
+      .refine((value) => FcmServiceAccountSchema.safeParse(parseJson(value)).success, {
+        message:
+          "must be a Firebase service-account key JSON (project_id, client_email, private_key)",
+      })
+      .optional(),
+  ),
 });
 
 export type Env = z.infer<typeof envSchema>;

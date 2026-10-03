@@ -161,9 +161,9 @@ export class CallsService {
 
       const caller = await this.prisma.user.findUniqueOrThrow({
         where: { id: userId },
-        select: { displayName: true },
+        select: { displayName: true, avatarKey: true },
       });
-      await this.notifications.notifyCallIncoming(wireCall, caller.displayName);
+      await this.notifications.notifyCallIncoming(wireCall, caller);
 
       return await this.buildJoin(call, userId);
     } catch (err) {

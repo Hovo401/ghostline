@@ -156,6 +156,24 @@ describe("usePushSubscription", () => {
     expect(result.current.status).toBe("subscribed");
   });
 
+  it("shares one status across mounts — enabling in one updates the others", async () => {
+    const subscribeMock = vi.fn().mockResolvedValue(fakeSubscription("https://push.example/abc"));
+    stubPushApis({ getSubscription: vi.fn().mockResolvedValue(null), subscribe: subscribeMock });
+    mockServer();
+
+    const prompt = renderHook(() => usePushSubscription());
+    const banner = renderHook(() => usePushSubscription());
+    await waitFor(() => {
+      expect(banner.result.current.status).toBe("unsubscribed");
+    });
+
+    await act(async () => {
+      await prompt.result.current.subscribe();
+    });
+
+    expect(banner.result.current.status).toBe("subscribed");
+  });
+
   it("unsubscribe() removes the browser subscription and DELETEs it server-side", async () => {
     const subscription = fakeSubscription("https://push.example/abc");
     stubPushApis({ getSubscription: vi.fn().mockResolvedValue(subscription) });

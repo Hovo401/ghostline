@@ -8,7 +8,6 @@ import {
 import { act, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useChatUiStore } from "./chat-ui-store";
 import { useNotificationDeepLink } from "./use-notification-deep-link";
 
 const acceptMock = vi.fn();
@@ -46,17 +45,16 @@ async function renderAt(path: string) {
 describe("useNotificationDeepLink", () => {
   beforeEach(() => {
     acceptMock.mockClear();
-    useChatUiStore.setState({ selectedChatId: null });
   });
 
   afterEach(() => {
     vi.clearAllMocks();
   });
 
-  it("selects the chat from ?chat= and clears the param", async () => {
+  it("leaves ?chat= alone — it's the open chat's own URL, not a one-shot", async () => {
     const { router } = await renderAt("/app?chat=chat-1");
-    expect(useChatUiStore.getState().selectedChatId).toBe("chat-1");
-    expect(router.state.location.search).toEqual({});
+    expect(acceptMock).not.toHaveBeenCalled();
+    expect(router.state.location.search).toEqual({ chat: "chat-1" });
   });
 
   it("accepts the call from ?call=&answer=1 and clears the params", async () => {
@@ -65,9 +63,15 @@ describe("useNotificationDeepLink", () => {
     expect(router.state.location.search).toEqual({});
   });
 
+  it("keeps ?chat= while clearing the call params", async () => {
+    const { router } = await renderAt("/app?chat=chat-1&call=call-1&answer=1");
+    expect(acceptMock).toHaveBeenCalledWith("call-1");
+    expect(router.state.location.search).toEqual({ chat: "chat-1" });
+  });
+
   it("does nothing without deep-link params", async () => {
-    await renderAt("/app");
+    const { router } = await renderAt("/app");
     expect(acceptMock).not.toHaveBeenCalled();
-    expect(useChatUiStore.getState().selectedChatId).toBeNull();
+    expect(router.state.location.search).toEqual({});
   });
 });

@@ -15,10 +15,14 @@ import type * as NotificationEntity from "../../entities/notification";
 
 import { NotificationInviteBanner } from "./NotificationInviteBanner";
 
+const subscribeMock = vi.fn();
 const usePushSubscriptionMock = vi.fn<() => { status: PushSubscriptionStatus }>();
 vi.mock("../../entities/notification", async (importOriginal) => {
   const actual = await importOriginal<typeof NotificationEntity>();
-  return { ...actual, usePushSubscription: () => usePushSubscriptionMock() };
+  return {
+    ...actual,
+    usePushSubscription: () => ({ ...usePushSubscriptionMock(), subscribe: subscribeMock }),
+  };
 });
 
 function renderBanner() {
@@ -32,11 +36,18 @@ function renderBanner() {
 
 describe("NotificationInviteBanner", () => {
   beforeEach(() => {
-    useNotificationBannerStore.setState({ dismissed: false });
+    subscribeMock.mockReset();
+    useNotificationBannerStore.setState({ promptSeen: true, dismissed: false });
     usePushSubscriptionMock.mockReturnValue({ status: "unsubscribed" });
   });
 
   afterEach(cleanup);
+
+  it("stays hidden until the first-open prompt was answered", () => {
+    useNotificationBannerStore.setState({ promptSeen: false });
+    const { container } = renderBanner();
+    expect(container).toBeEmptyDOMElement();
+  });
 
   it("renders nothing once already subscribed", () => {
     usePushSubscriptionMock.mockReturnValue({ status: "subscribed" });
@@ -50,11 +61,23 @@ describe("NotificationInviteBanner", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("shows the invite while unsubscribed and not dismissed", async () => {
+  it("«Включить» asks for permission right here instead of detouring to settings", async () => {
     renderBanner();
     expect(
       await screen.findByText("Включить уведомления о сообщениях и звонках?"),
     ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Включить" }));
+
+    expect(subscribeMock).toHaveBeenCalledOnce();
+  });
+
+  it("when blocked in the browser, links to the notifications section of settings", async () => {
+    usePushSubscriptionMock.mockReturnValue({ status: "denied" });
+    renderBanner();
+
+    const link = await screen.findByRole("link", { name: "Как включить" });
+    expect(link).toHaveAttribute("href", "/app/settings?tab=notifications");
   });
 
   it("dismissing it persists and hides it", async () => {

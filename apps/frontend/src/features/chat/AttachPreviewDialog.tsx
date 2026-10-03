@@ -6,6 +6,7 @@ import {
   useUploadLimits,
   validateFiles,
 } from "../../entities/attachment";
+import { useBackToClose } from "../../shared/lib/use-back-to-close";
 import { IconButton } from "../../shared/ui/icon-button";
 import { CloseIcon } from "../../shared/ui/media-icons";
 
@@ -44,6 +45,7 @@ export function AttachPreviewDialog({ files, onClose, onSend }: AttachPreviewDia
   const [items, setItems] = useState<PendingItem[]>(() => buildItems(files));
   const [caption, setCaption] = useState("");
   const dialogRef = useRef<HTMLDivElement>(null);
+  useBackToClose(items.length > 0, onClose);
 
   useEffect(() => {
     return () => {

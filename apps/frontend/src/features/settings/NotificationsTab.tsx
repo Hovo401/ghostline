@@ -7,10 +7,11 @@ import {
   useUpdateNotificationSettings,
   type NotificationSettings,
 } from "../../entities/notification";
+import { isStandaloneDisplay, usePwaInstall } from "../../shared/lib/pwa-install";
 import { Button } from "../../shared/ui/button";
 import { Toggle } from "../../shared/ui/toggle";
 
-import { detectPlatformHint, isStandaloneDisplay } from "./platform-hint";
+import { detectPlatformHint } from "./platform-hint";
 
 const STATUS_LABEL: Record<ReturnType<typeof usePushSubscription>["status"], string> = {
   subscribed: "Включены",
@@ -40,7 +41,8 @@ function ToggleRow({
 /**
  * "Уведомления" settings tab (calls plan §Фаза 5, FR-NOTIF-05): permission
  * status + enable/disable, per-category toggles, a local test notification,
- * and the iOS "add to Home Screen" hint. Modeled on `AppearanceTab`'s
+ * and the platform "install the app" hint — with an install button where
+ * the browser offers one (`usePwaInstall`). Modeled on `AppearanceTab`'s
  * layout (card + sections in a scrollable column).
  *
  * "Отправить тестовое" goes through `POST /notifications/test` — a real
@@ -53,6 +55,7 @@ export function NotificationsTab() {
   const settings = useNotificationSettings();
   const updateSettings = useUpdateNotificationSettings();
   const [testState, setTestState] = useState<"idle" | "sent" | "failed">("idle");
+  const { mode: installMode, install } = usePwaInstall();
 
   const sendTestNotification = (): void => {
     sendTestPush().then(
@@ -105,6 +108,17 @@ export function NotificationsTab() {
           )}
         </div>
         {platformHint && <p className="text-sm text-mute">{platformHint.text}</p>}
+        {installMode === "prompt" && (
+          <Button
+            variant="secondary"
+            className="self-start"
+            onClick={() => {
+              void install();
+            }}
+          >
+            Установить приложение
+          </Button>
+        )}
       </section>
 
       {settings.data && (
