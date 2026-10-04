@@ -33,9 +33,30 @@ object CallSession {
     /** The id of a call the page dialled: its Telecom entry is outgoing, whatever phase we first hear about. */
     private var outgoingCallId: String? = null
 
+    /**
+     * [MainActivity]'s picture-in-picture hook: told about every change of the call state, on the main thread.
+     * The activity sets it in `onStart` and clears it in `onDestroy`, so the session never outlives it.
+     */
+    @Volatile
+    var stateListener: ((NativeCallState?) -> Unit)? = null
+
     @Synchronized
+    fun current(): NativeCallState? = state
+
     fun reconcile(context: Context, next: NativeCallState?) {
-        if (next == state) return
+        val changed = apply(context, next)
+        if (changed) main.post { stateListener?.invoke(current()) }
+    }
+
+    /** `true` when the state changed (the early return of an identical state is not a change). */
+    @Synchronized
+    private fun apply(context: Context, next: NativeCallState?): Boolean {
+        if (next == state) return false
+        applyChange(context, next)
+        return true
+    }
+
+    private fun applyChange(context: Context, next: NativeCallState?) {
         val app = context.applicationContext
         val previous = state
         if (previous != null && next != null && previous.callId != next.callId) {

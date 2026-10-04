@@ -16,6 +16,7 @@ import {
 import { useCallPeer } from "./use-call-peer";
 import type { CallSessionHandle } from "./use-call-session";
 import { useElapsedMs } from "./use-call-timer";
+import { useNativePip } from "./use-native-pip";
 import { useTrackAttach } from "./use-track-attach";
 import { useWakeLock } from "./use-wake-lock";
 
@@ -174,6 +175,7 @@ export function CallScreen({ session }: CallScreenProps) {
   const draft = useCallStore((state) => state.draft);
   const minimized = useCallStore((state) => state.minimized);
   const minimize = useCallStore((state) => state.minimize);
+  const pip = useNativePip();
   const { hangup, cancel } = useCallActions();
   const chatId = call?.chatId ?? draft?.chatId ?? null;
   const peer = useCallPeer(chatId, call);
@@ -218,6 +220,31 @@ export function CallScreen({ session }: CallScreenProps) {
 
   const localVideoRef = useTrackAttach(localVideoTrack);
   const remoteVideoRef = useTrackAttach(remoteVideoTrack);
+
+  // Picture-in-picture (T-088): the window is tiny and non-interactive, so
+  // only the remote video (or the avatar) fills it. Takes precedence over
+  // `minimized` — the PiP window would otherwise show the chat list.
+  if (pip && connected && call) {
+    return (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Звонок"
+        className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-desk text-white"
+      >
+        {remoteVideoTrack !== null ? (
+          <video
+            ref={remoteVideoRef}
+            playsInline
+            autoPlay
+            className="h-full w-full object-contain"
+          />
+        ) : (
+          <Avatar name={peerName} src={peer?.avatarUrl} size={72} />
+        )}
+      </div>
+    );
+  }
 
   if (minimized) return null;
 

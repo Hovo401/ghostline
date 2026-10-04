@@ -121,3 +121,25 @@ matter at start-up and on Android ≤ 14.
   is logged and the call goes on without Telecom. Holds, audio routes and the headset button: T-087.
 - `setCallState`, `consumeLaunchAction` and the `callCommand` event don't exist in older APKs; the site calls
   them through `shared/native/native-call.ts`.
+
+## Picture-in-picture (T-088)
+
+- `MainActivity` is `supportsPictureInPicture`; `calls/PipLogic.kt` holds the pure part: `pipAllowed(state)` =
+  video call in `active`/`reconnecting`, `pipActions(state)` (mic toggle by `muted`, then hang up), 9:16.
+- `CallSession.stateListener` (set in `onStart`, cleared in `onDestroy`; posted to the main thread) makes the
+  activity refresh `setPictureInPictureParams` on every state change, `muted` included. Android 12+: params
+  carry `setAutoEnterEnabled(pipAllowed)`; 8-11: `onUserLeaveHint` calls `enterPictureInPictureMode`.
+- The window's buttons are `RemoteAction`s on the existing `OngoingCallActionReceiver` (`ACTION_TOGGLE_MUTE`,
+  `ACTION_HANGUP`), so they reach the page as `callCommand` like the notification's. No new receiver.
+- `onPictureInPictureModeChanged` -> `Ghostline.pipModeChanged {active}` and `AppVisibility.foreground =
+!inPip` (with only the window up, message pushes show). Dismissing the window (X / swipe) removes the task and
+  destroys the activity, WebView and LiveKit with it, so the call can't survive: it is ended with
+  `CallCommand.Hangup` while the page still exists (mode change to "out" below `STARTED`, or `onStop` outside PiP
+  with `pipActive`; `endsCallOnPipClose`). Expanding the window is not a dismissal. NOT verified live yet
+  (needs a real video call): reviewer's reading of AOSP, check on a phone that no ghost notification stays.
+- Devices without `FEATURE_PICTURE_IN_PICTURE` skip every PiP call (they throw `IllegalStateException`), which
+  are also wrapped in try/catch. If the call ends while the window is up the activity goes `moveTaskToBack`.
+- In PiP the activity is not stopped, so the WebView is never paused (Capacitor `KeepRunning` defaults to true,
+  so `onPause` only notifies plugins), otherwise the video freezes. Keep the cookie flush in `onPause`/`onStop`
+  (ADR-0021).
+- `pipModeChanged` doesn't exist in older APKs; the site listens through `shared/native/native-call.ts`.

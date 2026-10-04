@@ -27,6 +27,12 @@ vi.mock("../../entities/call", async (importOriginal) => {
   };
 });
 
+const pipState = vi.hoisted(() => ({ active: false }));
+
+vi.mock("./use-native-pip", () => ({
+  useNativePip: () => pipState.active,
+}));
+
 vi.mock("./use-call-peer", () => ({
   useCallPeer: () => ({ id: "peer-1", displayName: "Тест Пир" }),
 }));
@@ -69,6 +75,7 @@ describe("CallScreen", () => {
   beforeEach(() => {
     cancelFn.mockReset();
     hangupFn.mockReset();
+    pipState.active = false;
     useCallStore.setState({
       phase: "idle",
       call: null,
@@ -163,5 +170,43 @@ describe("CallScreen", () => {
       <CallScreen session={fakeSession({ localVideoTrack: track, cameraEnabled: false })} />,
     );
     expect(detach).toHaveBeenCalledWith(video);
+  });
+
+  describe("picture-in-picture", () => {
+    const track = { attach: vi.fn(), detach: vi.fn() } as unknown as Track;
+
+    beforeEach(() => {
+      pipState.active = true;
+      useCallStore.setState({
+        call: call(),
+        livekitUrl: "wss://lk",
+        token: "tok",
+        phase: "active",
+      });
+    });
+
+    it("renders only the remote video, without header or controls", () => {
+      const { container } = render(
+        <CallScreen session={fakeSession({ remoteVideoTrack: track, localVideoTrack: track })} />,
+      );
+
+      expect(container.querySelectorAll("video")).toHaveLength(1);
+      expect(screen.queryByRole("button")).not.toBeInTheDocument();
+      expect(screen.queryByText("Тест Пир")).not.toBeInTheDocument();
+    });
+
+    it("falls back to the avatar when the remote camera is off", () => {
+      const { container } = render(<CallScreen session={fakeSession()} />);
+
+      expect(container.querySelector("video")).toBeNull();
+      expect(screen.queryByRole("button")).not.toBeInTheDocument();
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+
+    it("still renders while the in-app call UI is minimized", () => {
+      useCallStore.setState({ minimized: true });
+      render(<CallScreen session={fakeSession({ remoteVideoTrack: track })} />);
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
   });
 });
