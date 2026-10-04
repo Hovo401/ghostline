@@ -10,33 +10,44 @@ const ONE_HOUR_MS = 60 * 60 * 1000;
 export type AndroidUpdate =
   { status: "none" } | { status: "available" | "required"; release: AndroidRelease };
 
-async function fetchUpdate(): Promise<AndroidUpdate> {
-  const [{ build }, response] = await Promise.all([
-    App.getInfo(),
-    fetch(LATEST_RELEASE_URL, { cache: "no-store" }),
-  ]);
-  if (!response.ok) return { status: "none" };
+async function fetchLatestRelease(): Promise<AndroidRelease | null> {
+  const response = await fetch(LATEST_RELEASE_URL, { cache: "no-store" });
+  if (!response.ok) return null;
   const parsed = AndroidReleaseSchema.safeParse(await response.json());
-  if (!parsed.success) return { status: "none" };
-
-  const installed = Number(build);
-  const release = parsed.data;
-  if (installed < release.minVersionCode) return { status: "required", release };
-  if (installed < release.versionCode) return { status: "available", release };
-  return { status: "none" };
+  return parsed.success ? parsed.data : null;
 }
 
 /**
- * Whether the installed APK is behind `latest.json` (written by the Android release workflow).
- * Inert outside the native app; a missing or malformed `latest.json` means "no update".
+ * The release published by the Android workflow (`latest.json`), or `null` while loading, when
+ * none is published yet, or when the file is malformed. One shared query: the browser's download
+ * button and the in-app update banner both read it.
  */
-export function useAndroidUpdate(): AndroidUpdate {
+export function useLatestAndroidRelease(enabled: boolean): AndroidRelease | null {
   const { data } = useQuery({
-    queryKey: ["android-update"],
-    queryFn: fetchUpdate,
-    enabled: isNativeApp(),
+    queryKey: ["android-latest-release"],
+    queryFn: fetchLatestRelease,
+    enabled,
     staleTime: ONE_HOUR_MS,
     retry: false,
   });
-  return data ?? { status: "none" };
+  return data ?? null;
+}
+
+/**
+ * Whether the installed APK is behind `latest.json`. Inert outside the native app.
+ */
+export function useAndroidUpdate(): AndroidUpdate {
+  const native = isNativeApp();
+  const release = useLatestAndroidRelease(native);
+  const { data: build } = useQuery({
+    queryKey: ["android-installed-build"],
+    queryFn: async () => Number((await App.getInfo()).build),
+    enabled: native,
+    staleTime: Infinity,
+  });
+
+  if (!release || build === undefined) return { status: "none" };
+  if (build < release.minVersionCode) return { status: "required", release };
+  if (build < release.versionCode) return { status: "available", release };
+  return { status: "none" };
 }
