@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.annotation.DrawableRes
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -41,6 +42,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -54,21 +56,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
@@ -86,9 +84,7 @@ import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
-import kotlin.math.cos
 import kotlin.math.roundToInt
-import kotlin.math.sin
 
 /**
  * The full-screen ringing screen over the lock screen. It takes everything it shows from its
@@ -202,10 +198,6 @@ class IncomingCallActivity : ComponentActivity() {
 private val AVATAR_SIZE = 148.dp
 private val BUTTON_SIZE = 76.dp
 private val SWIPE_ANSWER_DISTANCE = 96.dp
-private const val HANDSET_START_DEG = 200f
-private const val HANDSET_SWEEP_DEG = 140f
-private const val HANGUP_ROTATION = 0f
-private const val PICKUP_ROTATION = 135f
 private const val RING_PERIOD_MS = 2_400
 private const val RING_COUNT = 3
 private const val ENTER_MS = 450
@@ -363,7 +355,7 @@ private fun DeclineButton(onDecline: () -> Unit) {
         label = "Отклонить",
         background = colorResource(R.color.call_decline),
         ink = colorResource(R.color.call_decline_ink),
-        handsetRotation = HANGUP_ROTATION,
+        icon = R.drawable.ic_call_decline,
         modifier = Modifier.clickable {
             haptics.performHapticFeedback(HapticFeedbackType.Reject)
             onDecline()
@@ -401,45 +393,18 @@ private fun AnswerButton(onAnswer: () -> Unit) {
         label = "Ответить",
         background = colorResource(R.color.call_accept),
         ink = colorResource(R.color.call_accept_ink),
-        handsetRotation = PICKUP_ROTATION,
+        icon = R.drawable.ic_call_answer,
         modifier = gesture,
     )
 }
 
 @Composable
-private fun CallButton(label: String, background: Color, ink: Color, handsetRotation: Float, modifier: Modifier) {
+private fun CallButton(label: String, background: Color, ink: Color, @DrawableRes icon: Int, modifier: Modifier) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(modifier.size(BUTTON_SIZE).clip(CircleShape).background(background), contentAlignment = Alignment.Center) {
-            Canvas(Modifier.size(BUTTON_SIZE / 2)) { drawHandset(ink, handsetRotation) }
+            Icon(painterResource(icon), contentDescription = null, tint = ink, modifier = Modifier.size(BUTTON_SIZE * 0.45f))
         }
         Spacer(Modifier.height(12.dp))
         Text(label, color = colorResource(R.color.call_text_dim), fontSize = 14.sp)
-    }
-}
-
-/** A handset: a thick arc with a blunt tip at each end, turned by [rotation] degrees. */
-private fun DrawScope.drawHandset(color: Color, rotation: Float) {
-    val w = size.width
-    val stroke = w * 0.2f
-    val arcSize = w * 0.8f
-    val topLeft = Offset(w * 0.1f, w * 0.3f)
-    rotate(rotation) {
-        drawArc(
-            color = color,
-            startAngle = HANDSET_START_DEG,
-            sweepAngle = HANDSET_SWEEP_DEG,
-            useCenter = false,
-            topLeft = topLeft,
-            size = Size(arcSize, arcSize),
-            style = Stroke(width = stroke, cap = StrokeCap.Round),
-        )
-        for (angle in listOf(HANDSET_START_DEG, HANDSET_START_DEG + HANDSET_SWEEP_DEG)) {
-            val rad = Math.toRadians(angle.toDouble())
-            val tip = Offset(
-                topLeft.x + arcSize / 2 + (arcSize / 2 * cos(rad)).toFloat(),
-                topLeft.y + arcSize / 2 + (arcSize / 2 * sin(rad)).toFloat(),
-            )
-            drawLine(color, tip, tip + Offset(0f, w * 0.18f), strokeWidth = stroke * 1.3f, cap = StrokeCap.Round)
-        }
     }
 }
