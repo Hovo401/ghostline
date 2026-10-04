@@ -3,7 +3,9 @@ package app.ghostline
 import android.Manifest
 import android.os.Build
 import android.util.Base64
+import app.ghostline.messages.MessageNotifier
 import app.ghostline.push.DeviceKeyStore
+import app.ghostline.system.SystemSettings
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
@@ -71,6 +73,35 @@ class GhostlinePlugin : Plugin() {
         } else {
             super.requestPermissions(call)
         }
+    }
+
+    @PluginMethod
+    fun getPermissionStatus(call: PluginCall) {
+        val s = SystemSettings.status(context)
+        val result = JSObject()
+            .put("notifications", s.notifications)
+            .put("unrestrictedBattery", s.unrestrictedBattery)
+            .put("oem", s.oem)
+        // Absent (not false) before Android 14, so the page hides the row.
+        s.fullScreenCalls?.let { result.put("fullScreenCalls", it) }
+        call.resolve(result)
+    }
+
+    @PluginMethod
+    fun openSystemSettings(call: PluginCall) {
+        val kind = call.getString("kind")
+        if (kind == null || !SystemSettings.open(activity, kind)) {
+            call.reject("No settings screen for ${kind ?: "?"}", "UNAVAILABLE")
+            return
+        }
+        call.resolve()
+    }
+
+    /** Logout: drops every chat notification and the text kept for them. */
+    @PluginMethod
+    fun clearNotifications(call: PluginCall) {
+        MessageNotifier.clearAll(context)
+        call.resolve()
     }
 
     fun emitTokenChanged(token: String) {

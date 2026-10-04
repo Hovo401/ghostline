@@ -11,12 +11,12 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import app.ghostline.MainActivity
 import app.ghostline.R
+import app.ghostline.messages.MessageNotifier
 import com.getcapacitor.CapConfig
 
 /**
- * T-083b's minimal rendering of a push: a plain notification per message/call, enough to prove
- * delivery with the app in the background or killed. T-084 replaces messages with per-chat
- * MessagingStyle + reply/read actions, T-085 replaces calls with the ringing full-screen screen.
+ * Routes a decrypted push to its notification. Messages are [MessageNotifier] (T-084); calls are
+ * still T-083b's plain notification until T-085 replaces them with the ringing full-screen screen.
  * Tags match the web's (`chat:<id>`, `call:<id>`, see `sw-notifications.ts`), so a newer push
  * replaces an older one and `chat:read` / `call:closed` can dismiss it.
  */
@@ -28,7 +28,7 @@ object PushNotifier {
 
     fun handle(context: Context, push: NativePush) {
         when (push) {
-            is NativePush.Message -> show(context, push.title, push.body, "chat:${push.chatId}", push.chatId)
+            is NativePush.Message -> MessageNotifier.show(context, push)
             is NativePush.CallIncoming -> show(
                 context,
                 push.callerName,
@@ -41,7 +41,7 @@ object PushNotifier {
                 context, push.callerName, "Пропущенный звонок", "call:${push.callId}", push.chatId,
             )
             is NativePush.CallClosed -> cancel(context, "call:${push.callId}")
-            is NativePush.ChatRead -> cancel(context, "chat:${push.chatId}")
+            is NativePush.ChatRead -> MessageNotifier.onChatRead(context, push.chatId, push.readSeq)
             NativePush.Test -> show(context, "Ghostline", "Тестовое уведомление — push работает", "test", null)
             // The test call screen is T-085; until then the push only proves delivery.
             is NativePush.TestCall -> Log.i(LOG_TAG, "test-call received (screen: T-085)")
@@ -83,7 +83,7 @@ object PushNotifier {
     }
 
     /** Opens the chat through the App Link path T-080a already handles (`/app?chat=<id>`). */
-    private fun openIntent(context: Context, chatId: String?): PendingIntent {
+    fun openIntent(context: Context, chatId: String?): PendingIntent {
         val base = CapConfig.loadDefault(context).serverUrl
         val intent = Intent(context, MainActivity::class.java)
         if (chatId != null && base != null) {
@@ -100,7 +100,7 @@ object PushNotifier {
         )
     }
 
-    private fun ensureChannel(context: Context) {
+    fun ensureChannel(context: Context) {
         val channel = NotificationChannel(CHANNEL_MESSAGES, "Сообщения", NotificationManager.IMPORTANCE_HIGH)
         context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }

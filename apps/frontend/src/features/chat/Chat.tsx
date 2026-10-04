@@ -1,5 +1,7 @@
 import { useChats } from "../../entities/chat";
+import { hasGhostlinePlugin } from "../../shared/native";
 
+import { CallSetupScreen } from "./CallSetupScreen";
 import { useChatUiStore } from "./chat-ui-store";
 import { ChatListPanel } from "./ChatListPanel";
 import { ChatThreadPanel } from "./ChatThreadPanel";
@@ -37,7 +39,7 @@ export function Chat() {
       )}
 
       {newChatModalOpen && <NewChatModal />}
-      <NotificationPrompt />
+      {hasGhostlinePlugin() ? <CallSetupScreen /> : <NotificationPrompt />}
     </div>
   );
 }

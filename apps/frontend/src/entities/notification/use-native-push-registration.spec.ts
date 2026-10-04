@@ -3,20 +3,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { apiFetch } from "../../shared/api/http-client";
 
-const { getPushRegistration, addListener, hasGhostlinePlugin, getInstalledBuild } = vi.hoisted(
-  () => ({
-    getPushRegistration: vi.fn(),
-    addListener: vi.fn(),
-    hasGhostlinePlugin: vi.fn(),
-    getInstalledBuild: vi.fn(),
-  }),
-);
+const {
+  getPushRegistration,
+  addListener,
+  hasGhostlinePlugin,
+  getInstalledBuild,
+  clearNativeNotifications,
+} = vi.hoisted(() => ({
+  getPushRegistration: vi.fn(),
+  addListener: vi.fn(),
+  hasGhostlinePlugin: vi.fn(),
+  getInstalledBuild: vi.fn(),
+  clearNativeNotifications: vi.fn(),
+}));
 
 vi.mock("../../shared/api/http-client", () => ({ apiFetch: vi.fn() }));
 vi.mock("../../shared/native", () => ({
   Ghostline: { getPushRegistration, addListener },
   hasGhostlinePlugin,
   getInstalledBuild,
+  clearNativeNotifications,
 }));
 
 import {
@@ -41,6 +47,7 @@ describe("native push registration", () => {
     getPushRegistration.mockReset().mockResolvedValue(registration());
     getInstalledBuild.mockReset().mockResolvedValue(7);
     hasGhostlinePlugin.mockReset().mockReturnValue(true);
+    clearNativeNotifications.mockReset().mockResolvedValue(undefined);
     addListener.mockReset().mockResolvedValue({ remove: vi.fn().mockResolvedValue(undefined) });
   });
 
@@ -100,10 +107,28 @@ describe("native push registration", () => {
       });
     });
 
-    it("does nothing when this install never registered", async () => {
+    it("clears the chat notifications along with the registration", async () => {
+      await syncNativeDevice();
+
+      await unregisterNativeDevice();
+
+      expect(clearNativeNotifications).toHaveBeenCalledOnce();
+    });
+
+    it("still clears the notifications when the server call fails", async () => {
+      await syncNativeDevice();
+      vi.mocked(apiFetch).mockRejectedValueOnce(new Error("offline"));
+
+      await expect(unregisterNativeDevice()).rejects.toThrow("offline");
+
+      expect(clearNativeNotifications).toHaveBeenCalledOnce();
+    });
+
+    it("only clears notifications when this install never registered", async () => {
       await unregisterNativeDevice();
 
       expect(apiFetch).not.toHaveBeenCalled();
+      expect(clearNativeNotifications).toHaveBeenCalledOnce();
     });
 
     it("does nothing outside the app", async () => {
@@ -114,6 +139,7 @@ describe("native push registration", () => {
       await unregisterNativeDevice();
 
       expect(apiFetch).not.toHaveBeenCalled();
+      expect(clearNativeNotifications).not.toHaveBeenCalled();
     });
 
     it("lets the next login register again", async () => {

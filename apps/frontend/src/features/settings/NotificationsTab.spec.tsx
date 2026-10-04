@@ -17,6 +17,7 @@ let settingsData: { messages: boolean; calls: boolean; preview: boolean } | unde
 const sendTestPush = vi.fn();
 
 vi.mock("../../entities/notification", () => ({
+  NativePermissionChecklist: () => <div>checklist</div>,
   sendTestPush: () => sendTestPush() as Promise<void>,
   usePushSubscription: () => ({ status: pushStatus, subscribe, unsubscribe }),
   useNotificationSettings: () => ({ data: settingsData }),
@@ -25,9 +26,11 @@ vi.mock("../../entities/notification", () => ({
 
 // The install button asks the shared native layer for a published APK; no QueryClientProvider here.
 let native = false;
+let permissions: { notifications: boolean; unrestrictedBattery: boolean; oem: null } | null = null;
 vi.mock("../../shared/native", () => ({
   isNativeApp: () => native,
   useLatestAndroidRelease: () => null,
+  useNativePermissions: () => permissions,
 }));
 
 afterEach(() => {
@@ -39,6 +42,7 @@ describe("NotificationsTab", () => {
   beforeEach(() => {
     pushStatus = "unsubscribed";
     native = false;
+    permissions = null;
     settingsData = { messages: true, calls: true, preview: true };
   });
 
@@ -58,6 +62,18 @@ describe("NotificationsTab", () => {
       pushStatus = "denied";
       render(<NotificationsTab />);
       expect(screen.getByText("Запрещены в настройках Android")).toBeInTheDocument();
+    });
+
+    it("shows the call-readiness checklist when the app can report it", () => {
+      permissions = { notifications: true, unrestrictedBattery: false, oem: null };
+      render(<NotificationsTab />);
+      expect(screen.getByText("Чтобы не пропускать звонки")).toBeInTheDocument();
+      expect(screen.getByText("checklist")).toBeInTheDocument();
+    });
+
+    it("has no checklist in an app older than T-084", () => {
+      render(<NotificationsTab />);
+      expect(screen.queryByText("Чтобы не пропускать звонки")).not.toBeInTheDocument();
     });
 
     it("asks an outdated app (no plugin) to update", () => {

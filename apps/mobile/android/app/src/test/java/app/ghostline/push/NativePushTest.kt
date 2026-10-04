@@ -11,9 +11,9 @@ class NativePushTest {
     @Test
     fun parsesAMessage() {
         val push = NativePush.parse(
-            """{"kind":"message","chatId":"$chat","messageId":"m","seq":"42","title":"Алиса","body":"привет","sentAt":"x","actionToken":"t"}""",
+            """{"kind":"message","chatId":"$chat","messageId":"m","seq":"42","title":"Алиса","body":"привет","sentAt":"2026-10-04T10:00:00.000Z","actionToken":"t"}""",
         )
-        assertEquals(NativePush.Message(chat, "Алиса", "привет"), push)
+        assertEquals(NativePush.Message(chat, "m", 42L, "Алиса", "привет", 1_791_108_000_000L, "t"), push)
     }
 
     @Test
@@ -31,7 +31,7 @@ class NativePushTest {
             NativePush.CallMissed(call, chat, "Алиса"),
             NativePush.parse("""{"kind":"call:missed","callId":"$call","chatId":"$chat","callerName":"Алиса","video":false}"""),
         )
-        assertEquals(NativePush.ChatRead(chat), NativePush.parse("""{"kind":"chat:read","chatId":"$chat","readSeq":"42"}"""))
+        assertEquals(NativePush.ChatRead(chat, 42L),NativePush.parse("""{"kind":"chat:read","chatId":"$chat","readSeq":"42"}"""))
         assertEquals(NativePush.Test, NativePush.parse("""{"kind":"test"}"""))
         assertEquals(NativePush.TestCall("Ghostline"), NativePush.parse("""{"kind":"test-call","callerName":"Ghostline"}"""))
     }

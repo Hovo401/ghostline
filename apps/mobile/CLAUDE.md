@@ -51,3 +51,16 @@ builds, but `Ghostline.getPushRegistration` rejects with `UNAVAILABLE` and no pu
   `packages/contracts/fixtures/native-push.json`, which the backend's `native-push.spec.ts` also checks
   — change the cipher layout in both or neither.
 - Debug: `adb logcat -s GhostlinePush FirebaseMessaging`.
+
+## Message notifications (T-084)
+
+`messages/`: `MessageNotifier` builds one MessagingStyle notification per chat (tag `chat:<id>`) from
+a `ChatThread` kept in SharedPreferences (`MessageHistoryStore`) — the FCM service dies between
+pushes, so the second message needs the first from disk. "Ответить"/"Прочитано" go through
+`MessageActionReceiver` → `NotificationActionApi` (plain `HttpURLConnection`, base URL from
+`CapConfig.serverUrl`, authorized by the chat action token stored with the thread; no access token,
+no WebView). `chat:read` drops lines up to `readSeq`, also while the app is in the foreground.
+
+Plugin methods added in T-084 (`getPermissionStatus`, `openSystemSettings`, `clearNotifications`)
+don't exist in older APKs — the site must call them through `shared/native/native-permissions.ts`,
+which turns `UNIMPLEMENTED` into "no checklist".
