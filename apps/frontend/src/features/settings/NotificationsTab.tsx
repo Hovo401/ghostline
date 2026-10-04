@@ -13,6 +13,7 @@ import {
   isStandaloneDisplay,
   usePwaInstall,
 } from "../../shared/lib/pwa-install";
+import { isNativeApp } from "../../shared/native";
 import { Button } from "../../shared/ui/button";
 import { Toggle } from "../../shared/ui/toggle";
 
@@ -24,6 +25,14 @@ const STATUS_LABEL: Record<ReturnType<typeof usePushSubscription>["status"], str
   denied: "Запрещены в браузере",
   unsupported: "Не поддерживаются этим браузером",
   pending: "Проверяем…",
+};
+
+/** In the Android app the same states mean something else (FCM + the Android permission). */
+const NATIVE_STATUS_LABEL: typeof STATUS_LABEL = {
+  ...STATUS_LABEL,
+  subscribed: "Подключены (приложение)",
+  denied: "Запрещены в настройках Android",
+  unsupported: "Обновите приложение",
 };
 
 function ToggleRow({
@@ -77,8 +86,9 @@ export function NotificationsTab() {
     updateSettings.mutate(partial);
   };
 
+  const native = isNativeApp();
   const platformHint =
-    status !== "unsupported" && status !== "denied"
+    !native && status !== "unsupported" && status !== "denied"
       ? detectPlatformHint(navigator.userAgent, isStandaloneDisplay())
       : null;
 
@@ -90,7 +100,9 @@ export function NotificationsTab() {
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col gap-1">
             <span className="text-base font-medium">Push-уведомления</span>
-            <span className="text-sm text-mute">{STATUS_LABEL[status]}</span>
+            <span className="text-sm text-mute">
+              {(native ? NATIVE_STATUS_LABEL : STATUS_LABEL)[status]}
+            </span>
           </div>
           {status === "unsubscribed" && (
             <Button
@@ -101,7 +113,8 @@ export function NotificationsTab() {
               Включить уведомления
             </Button>
           )}
-          {status === "subscribed" && (
+          {/* No in-app "off" switch for native push: use the toggles below or Android's settings (T-084). */}
+          {status === "subscribed" && !native && (
             <Button
               variant="secondary"
               onClick={() => {

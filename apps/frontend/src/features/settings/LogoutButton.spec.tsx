@@ -21,8 +21,10 @@ vi.mock("../../shared/api/http-client", () => ({
 
 let pushStatus: PushSubscriptionStatus = "unsubscribed";
 const unsubscribe = vi.fn<() => Promise<void>>();
+const unregisterNativeDevice = vi.fn<() => Promise<void>>();
 vi.mock("../../entities/notification", () => ({
   usePushSubscription: () => ({ status: pushStatus, subscribe: vi.fn(), unsubscribe }),
+  unregisterNativeDevice: () => unregisterNativeDevice(),
 }));
 
 const ME = {
@@ -68,6 +70,7 @@ describe("LogoutButton", () => {
   beforeEach(() => {
     pushStatus = "unsubscribed";
     unsubscribe.mockReset().mockResolvedValue();
+    unregisterNativeDevice.mockReset().mockResolvedValue();
     vi.mocked(apiFetch).mockReset().mockResolvedValue(undefined);
     vi.spyOn(window, "confirm").mockReturnValue(true);
     useSessionStore.setState({ status: "authenticated", accessToken: "token", user: ME });
@@ -101,6 +104,29 @@ describe("LogoutButton", () => {
     expect(unsubscribe.mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(apiFetch).mock.invocationCallOrder[0] ?? 0,
     );
+  });
+
+  it("unregisters the app's native push device before logging out", async () => {
+    renderButton();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Выйти из аккаунта" }));
+
+    await screen.findByText("login page");
+    expect(unregisterNativeDevice).toHaveBeenCalledOnce();
+    expect(unregisterNativeDevice.mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(apiFetch).mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  it("still logs out when unregistering the native device fails", async () => {
+    unregisterNativeDevice.mockRejectedValue(new Error("offline"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    renderButton();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Выйти из аккаунта" }));
+
+    await screen.findByText("login page");
+    expect(apiFetch).toHaveBeenCalledWith("/auth/logout", { method: "POST" });
   });
 
   it("still signs out locally when the server call fails", async () => {

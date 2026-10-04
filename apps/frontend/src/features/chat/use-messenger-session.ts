@@ -1,9 +1,14 @@
 import { useActiveCallQuery, useCallRealtime } from "../../entities/call";
 import { useChatRealtime, useTypingRealtime } from "../../entities/chat";
 import { useMessageRealtime } from "../../entities/message";
-import { useMessageNotificationFallback, usePushSubscription } from "../../entities/notification";
+import {
+  useMessageNotificationFallback,
+  useNativePushRegistration,
+  usePushSubscription,
+} from "../../entities/notification";
 import { useMeRealtime } from "../../entities/session";
 import { useGhostlineSocket } from "../../shared/api/socket-client";
+import { isNativeApp } from "../../shared/native";
 
 import { useNotificationDeepLink } from "./use-notification-deep-link";
 import { useServiceWorkerMessages } from "./use-service-worker-messages";
@@ -26,7 +31,9 @@ export function useMessengerSession(): void {
   useCallRealtime();
   useActiveCallQuery();
   const { status: pushStatus } = usePushSubscription();
-  useMessageNotificationFallback(pushStatus !== "subscribed");
+  useNativePushRegistration();
+  // The app's WebView has no Notification API; native push shows them (T-083b).
+  useMessageNotificationFallback(!isNativeApp() && pushStatus !== "subscribed");
   useServiceWorkerMessages();
   useNotificationDeepLink();
 }

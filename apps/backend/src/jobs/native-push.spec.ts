@@ -1,4 +1,6 @@
 import { createDecipheriv, randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import { NativePushPayloadSchema, type Message, type PushPayload } from "@ghostline/contracts";
 import { describe, expect, it } from "vitest";
@@ -150,4 +152,35 @@ describe("encryptNativePush", () => {
 
     expect(() => decipher.final()).toThrow();
   });
+});
+
+/**
+ * `packages/contracts/fixtures/native-push.json` is also decrypted by the Android app's unit test
+ * (`PushCryptoTest`) — if the backend's cipher layout ever changes, this fails before a phone does.
+ */
+describe("native push fixtures (shared with the Android app)", () => {
+  interface FixtureCase {
+    name: string;
+    keyBase64: string;
+    deviceId: string;
+    payload: unknown;
+    envelope: unknown;
+  }
+  const cases = JSON.parse(
+    readFileSync(
+      resolve(process.cwd(), "../../packages/contracts/fixtures/native-push.json"),
+      "utf8",
+    ),
+  ) as FixtureCase[];
+
+  it.each(cases)(
+    "$name: payload matches the schema and re-encrypts to the same envelope",
+    (fixture) => {
+      const payload = NativePushPayloadSchema.parse(fixture.payload);
+      const iv = Buffer.from((fixture.envelope as { iv: string }).iv, "base64");
+      expect(encryptNativePush(payload, fixture.keyBase64, fixture.deviceId, iv)).toEqual(
+        fixture.envelope,
+      );
+    },
+  );
 });

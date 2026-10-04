@@ -165,7 +165,7 @@ call screen, the ongoing-call service, audio routes and PiP. APK served from our
 - [x] T-083 — Backend native transport: contracts, `NativePushDevice`, `sid` in the access token,
       optional FCM env, FCM HTTP v1 + AES-GCM, transport routing, action tokens + reply/read
       routes, `chat:read` push, test call.
-- [ ] T-083b — Android push client: messaging service, device key, registration from JS, logout
+- [x] T-083b — Android push client: messaging service, device key, registration from JS, logout
       unregister, settings status. Depends on T-080a, T-083.
 - [ ] T-084 — Message notifications (reply/read/dismiss), channels, permissions screen +
       checklist (FR-APP-05/07). Depends on T-083b.

@@ -99,7 +99,7 @@ them natively would mean two clients to keep in sync.
 - **New Google dependency.**
   - It needs a Firebase project: `google-services.json` in the APK build and a service account
     for the worker.
-  - The worker reads the optional `FCM_PROJECT_ID` + `FCM_SERVICE_ACCOUNT_JSON` through
+  - The worker reads the optional `FCM_SERVICE_ACCOUNT_JSON` (the project id comes from it) through
     `AppConfigService`. Without them, native push is off and the app works foreground-only.
   - Self-hosters who build their own APK need their own Firebase project.
 - **Devices without Google Play Services** (Huawei, de-Googled) get no background push.
@@ -115,5 +115,10 @@ them natively would mean two clients to keep in sync.
   killed apps. A first-run permissions screen and the checklist in "Настройки → Уведомления"
   link to the exact system screens, and "Проверить звонок" proves the chain end to end.
 - **Force-stopped apps get nothing until reopened.** That's Android's rule, not a bug.
+- **minSdk is 26** (Android 8): `java.util.Base64` for the push decryption (so it is unit-testable
+  on a plain JVM) and core-telecom both need it.
+- **`allowBackup="false"`.** The push `deviceId` is persisted next to a Keystore-wrapped key that
+  does not survive a restore; a restored `deviceId` on another phone would steal the first phone's
+  pushes (registration upserts by `deviceId`).
 - **iOS** (CallKit + PushKit VoIP via APNs) will be `apps/mobile/ios` under a separate ADR. The
   `Ghostline` plugin API is deliberately platform-neutral.

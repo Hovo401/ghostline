@@ -1,11 +1,12 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { usePushSubscription } from "../../entities/notification";
+import { unregisterNativeDevice, usePushSubscription } from "../../entities/notification";
 import { useLogout } from "../../entities/session";
 
 /**
- * "Выйти из аккаунта" (T-069). Drops this device's push subscription first —
+ * "Выйти из аккаунта" (T-069). Drops this device's push subscription (in the Android app, its FCM
+ * registration) first —
  * the DELETE needs the still-valid session, and a shared device shouldn't
  * keep getting this account's notifications after sign-out.
  */
@@ -23,6 +24,10 @@ export function LogoutButton({ className }: { className?: string }) {
         console.error("push unsubscribe on logout failed", error);
       });
     }
+    // The Android app's FCM registration; a no-op in a browser.
+    await unregisterNativeDevice().catch((error: unknown) => {
+      console.error("native push unregister on logout failed", error);
+    });
     logout.mutate(undefined, {
       onSettled: () => void navigate({ to: "/login", replace: true }),
     });

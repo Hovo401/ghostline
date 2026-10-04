@@ -1,3 +1,6 @@
+export { Ghostline, hasGhostlinePlugin } from "./ghostline-plugin";
+export type { GhostlinePlugin, PushRegistration } from "./ghostline-plugin";
+export { getInstalledBuild } from "./installed-build";
 export { isNativeApp } from "./is-native-app";
 export { listenForNativeBack } from "./native-back-button";
 export { listenForNativeLinks } from "./native-deep-links";

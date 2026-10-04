@@ -1,0 +1,70 @@
+[
+  {
+    "name": "message with cyrillic and emoji",
+    "keyBase64": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=",
+    "deviceId": "7f0c2f4e-0000-4000-8000-0000000000d1",
+    "payload": {
+      "kind": "message",
+      "chatId": "7f0c2f4e-0000-4000-8000-0000000000c1",
+      "messageId": "7f0c2f4e-0000-4000-8000-0000000000e1",
+      "seq": "42",
+      "title": "Алиса",
+      "body": "Привет! Как дела? 👋",
+      "sentAt": "2026-10-04T10:00:00.000Z",
+      "actionToken": "token-for-chat"
+    },
+    "envelope": {
+      "v": "1",
+      "iv": "AQEBAQEBAQEBAQEB",
+      "ct": "XJu1KPhQnCosshQ5yuV8BddqmVTgAibO7zlw7tIn760hXgDx0QI+iMA7rP9AQy5917FAPRdVdePQWEy51GX6Q2XaXdAIr/gE6xJWrKsD8vKdufXFvYFc2zJ0iv3zO9B3++KrEOjfYbFwEcEI9mlFW8BCn1vV4opXmeWcRNwJecIm2ZBfKHTD9TLCnnlABKe4xPbDNkQlNkx/7Fab17Pvi5Odsi6SAfEqkfstirdQj5ic6RTWc8QM5duTgZ018nLGjKyjDlKoP+R2rmekxT8+Cr6PjHxWJ/PffSsrzIwx2gIiAEAXQTk5JeAqxNEpnpkTuCgxO1KA33tovAwxPnKgjFZy/AvbrkQ7vHfpxjU0prrOPaUaMw=="
+    }
+  },
+  {
+    "name": "incoming call without avatar",
+    "keyBase64": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=",
+    "deviceId": "7f0c2f4e-0000-4000-8000-0000000000d1",
+    "payload": {
+      "kind": "call:incoming",
+      "callId": "7f0c2f4e-0000-4000-8000-0000000000a1",
+      "chatId": "7f0c2f4e-0000-4000-8000-0000000000c1",
+      "callerName": "Алиса",
+      "callerAvatarUrl": null,
+      "video": true,
+      "declineToken": "decline",
+      "createdAt": "2026-10-04T10:00:00.000Z"
+    },
+    "envelope": {
+      "v": "1",
+      "iv": "AgICAgICAgICAgIC",
+      "ct": "6gVg52G4H1BmlI6VDFgQ/n/+QAV7HlQhiNcJP7XxWT+J/xLYqYwXN7jLoZvUVhO3BF7tkd09f9H6FgtTkUGdG+9vVJVjQPOTAPKjTbEwQJDYFlAlaRCUDtCBx8GOrBzXrLb07d4mTcwBM7hKdcOsjwZF4sVk5OSB5GJog8hpCNM83r/lnjdvPjSnubBAa7bPOris1VGXITrXTShOwziD7sOsoDokadTi1EDNvurvxCgJx2GKGTlDVNZ70KejmEIScZt/Lhxp5ZjafbNCZp2zoNapSeCrT4J516i5anphfh8OxbI3CIH0t4YOZ60ZDetogpXEaQfLzvFp1pxnTwetUmJFbbbhhA=="
+    }
+  },
+  {
+    "name": "chat read",
+    "keyBase64": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=",
+    "deviceId": "7f0c2f4e-0000-4000-8000-0000000000d1",
+    "payload": {
+      "kind": "chat:read",
+      "chatId": "7f0c2f4e-0000-4000-8000-0000000000c1",
+      "readSeq": "42"
+    },
+    "envelope": {
+      "v": "1",
+      "iv": "AwMDAwMDAwMDAwMD",
+      "ct": "lLZyuFvExkh7carB3hVpFi/Obm9eg4VA/oymeDYrBqpZyC/Yp4wKus4IHgjA7NtRSXYSVNiAkMHtxF2ErgVMUVsJrM6dRK6H8iAWF0zZIlf1sjIH1A2AcIgZFngU8Ev1R1ER"
+    }
+  },
+  {
+    "name": "test",
+    "keyBase64": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=",
+    "deviceId": "7f0c2f4e-0000-4000-8000-0000000000d1",
+    "payload": {
+      "kind": "test"
+    },
+    "envelope": {
+      "v": "1",
+      "iv": "BAQEBAQEBAQEBAQE",
+      "ct": "NkdOwCNHETQD2SAwxOAtHRb2/Iv+6oP4XDShHMaopw=="
+    }
+  }
+]

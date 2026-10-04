@@ -35,3 +35,19 @@ publishes `ghostline-<code>.apk`, `ghostline.apk` and `latest.json` to `/downloa
 installed apps compare their build to `latest.json` and show the update banner. Raise
 `minVersionCode` to make the banner undismissable. Keep a backup of the release keystore —
 without it nobody can update in place.
+
+## Push (Firebase)
+
+FCM needs `apps/mobile/android/app/google-services.json` (gitignored). Without it the app still
+builds, but `Ghostline.getPushRegistration` rejects with `UNAVAILABLE` and no push arrives.
+
+- Get it: Firebase console → project settings → your Android app `app.ghostline` → download.
+- CI: the **Android release** workflow writes it from the `GOOGLE_SERVICES_JSON_BASE64` secret and
+  fails without it. `[Convert]::ToBase64String([IO.File]::ReadAllBytes("google-services.json"))`.
+- The backend needs the service-account key separately: `fcm_service_account_json` in
+  `deploy/group_vars/vault.yml` (`FCM_SERVICE_ACCOUNT_JSON` locally).
+- Native code: Kotlin in `app/src/main/java/app/ghostline` (`GhostlinePlugin`, `push/`). Unit tests:
+  `cd apps/mobile/android && ./gradlew testDebugUnitTest` (JDK 21). `PushCryptoTest` decrypts
+  `packages/contracts/fixtures/native-push.json`, which the backend's `native-push.spec.ts` also checks
+  — change the cipher layout in both or neither.
+- Debug: `adb logcat -s GhostlinePush FirebaseMessaging`.

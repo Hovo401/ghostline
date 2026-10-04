@@ -2,8 +2,14 @@ import { useCallback, useEffect } from "react";
 import { create } from "zustand";
 
 import { apiFetch } from "../../shared/api/http-client";
+import { Ghostline, hasGhostlinePlugin } from "../../shared/native";
 
 import { toPushSubscriptionBody, urlBase64ToUint8Array } from "./push-subscription-codec";
+import {
+  resetNativeRegistrationForTests,
+  resyncNativeDevice,
+  syncNativeDevice,
+} from "./use-native-push-registration";
 
 export type PushSubscriptionStatus =
   "unsupported" | "denied" | "unsubscribed" | "subscribed" | "pending";
@@ -80,7 +86,18 @@ async function registerSubscription(
 let syncOnce: Promise<void> | null = null;
 
 function initialStatus(): PushSubscriptionStatus {
-  return isPushSupported() ? "pending" : "unsupported";
+  return isPushSupported() || hasGhostlinePlugin() ? "pending" : "unsupported";
+}
+
+/**
+ * The Android app has no Push API: its status is the Android notification permission plus
+ * whether this install is registered for FCM (`use-native-push-registration.ts`).
+ */
+async function nativeStatus(): Promise<PushSubscriptionStatus> {
+  const { notifications } = await Ghostline.checkPermissions();
+  if (notifications === "denied") return "denied";
+  if (notifications !== "granted") return "unsubscribed";
+  return (await syncNativeDevice()) ? "subscribed" : "unsubscribed";
 }
 
 /** One status for every mount: the first-open prompt, the chat-list banner
@@ -104,6 +121,7 @@ export async function sendTestPush(): Promise<void> {
 /** Test-only: forget the per-page-load sync. */
 export function resetPushSyncForTests(): void {
   syncOnce = null;
+  resetNativeRegistrationForTests();
   setStatus(initialStatus());
 }
 
@@ -118,6 +136,15 @@ export function usePushSubscription() {
   const status = usePushStatusStore((state) => state.status);
 
   const refresh = useCallback(async (): Promise<void> => {
+    if (hasGhostlinePlugin()) {
+      try {
+        setStatus(await nativeStatus());
+      } catch (error) {
+        console.error("native push status failed", error);
+        setStatus("unsubscribed");
+      }
+      return;
+    }
     if (!isPushSupported()) {
       setStatus("unsupported");
       return;
@@ -150,6 +177,20 @@ export function usePushSubscription() {
   }, [refresh]);
 
   const subscribe = useCallback(async (): Promise<void> => {
+    if (hasGhostlinePlugin()) {
+      try {
+        const { notifications } = await Ghostline.requestPermissions();
+        if (notifications !== "granted") {
+          setStatus(notifications === "denied" ? "denied" : "unsubscribed");
+          return;
+        }
+        setStatus((await resyncNativeDevice()) ? "subscribed" : "unsubscribed");
+      } catch (error) {
+        console.error("native push subscribe failed", error);
+        setStatus("unsubscribed");
+      }
+      return;
+    }
     if (!isPushSupported()) return;
     const permission = await Notification.requestPermission();
     if (permission !== "granted") {
