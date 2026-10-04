@@ -22,6 +22,10 @@
         <item name="android:windowLightNavigationBar">false</item>
     </style>
 
+    <!-- IncomingCallActivity draws its own edge-to-edge background. -->
+    <style name="AppTheme.IncomingCall" parent="AppTheme.NoActionBar">
+        <item name="android:windowBackground">@color/call_bg_bottom</item>
+    </style>
 
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>

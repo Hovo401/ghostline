@@ -37,8 +37,11 @@ class GhostlineMessagingService : FirebaseMessagingService() {
             Log.w(PushNotifier.LOG_TAG, "ignoring a push of an unknown kind")
             return
         }
-        // The open app already got this over its socket; only the settings test must always show.
-        if (AppVisibility.foreground && push != NativePush.Test) return
+        // The open app already got what would be shown over its socket. Dismissals still apply:
+        // a chat read inside the app must clear the notification left from before.
+        val dismissal = push is NativePush.ChatRead || push is NativePush.CallClosed
+        val diagnostic = push == NativePush.Test || push is NativePush.TestCall
+        if (AppVisibility.foreground && !diagnostic && !dismissal) return
         PushNotifier.handle(this, push)
     }
 }

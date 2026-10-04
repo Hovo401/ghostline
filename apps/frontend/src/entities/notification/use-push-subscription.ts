@@ -1,3 +1,4 @@
+import type { NotificationTestKind } from "@ghostline/contracts";
 import { useCallback, useEffect } from "react";
 import { create } from "zustand";
 
@@ -113,9 +114,13 @@ function setStatus(status: PushSubscriptionStatus): void {
 }
 
 /** Asks the server to push a test notification to every device of the
- * signed-in user — the same path real messages take. */
-export async function sendTestPush(): Promise<void> {
-  await apiFetch("/notifications/test", { method: "POST" });
+ * signed-in user — the same path real messages take. `kind` picks what the
+ * Android app does with it ("call" rings the test-call screen 5s later,
+ * see `NativePermissionChecklist`'s "Проверить звонок"); omitted, the
+ * server sends its default plain test notification. */
+export async function sendTestPush(kind?: NotificationTestKind): Promise<void> {
+  const path = kind ? `/notifications/test?kind=${kind}` : "/notifications/test";
+  await apiFetch(path, { method: "POST" });
 }
 
 /** Test-only: forget the per-page-load sync. */

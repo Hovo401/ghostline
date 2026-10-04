@@ -13,6 +13,8 @@ ext {
     androidxJunitVersion = '1.3.0'
     androidxEspressoCoreVersion = '3.7.0'
     cordovaAndroidVersion = '14.0.1'
+    composeBomVersion = '2025.12.01'
     firebaseBomVersion = '34.5.0'
     orgJsonVersion = '20250517'
+    coreTelecomVersion = '1.0.1'
 }

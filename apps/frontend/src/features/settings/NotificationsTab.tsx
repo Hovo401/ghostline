@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import {
+  NativePermissionChecklist,
   useNotificationSettings,
   sendTestPush,
   usePushSubscription,
@@ -13,7 +14,7 @@ import {
   isStandaloneDisplay,
   usePwaInstall,
 } from "../../shared/lib/pwa-install";
-import { isNativeApp } from "../../shared/native";
+import { isNativeApp, useNativePermissions } from "../../shared/native";
 import { Button } from "../../shared/ui/button";
 import { Toggle } from "../../shared/ui/toggle";
 
@@ -87,6 +88,8 @@ export function NotificationsTab() {
   };
 
   const native = isNativeApp();
+  // null outside the app and in an APK older than the checklist.
+  const permissions = useNativePermissions();
   const platformHint =
     !native && status !== "unsupported" && status !== "denied"
       ? detectPlatformHint(navigator.userAgent, isStandaloneDisplay())
@@ -113,7 +116,7 @@ export function NotificationsTab() {
               Включить уведомления
             </Button>
           )}
-          {/* No in-app "off" switch for native push: use the toggles below or Android's settings (T-084). */}
+          {/* No in-app "off" switch for native push: use the toggles below or Android's settings. */}
           {status === "subscribed" && !native && (
             <Button
               variant="secondary"
@@ -150,6 +153,13 @@ export function NotificationsTab() {
           </Button>
         )}
       </section>
+
+      {native && permissions && (
+        <section className="flex flex-col gap-3.5">
+          <span className="text-base font-medium">Чтобы не пропускать звонки</span>
+          <NativePermissionChecklist status={permissions} />
+        </section>
+      )}
 
       {settings.data && (
         <section className="flex flex-col overflow-hidden rounded-[18px] border border-line">

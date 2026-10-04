@@ -3,7 +3,14 @@ package app.ghostline
 import android.Manifest
 import android.os.Build
 import android.util.Base64
+import android.util.Log
+import app.ghostline.calls.CallSession
+import app.ghostline.calls.LaunchActionStore
+import app.ghostline.calls.NativeCallState
+import app.ghostline.messages.MessageNotifier
 import app.ghostline.push.DeviceKeyStore
+import app.ghostline.push.PushNotifier
+import app.ghostline.system.SystemSettings
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
@@ -73,8 +80,71 @@ class GhostlinePlugin : Plugin() {
         }
     }
 
+    @PluginMethod
+    fun getPermissionStatus(call: PluginCall) {
+        val s = SystemSettings.status(context)
+        val result = JSObject()
+            .put("notifications", s.notifications)
+            .put("unrestrictedBattery", s.unrestrictedBattery)
+            .put("oem", s.oem)
+        // Absent (not false) before Android 14, so the page hides the row.
+        s.fullScreenCalls?.let { result.put("fullScreenCalls", it) }
+        call.resolve(result)
+    }
+
+    @PluginMethod
+    fun openSystemSettings(call: PluginCall) {
+        val kind = call.getString("kind")
+        if (kind == null || !SystemSettings.open(activity, kind)) {
+            call.reject("No settings screen for ${kind ?: "?"}", "UNAVAILABLE")
+            return
+        }
+        call.resolve()
+    }
+
+    /** Logout: drops every chat notification and the text kept for them. */
+    @PluginMethod
+    fun clearNotifications(call: PluginCall) {
+        MessageNotifier.clearAll(context)
+        call.resolve()
+    }
+
+    /**
+     * The page reports the call's phase (`NativeCallState` in `ghostline-plugin.ts`; `state` is absent or
+     * null when there is no call). Native keeps the ongoing notification and the Telecom entry in step.
+     */
+    @PluginMethod
+    fun setCallState(call: PluginCall) {
+        val json = call.getObject("state")
+        val state = json?.let(NativeCallState::parse)
+        if (json != null && state == null) {
+            // A state this build can't read (a newer page): keep what is running rather than tear it down.
+            Log.w(PushNotifier.LOG_TAG, "ignoring a call state this build does not understand")
+        } else {
+            CallSession.reconcile(context, state)
+        }
+        call.resolve()
+    }
+
+    /** The answer/callback chosen before the page was up: `{action: {...}}` or `{action: null}`, once. */
+    @PluginMethod
+    fun consumeLaunchAction(call: PluginCall) {
+        val action = LaunchActionStore.shared.consume(System.currentTimeMillis())
+        call.resolve(JSObject().put("action", action?.toJson() ?: JSObject.NULL))
+    }
+
     fun emitTokenChanged(token: String) {
         notifyListeners("pushTokenChanged", JSObject().put("token", token))
+    }
+
+    /**
+     * Sends a `NativeCallCommand` to the page. `false` when nothing listens (the page isn't up yet), so
+     * the caller can fall back to the launch-action store.
+     */
+    fun emitCommand(command: JSObject): Boolean {
+        if (!hasListeners("callCommand")) return false
+        notifyListeners("callCommand", command)
+        return true
     }
 
     private fun granted() = JSObject().put("notifications", "granted")

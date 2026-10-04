@@ -2,7 +2,12 @@ import { RegisterNativeDeviceBodySchema } from "@ghostline/contracts";
 import { useEffect } from "react";
 
 import { apiFetch } from "../../shared/api/http-client";
-import { Ghostline, getInstalledBuild, hasGhostlinePlugin } from "../../shared/native";
+import {
+  Ghostline,
+  clearNativeNotifications,
+  getInstalledBuild,
+  hasGhostlinePlugin,
+} from "../../shared/native";
 
 let registeredDeviceId: string | null = null;
 /** Several components mount the push hooks at once — register once per page load. */
@@ -46,15 +51,21 @@ export function resyncNativeDevice(): Promise<boolean> {
 
 /**
  * Drops this install's server row while the session is still valid (logout, FR-NOTIF-04) — a
- * signed-out phone must stop receiving the account's pushes. A no-op outside the app.
+ * signed-out phone must stop receiving the account's pushes — and clears its chat notifications.
+ * A no-op outside the app.
  */
 export async function unregisterNativeDevice(): Promise<void> {
   if (!hasGhostlinePlugin()) return;
-  await syncOnce;
-  if (!registeredDeviceId) return;
-  await apiFetch(`/notifications/native-devices/${registeredDeviceId}`, { method: "DELETE" });
-  registeredDeviceId = null;
-  syncOnce = null;
+  try {
+    await syncOnce;
+    if (!registeredDeviceId) return;
+    await apiFetch(`/notifications/native-devices/${registeredDeviceId}`, { method: "DELETE" });
+    registeredDeviceId = null;
+    syncOnce = null;
+  } finally {
+    // Even if the server call failed: the shade must not keep this account's texts.
+    await clearNativeNotifications();
+  }
 }
 
 /** Test-only: forget the per-page-load registration. */

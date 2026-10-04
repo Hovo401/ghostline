@@ -1,5 +1,6 @@
 apply plugin: 'com.android.application'
 apply plugin: 'org.jetbrains.kotlin.android'
+apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
 android {
     namespace = "app.ghostline"
@@ -31,6 +32,9 @@ android {
             }
         }
     }
+    buildFeatures {
+        compose = true
+    }
     kotlinOptions {
         jvmTarget = '21'
     }
@@ -61,8 +65,16 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    implementation platform("androidx.compose:compose-bom:$composeBomVersion")
+    implementation "androidx.compose.ui:ui"
+    implementation "androidx.compose.ui:ui-graphics"
+    implementation "androidx.compose.foundation:foundation"
+    implementation "androidx.compose.material3:material3"
+    implementation "androidx.activity:activity-compose:$androidxActivityVersion"
     implementation platform("com.google.firebase:firebase-bom:$firebaseBomVersion")
     implementation "com.google.firebase:firebase-messaging"
+    // Telecom registration of calls (ADR-0019).
+    implementation "androidx.core:core-telecom:$coreTelecomVersion"
     testImplementation "junit:junit:$junitVersion"
     // The android.jar stubs of org.json throw in JVM unit tests.
     testImplementation "org.json:json:$orgJsonVersion"

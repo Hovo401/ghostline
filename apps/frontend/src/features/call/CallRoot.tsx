@@ -2,6 +2,7 @@ import { CallEnded } from "./CallEnded";
 import { CallScreen } from "./CallScreen";
 import { IncomingCall } from "./IncomingCall";
 import { useCallSession } from "./use-call-session";
+import { useNativeCallBridge } from "./use-native-call-bridge";
 import { useTrackAttach } from "./use-track-attach";
 
 /**
@@ -19,6 +20,7 @@ import { useTrackAttach } from "./use-track-attach";
  */
 export function CallRoot() {
   const session = useCallSession();
+  useNativeCallBridge(session);
   const remoteAudioRef = useTrackAttach(session.remoteAudioTrack);
 
   return (

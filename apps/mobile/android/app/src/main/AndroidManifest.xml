@@ -39,6 +39,37 @@
             </intent-filter>
         </service>
 
+        <receiver
+            android:name=".messages.MessageActionReceiver"
+            android:exported="false" />
+
+        <service
+            android:name=".calls.IncomingCallService"
+            android:exported="false"
+            android:foregroundServiceType="phoneCall" />
+
+        <receiver
+            android:name=".calls.CallActionReceiver"
+            android:exported="false" />
+
+        <!-- A call in progress (T-086). The microphone/camera types are only requested when the permission is granted. -->
+        <service
+            android:name=".calls.OngoingCallService"
+            android:exported="false"
+            android:foregroundServiceType="phoneCall|microphone|camera" />
+
+        <receiver
+            android:name=".calls.OngoingCallActionReceiver"
+            android:exported="false" />
+
+        <activity
+            android:name=".calls.IncomingCallActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:taskAffinity=""
+            android:theme="@style/AppTheme.IncomingCall" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -57,4 +88,15 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Checklist (FR-APP-07): the full-screen call setting only exists for apps that declare this. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Incoming call (T-085): ringing foreground service of type phoneCall, ringtone vibration. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <!-- Call in progress (T-086): the page keeps using the microphone/camera with the app in the background. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 </manifest>

@@ -11,27 +11,39 @@ class NativePushTest {
     @Test
     fun parsesAMessage() {
         val push = NativePush.parse(
-            """{"kind":"message","chatId":"$chat","messageId":"m","seq":"42","title":"Алиса","body":"привет","sentAt":"x","actionToken":"t"}""",
+            """{"kind":"message","chatId":"$chat","messageId":"m","seq":"42","title":"Алиса","body":"привет","sentAt":"2026-10-04T10:00:00.000Z","actionToken":"t"}""",
         )
-        assertEquals(NativePush.Message(chat, "Алиса", "привет"), push)
+        assertEquals(NativePush.Message(chat, "m", 42L, "Алиса", "привет", 1_791_108_000_000L, "t"), push)
     }
 
     @Test
     fun parsesAnIncomingCallWithANullAvatar() {
         val push = NativePush.parse(
-            """{"kind":"call:incoming","callId":"$call","chatId":"$chat","callerName":"Алиса","callerAvatarUrl":null,"video":true,"declineToken":"d","createdAt":"x"}""",
+            """{"kind":"call:incoming","callId":"$call","chatId":"$chat","callerName":"Алиса","callerAvatarUrl":null,"video":true,"declineToken":"d","createdAt":"2026-10-04T10:00:00.000Z"}""",
         )
-        assertEquals(NativePush.CallIncoming(call, chat, "Алиса", true), push)
+        assertEquals(NativePush.CallIncoming(call, chat, "Алиса", null, true, "d", 1_791_108_000_000L), push)
+    }
+
+    @Test
+    fun parsesAnIncomingCallWithAnAvatar() {
+        val push = NativePush.parse(
+            """{"kind":"call:incoming","callId":"$call","chatId":"$chat","callerName":"Алиса","callerAvatarUrl":"https://cdn.example/a.jpg?sig=1","video":false,"declineToken":"d","createdAt":"2026-10-04T10:00:00.000Z"}""",
+        )
+        assertEquals(NativePush.CallIncoming(call, chat, "Алиса", "https://cdn.example/a.jpg?sig=1", false, "d", 1_791_108_000_000L), push)
     }
 
     @Test
     fun parsesTheRemainingKinds() {
-        assertEquals(NativePush.CallClosed(call), NativePush.parse("""{"kind":"call:closed","callId":"$call","reason":"ended"}"""))
+        assertEquals(NativePush.CallClosed(call, false), NativePush.parse("""{"kind":"call:closed","callId":"$call","reason":"ended"}"""))
         assertEquals(
-            NativePush.CallMissed(call, chat, "Алиса"),
+            NativePush.CallClosed(call, true),
+            NativePush.parse("""{"kind":"call:closed","callId":"$call","reason":"answered-elsewhere"}"""),
+        )
+        assertEquals(
+            NativePush.CallMissed(call, chat, "Алиса", false),
             NativePush.parse("""{"kind":"call:missed","callId":"$call","chatId":"$chat","callerName":"Алиса","video":false}"""),
         )
-        assertEquals(NativePush.ChatRead(chat), NativePush.parse("""{"kind":"chat:read","chatId":"$chat","readSeq":"42"}"""))
+        assertEquals(NativePush.ChatRead(chat, 42L),NativePush.parse("""{"kind":"chat:read","chatId":"$chat","readSeq":"42"}"""))
         assertEquals(NativePush.Test, NativePush.parse("""{"kind":"test"}"""))
         assertEquals(NativePush.TestCall("Ghostline"), NativePush.parse("""{"kind":"test-call","callerName":"Ghostline"}"""))
     }

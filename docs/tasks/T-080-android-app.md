@@ -39,9 +39,9 @@ The BACKLOG rows T-080a…T-088 are this epic's slices.
 | T-082 ✅ | CI-signed APK, `/downloads/android/` + `latest.json` (both deploy paths), "Скачать для Android" on Android web, in-app update banner |
 | T-083 | Backend native transport: contracts, `NativePushDevice`, `sid` in the access token, register/unregister, optional FCM env, FCM HTTP v1 client + AES-GCM, transport routing (ring-repeat web-only, `chat:read` native-only), action tokens + reply/read routes, test call |
 | T-083b ✅ | Android push client: Firebase Messaging service, device key, registration from JS, logout unregister, settings status |
-| T-084 | Message notifications (reply/read/dismiss), channels, permissions screen + checklist |
-| T-085 | Native incoming call: ringing FGS + system ringtone, CallStyle + premium Compose `IncomingCallActivity`, token decline, timeout, `call:closed`, missed call + "Перезвонить" |
-| T-086 | Answer → app → accept; `use-native-call-bridge` (phase → `setCallState`), ongoing FGS + chronometer + actions, core-telecom for incoming/outgoing |
+| T-084 ✅ | Message notifications (one MessagingStyle per chat, reply/read/dismiss, thread kept in SharedPreferences), `messages` channel, permissions screen + checklist. The "Проверить звонок" button moved to T-085 |
+| T-085 ✅ | Native incoming call: ringing FGS + system ringtone, CallStyle + premium Compose `IncomingCallActivity`, token decline, timeout, `call:closed`, missed call + "Перезвонить"; the "Входящие звонки" and "Пропущенные" channels; "Проверить звонок" in the checklist (`test-call` → the call screen) |
+| T-086 ✅ | Answer → app → accept; `use-native-call-bridge` (phase → `setCallState`), ongoing FGS + chronometer + actions, core-telecom for incoming/outgoing; the "Текущий звонок" channel |
 | T-087 | Audio routes (spike first), `AudioRouteSheet`, proximity, GSM hold, headset button |
 | T-088 | Picture-in-picture for video calls |
 

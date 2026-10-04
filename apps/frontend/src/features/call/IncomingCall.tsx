@@ -7,6 +7,8 @@ import {
   useCallStore,
   vibrateRing,
 } from "../../entities/call";
+import { usePushSubscription } from "../../entities/notification";
+import { isNativeApp } from "../../shared/native";
 import { Avatar } from "../../shared/ui/avatar";
 import { HangupIcon, PhoneIcon, VideoCameraIcon } from "../../shared/ui/call-icons";
 import { IconButton } from "../../shared/ui/icon-button";
@@ -22,17 +24,28 @@ const VIBRATE_REPEAT_MS = 2000;
  * both stop the moment the phase changes (answered here, or answered/
  * declined/cancelled from elsewhere — `call:updated` moves the phase out of
  * "incoming" either way, see `use-call-realtime.ts`).
+ *
+ * In the Android app with the page hidden (backgrounded/screen off) and native
+ * push active, the native calling screen (T-080) rings instead — starting the
+ * JS ringtone too would double it up. Otherwise (visible, a plain browser tab,
+ * or native push not registered/enabled) JS rings, since nobody else would.
  */
 export function IncomingCall() {
   const phase = useCallStore((state) => state.phase);
   const call = useCallStore((state) => state.call);
   const setLocalVideoIntent = useCallStore((state) => state.setLocalVideoIntent);
   const { accept, decline } = useCallActions();
+  // In the app, "subscribed" = Android notification permission granted + FCM device registered.
+  const nativePushActive = usePushSubscription().status === "subscribed";
   const incomingCall = phase === "incoming" ? call : null;
   const peer = useCallPeer(incomingCall?.chatId ?? null, incomingCall);
 
   useEffect(() => {
     if (phase !== "incoming") return;
+    // Native already rings for this call when the app isn't on screen (T-085) — only
+    // JS's own ringtone/vibration would double it up. But only if native push is really
+    // live (permission granted + device registered): otherwise nobody else would ring.
+    if (nativePushActive && isNativeApp() && document.visibilityState === "hidden") return;
     const stopTone = playRingtone();
     vibrateRing();
     const vibrateTimer = setInterval(vibrateRing, VIBRATE_REPEAT_MS);
@@ -41,8 +54,9 @@ export function IncomingCall() {
       clearInterval(vibrateTimer);
       stopVibration();
     };
-    // Re-arm for each distinct incoming call, not just each phase flip.
-  }, [phase, call?.id]);
+    // Re-arm for each distinct incoming call, not just each phase flip (and if the push
+    // status settles while ringing: "pending" → "subscribed" hands the ringing to native).
+  }, [phase, call?.id, nativePushActive]);
 
   if (phase !== "incoming" || !call) return null;
 
