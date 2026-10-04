@@ -1,12 +1,9 @@
 package app.ghostline
 
 import android.Manifest
-import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.util.Base64
 import android.util.Log
-import androidx.core.view.WindowCompat
 import app.ghostline.calls.CallSession
 import app.ghostline.calls.LaunchActionStore
 import app.ghostline.calls.NativeCallState
@@ -127,35 +124,6 @@ class GhostlinePlugin : Plugin() {
             CallSession.reconcile(context, state)
         }
         call.resolve()
-    }
-
-    /**
-     * The page's background as the bars' color (`color` = `#rrggbb`), dark icons for a light one. From
-     * Android 15 the bars are transparent and show the window background; before that, their own colors.
-     */
-    @PluginMethod
-    fun setSystemBars(call: PluginCall) {
-        val color = try {
-            Color.parseColor(call.getString("color") ?: "")
-        } catch (_: IllegalArgumentException) {
-            call.reject("color must be #rrggbb")
-            return
-        }
-        val darkIcons = call.getBoolean("darkIcons") ?: false
-        activity.runOnUiThread {
-            val window = activity.window
-            window.setBackgroundDrawable(ColorDrawable(color))
-            @Suppress("DEPRECATION")
-            window.statusBarColor = color
-            @Suppress("DEPRECATION")
-            window.navigationBarColor = color
-            bridge.webView.setBackgroundColor(color)
-            WindowCompat.getInsetsController(window, window.decorView).apply {
-                isAppearanceLightStatusBars = darkIcons
-                isAppearanceLightNavigationBars = darkIcons
-            }
-            call.resolve()
-        }
     }
 
     /** The answer/callback chosen before the page was up: `{action: {...}}` or `{action: null}`, once. */

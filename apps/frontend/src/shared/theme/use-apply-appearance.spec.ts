@@ -1,12 +1,12 @@
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { setNativeSystemBars } from "../native";
+import { setNativeBarStyle } from "../native";
 
 import { useAppearanceStore } from "./appearance-store";
 import { useApplyAppearance } from "./use-apply-appearance";
 
-vi.mock("../native", () => ({ setNativeSystemBars: vi.fn() }));
+vi.mock("../native", () => ({ setNativeBarStyle: vi.fn() }));
 
 describe("useApplyAppearance", () => {
   beforeEach(() => {
@@ -23,13 +23,16 @@ describe("useApplyAppearance", () => {
     expect(root.getAttribute("data-font")).toBe("pixel");
   });
 
-  it("hands the page background to the native system bars", () => {
-    document.body.style.backgroundColor = "rgb(243, 241, 236)";
+  it("tells the native bars whether the theme is light or dark", () => {
     renderHook(() => {
       useApplyAppearance();
     });
-    expect(setNativeSystemBars).toHaveBeenLastCalledWith("#f3f1ec", true);
-    document.body.style.backgroundColor = "";
+    expect(setNativeBarStyle).toHaveBeenLastCalledWith("light");
+    useAppearanceStore.setState({ theme: "midnight" });
+    renderHook(() => {
+      useApplyAppearance();
+    });
+    expect(setNativeBarStyle).toHaveBeenLastCalledWith("dark");
   });
 
   it("applies the defaults on public pages regardless of preferences", () => {

@@ -85,13 +85,21 @@ rings the rest of it, not a fresh 45 s. "Отклонить" goes through `CallA
 - Emulator: the full-screen screen only shows when the screen is off or locked; with the screen on
   the same call is a heads-up notification. Check `dumpsys power | grep mWakefulness` before judging.
 
-## System bars
+## Session cookie (ADR-0021)
 
-`styles.xml` paints the status/navigation bars dark for the start-up moment only. The page then reports
-its background through `Ghostline.setSystemBars({color, darkIcons})` (called from
-`shared/theme/use-apply-appearance.ts` on every theme change); `GhostlinePlugin` sets the window and WebView
-background (what shows under the transparent bars on Android 15+), the bars' own colors (≤14) and the icon
-style. The method doesn't exist in older APKs — the site calls it through `shared/native/native-system-bars.ts`.
+The refresh token is an httpOnly cookie that rotates on every refresh, and the WebView's `CookieManager`
+writes cookies to disk lazily. `MainActivity` calls `CookieManager.flush()` in `onPause`/`onStop` so a
+swipe from Recents or an APK update right after a refresh can't bring back the previous cookie — which
+the server would otherwise take for a stolen token and log the user out. Keep that flush.
+
+## System bars (ADR-0020)
+
+The WebView draws edge to edge. `viewport-fit=cover` in `apps/frontend/index.html` makes Capacitor's
+`SystemBars` publish `--safe-area-inset-*` (and stop padding the WebView); the site's `--safe-*` tokens and
+`p-safe`/`pt-safe`/`pb-safe` utilities in `shared/theme/theme.css` pad content with them. Backgrounds go
+under the bars, content doesn't: any new `fixed inset-*` layer needs safe padding. Icon color follows the
+theme through `SystemBars.setStyle` (`shared/native/native-system-bars.ts`). `styles.xml`'s bar colors only
+matter at start-up and on Android ≤ 14.
 
 ## Answering and a call in progress (T-086)
 

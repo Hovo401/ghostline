@@ -70,7 +70,7 @@ export function IncomingCall() {
       role="dialog"
       aria-modal="true"
       aria-label="Входящий звонок"
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-6 sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-6 pt-[calc(1.5rem+var(--safe-top))] pb-[calc(1.5rem+var(--safe-bottom))] sm:items-center"
     >
       <div className="flex w-full max-w-90 flex-col items-center gap-6 rounded-3xl border border-line bg-bg2 p-7 text-center shadow-glow">
         <Avatar name={peer?.displayName ?? "Абонент"} src={peer?.avatarUrl} size={92} />

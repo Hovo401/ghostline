@@ -216,7 +216,7 @@ export function MediaViewer() {
       aria-modal="true"
       aria-label={label}
       tabIndex={-1}
-      className="fixed inset-0 z-50 flex flex-col bg-black/90 outline-none"
+      className="p-safe fixed inset-0 z-50 flex flex-col bg-black/90 outline-none"
     >
       <div className="relative z-10 flex h-16 flex-none items-center justify-between px-4">
         <span className="font-mono text-sm text-white/80">

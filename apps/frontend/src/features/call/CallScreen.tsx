@@ -135,7 +135,7 @@ function OutgoingCallScreen({
       role="dialog"
       aria-modal="true"
       aria-label="Звонок"
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-desk text-white"
+      className="p-safe fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-desk text-white"
     >
       <Avatar name={peerName} src={peerAvatar} size={140} />
       <div className="flex flex-col items-center gap-1.5">
@@ -242,7 +242,7 @@ export function CallScreen({ session }: CallScreenProps) {
       role="dialog"
       aria-modal="true"
       aria-label="Звонок"
-      className="fixed inset-0 z-50 flex flex-col bg-desk text-white"
+      className="p-safe fixed inset-0 z-50 flex flex-col bg-desk text-white"
     >
       <ConnectionQualityBanner
         connectionState={mapConnectionState(connectionState)}

@@ -31,7 +31,7 @@ function AppShell() {
 
   return (
     <>
-      <div className="flex h-dvh flex-col">
+      <div className="p-safe flex h-dvh flex-col">
         <CallMiniBar />
         <div className="min-h-0 flex-1">
           <Outlet />

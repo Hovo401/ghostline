@@ -42,4 +42,22 @@ describe("SegmentedTabs", () => {
     expect(screen.getByRole("tablist")).toHaveClass("w-full");
     expect(screen.getByRole("tab", { name: "Внешний вид" })).toHaveClass("flex-1");
   });
+
+  it("lets a long single-word label wrap inside its segment when fill is set", () => {
+    render(
+      <SegmentedTabs
+        options={[{ value: "notifications", label: "Уведомления" }]}
+        value="notifications"
+        onChange={vi.fn()}
+        fill
+      />,
+    );
+
+    // Regression: on a ~360px phone "Уведомления" spilled past the border.
+    expect(screen.getByRole("tab", { name: "Уведомления" })).toHaveClass(
+      "min-w-0",
+      "wrap-break-word",
+      "hyphens-auto",
+    );
+  });
 });

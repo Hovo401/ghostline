@@ -92,7 +92,7 @@ export function ProfilePanel({ chat, open, onClose }: ProfilePanelProps) {
       <Backdrop open={open} onClose={onClose} />
       <div
         className={[
-          "fixed inset-y-0 right-0 z-50 flex w-full max-w-95 flex-col border-l border-line bg-bg shadow-glow transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)]",
+          "pt-safe pb-safe fixed inset-y-0 right-0 z-50 flex w-full max-w-95 flex-col border-l border-line bg-bg shadow-glow transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)]",
           open ? "translate-x-0" : "translate-x-full",
         ].join(" ")}
       >

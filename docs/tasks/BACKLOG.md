@@ -176,6 +176,21 @@ call screen, the ongoing-call service, audio routes and PiP. APK served from our
 - [ ] T-087 — Audio routes, proximity, GSM hold, headset button (FR-APP-04). Depends on T-086.
 - [ ] T-088 — Picture-in-picture for video calls (FR-APP-08). Depends on T-086.
 
+### Session stays alive on Android (FR-AUTH-06; docs/adr/0021)
+
+Users were logged out after reopening the app or after an update: the WebView lost the rotated
+refresh cookie and the server took the old one for a stolen token.
+
+- [~] T-089 — Previous refresh token accepted once (`Session.previousTokenHash`), `CookieManager.flush()`
+      in `MainActivity`, frontend logs out only on a 401 and retries on network/5xx, single-flight
+      refresh with a Web Lock. Code is done; open: run `pnpm db:migrate --name
+add_session_previous_token_hash`, deploy, release an APK (bump `android-release.json`).
+- [ ] T-090 — Compare-and-swap on refresh rotation: two parallel refreshes with the same token can
+      leave the client with a token the server no longer knows (one forced re-login). Do it only if
+      logouts keep being reported after T-089 is live ~2 weeks. Depends on T-089.
+- [ ] T-091 — `/app` waits on `checking` forever while offline (`ensureSession` retries): show a
+      "Нет сети, подключаемся…" state instead of a blank screen. Depends on T-089.
+
 ## M7 — Open source
 
 License file, CONTRIBUTING.md, self-host guide (expand README.md's quickstart), "write your own
