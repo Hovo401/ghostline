@@ -63,6 +63,7 @@ async function resolveSession(): Promise<void> {
       }
       // The server never rejected the cookie, so keep it: a cold start often runs before the
       // network is up, and logging out here is what made the Android app ask for a login.
+      useSessionStore.getState().setReconnecting();
       await waitBeforeRetry(attempt);
     }
   }
@@ -76,9 +77,9 @@ let pending: Promise<void> | null = null;
  * refresh cookie (FR-AUTH-06), then flips to `authenticated`/`anonymous`.
  * Only the server rejecting the cookie makes the user `anonymous`; a network or 5xx failure is
  * retried (with backoff, and at once when the browser goes back online) while the store stays
- * `checking`. Route `beforeLoad` guards (`/login`, `/app`) await this so a reload keeps
- * (or correctly drops) the session before the guard makes its redirect
- * decision — see `routes/app.tsx`/`routes/login.tsx`.
+ * `checking` with `reconnecting` set (shown by `SessionPending`). Route `beforeLoad` guards
+ * (`/login`, `/app`) await this so a reload keeps (or correctly drops) the session before the
+ * guard makes its redirect decision — see `routes/app.tsx`/`routes/login.tsx`.
  */
 export function ensureSession(): Promise<void> {
   if (useSessionStore.getState().status !== "checking") return Promise.resolve();

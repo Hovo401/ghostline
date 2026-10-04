@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
 import { selectHasActiveUploads, useUploadQueueStore } from "../entities/attachment";
-import { ensureSession } from "../entities/session";
+import { ensureSession, SessionPending } from "../entities/session";
 import { CallMiniBar, CallRoot } from "../features/call";
 import { useMessengerSession } from "../features/chat";
 import { MediaViewer } from "../features/media-viewer";
@@ -70,5 +70,6 @@ export const Route = createFileRoute("/app")({
       throw redirect({ to: "/login", replace: true });
     }
   },
+  pendingComponent: SessionPending,
   component: AppShell,
 });

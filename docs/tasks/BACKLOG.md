@@ -183,12 +183,12 @@ refresh cookie and the server took the old one for a stolen token.
 
 - [~] T-089 — Previous refresh token accepted once (`Session.previousTokenHash`), `CookieManager.flush()`
       in `MainActivity`, frontend logs out only on a 401 and retries on network/5xx, single-flight
-      refresh with a Web Lock. Code is done; open: run `pnpm db:migrate --name
-add_session_previous_token_hash`, deploy, release an APK (bump `android-release.json`).
+      refresh with a Web Lock. Code and migration (`add_session_previous_token_hash`) are done; open: deploy,
+      release an APK (bump `android-release.json`).
 - [ ] T-090 — Compare-and-swap on refresh rotation: two parallel refreshes with the same token can
       leave the client with a token the server no longer knows (one forced re-login). Do it only if
       logouts keep being reported after T-089 is live ~2 weeks. Depends on T-089.
-- [ ] T-091 — `/app` waits on `checking` forever while offline (`ensureSession` retries): show a
+- [x] T-091 — `/app` waits on `checking` forever while offline (`ensureSession` retries): show a
       "Нет сети, подключаемся…" state instead of a blank screen. Depends on T-089.
 
 ## M7 — Open source

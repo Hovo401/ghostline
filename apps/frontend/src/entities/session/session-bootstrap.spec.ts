@@ -24,7 +24,12 @@ const USER = {
 describe("ensureSession", () => {
   beforeEach(() => {
     vi.mocked(refreshSession).mockReset();
-    useSessionStore.setState({ status: "checking", accessToken: null, user: null });
+    useSessionStore.setState({
+      status: "checking",
+      accessToken: null,
+      user: null,
+      reconnecting: false,
+    });
   });
 
   it("authenticates the store when the refresh cookie is valid", async () => {
@@ -45,6 +50,19 @@ describe("ensureSession", () => {
     await ensureSession();
 
     expect(useSessionStore.getState().status).toBe("anonymous");
+    expect(useSessionStore.getState().reconnecting).toBe(false);
+  });
+
+  it("never flags reconnecting when the first attempt succeeds", async () => {
+    vi.mocked(refreshSession).mockResolvedValue({ accessToken: "tok", user: USER });
+    const seen: boolean[] = [];
+    const unsubscribe = useSessionStore.subscribe((s) => seen.push(s.reconnecting));
+
+    await ensureSession();
+    unsubscribe();
+
+    expect(seen).not.toContain(true);
+    expect(useSessionStore.getState().reconnecting).toBe(false);
   });
 
   it("keeps the session and retries when the network is down or the server fails", async () => {
@@ -58,8 +76,10 @@ describe("ensureSession", () => {
       const done = ensureSession();
       await vi.advanceTimersByTimeAsync(0);
       expect(useSessionStore.getState().status).toBe("checking");
+      expect(useSessionStore.getState().reconnecting).toBe(true);
       await vi.advanceTimersByTimeAsync(10_000);
       await done;
+      expect(useSessionStore.getState().reconnecting).toBe(false);
 
       expect(refreshSession).toHaveBeenCalledTimes(3);
       expect(useSessionStore.getState()).toMatchObject({
