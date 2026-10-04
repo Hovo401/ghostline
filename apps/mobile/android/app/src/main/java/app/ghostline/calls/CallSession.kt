@@ -14,6 +14,8 @@ enum class CallCommand(val wire: String) {
     Hangup("hangup"),
     ToggleMute("toggleMute"),
     Open("open"),
+    Hold("hold"),
+    Resume("resume"),
 }
 
 /**

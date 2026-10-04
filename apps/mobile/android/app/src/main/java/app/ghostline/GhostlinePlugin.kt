@@ -133,6 +133,26 @@ class GhostlinePlugin : Plugin() {
         call.resolve(JSObject().put("action", action?.toJson() ?: JSObject.NULL))
     }
 
+    // TODO(T-087): AudioRouter answers these; until then the page sees "no route picker".
+    @PluginMethod
+    fun getAudioRoutes(call: PluginCall) {
+        call.unimplemented("audio routes: T-087")
+    }
+
+    @PluginMethod
+    fun setAudioRoute(call: PluginCall) {
+        call.unimplemented("audio routes: T-087")
+    }
+
+    /** `routes` is a `NativeAudioRoutes` (`{current, available: [{route, name}]}`). */
+    fun emitAudioRoutes(routes: JSObject) {
+        notifyListeners("audioRoutes", routes)
+    }
+
+    fun emitPipMode(active: Boolean) {
+        notifyListeners("pipModeChanged", JSObject().put("active", active))
+    }
+
     fun emitTokenChanged(token: String) {
         notifyListeners("pushTokenChanged", JSObject().put("token", token))
     }
