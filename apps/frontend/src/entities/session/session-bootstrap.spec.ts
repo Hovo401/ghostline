@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { refreshSession } from "../../shared/api/auth-client";
+import { ApiError } from "../../shared/api/http-client";
 import { useSessionStore } from "../../shared/api/session-store";
 
 import { ensureSession } from "./session-bootstrap";
@@ -38,12 +39,54 @@ describe("ensureSession", () => {
     });
   });
 
-  it("falls back to anonymous when there is no valid refresh cookie", async () => {
-    vi.mocked(refreshSession).mockRejectedValue(new Error("401"));
+  it("falls back to anonymous when the server rejects the refresh cookie", async () => {
+    vi.mocked(refreshSession).mockRejectedValue(new ApiError(401, "invalid"));
 
     await ensureSession();
 
     expect(useSessionStore.getState().status).toBe("anonymous");
+  });
+
+  it("keeps the session and retries when the network is down or the server fails", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(refreshSession)
+        .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+        .mockRejectedValueOnce(new ApiError(503, "unavailable"))
+        .mockResolvedValue({ accessToken: "tok", user: USER });
+
+      const done = ensureSession();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(useSessionStore.getState().status).toBe("checking");
+      await vi.advanceTimersByTimeAsync(10_000);
+      await done;
+
+      expect(refreshSession).toHaveBeenCalledTimes(3);
+      expect(useSessionStore.getState()).toMatchObject({
+        status: "authenticated",
+        accessToken: "tok",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("retries at once when the browser comes back online", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(refreshSession)
+        .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+        .mockResolvedValue({ accessToken: "tok", user: USER });
+
+      const done = ensureSession();
+      await vi.advanceTimersByTimeAsync(0);
+      window.dispatchEvent(new Event("online"));
+      await done;
+
+      expect(useSessionStore.getState().status).toBe("authenticated");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("only calls refresh once for concurrent callers", async () => {

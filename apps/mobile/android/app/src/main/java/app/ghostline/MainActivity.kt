@@ -3,6 +3,7 @@ package app.ghostline
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.webkit.CookieManager
 import app.ghostline.calls.CallCommand
 import app.ghostline.calls.CallSession
 import app.ghostline.calls.LaunchAction
@@ -53,8 +54,16 @@ class MainActivity : BridgeActivity() {
         AppVisibility.foreground = true
     }
 
+    override fun onPause() {
+        // The WebView writes cookies to disk lazily; a swipe from Recents or an APK update right after a
+        // token refresh would leave the previous refresh cookie on disk (ADR-0021).
+        CookieManager.getInstance().flush()
+        super.onPause()
+    }
+
     override fun onStop() {
         AppVisibility.foreground = false
+        CookieManager.getInstance().flush()
         super.onStop()
     }
 

@@ -30,6 +30,7 @@ interface FakeSessionRow {
   id: string;
   userId: string;
   tokenHash: string;
+  previousTokenHash?: string | null;
   familyId: string;
   expiresAt: Date;
   revokedAt: Date | null;
@@ -112,7 +113,11 @@ function createFakePrisma() {
     },
     session: {
       create: ({ data }: { data: FakeSessionRow }) => {
-        const row: FakeSessionRow = { ...data, revokedAt: data.revokedAt ?? null };
+        const row: FakeSessionRow = {
+          ...data,
+          previousTokenHash: data.previousTokenHash ?? null,
+          revokedAt: data.revokedAt ?? null,
+        };
         sessions.set(row.id, row);
         return Promise.resolve(row);
       },
@@ -286,8 +291,9 @@ describe("AuthService", () => {
         displayName: "Dave",
       });
 
-      // Rotate once — `registered.refreshToken` is now stale.
-      await ctx.authService.refresh(registered.refreshToken);
+      // Rotate twice — `registered.refreshToken` is now two rotations old (ADR-0021 only forgives one).
+      const first = await ctx.authService.refresh(registered.refreshToken);
+      await ctx.authService.refresh(first.refreshToken);
 
       // Replaying the stale token must be rejected...
       await expect(ctx.authService.refresh(registered.refreshToken)).rejects.toBeInstanceOf(
@@ -310,12 +316,48 @@ describe("AuthService", () => {
       const { sid } = ctx.tokenService.verifyRefreshToken(registered.refreshToken);
       ctx.fakePrisma.nativeDevices.set("device-1", sid);
 
-      await ctx.authService.refresh(registered.refreshToken);
+      const first = await ctx.authService.refresh(registered.refreshToken);
+      await ctx.authService.refresh(first.refreshToken);
       await expect(ctx.authService.refresh(registered.refreshToken)).rejects.toBeInstanceOf(
         UnauthorizedException,
       );
 
       expect(ctx.fakePrisma.nativeDevices.size).toBe(0);
+    });
+
+    it("accepts the previous token once, so a client that lost the rotated cookie stays logged in", async () => {
+      const registered = await ctx.authService.register({
+        username: "heidi",
+        password: "password123",
+        displayName: "Heidi",
+      });
+      const { sid } = ctx.tokenService.verifyRefreshToken(registered.refreshToken);
+
+      await ctx.authService.refresh(registered.refreshToken);
+      // The rotated cookie never reached the disk: the client comes back with the old one.
+      const retried = await ctx.authService.refresh(registered.refreshToken);
+      // ...and can retry again if that response is lost too.
+      await ctx.authService.refresh(registered.refreshToken);
+
+      expect(retried.user.id).toBe(registered.user.id);
+      expect(ctx.fakePrisma.sessions.get(sid)?.revokedAt).toBeNull();
+    });
+
+    it("stops accepting the previous token once the current one has been used", async () => {
+      const registered = await ctx.authService.register({
+        username: "ivan",
+        password: "password123",
+        displayName: "Ivan",
+      });
+      const { sid } = ctx.tokenService.verifyRefreshToken(registered.refreshToken);
+
+      const first = await ctx.authService.refresh(registered.refreshToken);
+      await ctx.authService.refresh(first.refreshToken);
+
+      await expect(ctx.authService.refresh(registered.refreshToken)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      expect(ctx.fakePrisma.sessions.get(sid)?.revokedAt).not.toBeNull();
     });
 
     it("keeps the session id in the rotated access token", async () => {

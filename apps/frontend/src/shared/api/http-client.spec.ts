@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, apiFetch } from "./http-client";
-import { useSessionStore } from "./session-store";
+import { setSessionRefresher, useSessionStore } from "./session-store";
 
 function firstCall<T>(calls: T[]): T {
   const call = calls[0];
@@ -62,5 +62,48 @@ describe("apiFetch", () => {
     );
 
     await expect(apiFetch("/me")).rejects.toBeInstanceOf(ApiError);
+  });
+
+  describe("401 refresh", () => {
+    const USER = {
+      id: "1",
+      username: "u",
+      displayName: "u",
+      avatarKey: null,
+      avatarUrl: null,
+      bio: null,
+      online: false,
+      lastSeenAt: null,
+    };
+
+    afterEach(() => {
+      setSessionRefresher(() => Promise.reject(new Error("no refresher")));
+    });
+
+    function stubUnauthorized() {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(() => Promise.resolve(new Response("no", { status: 401 }))),
+      );
+      useSessionStore.getState().setSession("old", USER);
+    }
+
+    it("keeps the session when the refresh fails because of the network", async () => {
+      stubUnauthorized();
+      setSessionRefresher(() => Promise.reject(new TypeError("Failed to fetch")));
+
+      await expect(apiFetch("/me")).rejects.toBeInstanceOf(ApiError);
+
+      expect(useSessionStore.getState().status).toBe("authenticated");
+    });
+
+    it("clears the session when the server rejects the refresh cookie", async () => {
+      stubUnauthorized();
+      setSessionRefresher(() => Promise.reject(new ApiError(401, "reuse detected")));
+
+      await expect(apiFetch("/me")).rejects.toBeInstanceOf(ApiError);
+
+      expect(useSessionStore.getState().status).toBe("anonymous");
+    });
   });
 });
