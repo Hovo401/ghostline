@@ -1,13 +1,23 @@
 import { ConnectionQuality, ConnectionState } from "livekit-client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { playRingback, useCallActions, useCallStore } from "../../entities/call";
 import { formatDuration } from "../../entities/message";
 import { useBackToClose } from "../../shared/lib/use-back-to-close";
+import {
+  isNativeApp,
+  resumeNativeCall,
+  setNativeAudioRoute,
+  type NativeAudioRoute,
+} from "../../shared/native";
 import { Avatar } from "../../shared/ui/avatar";
+import { Button } from "../../shared/ui/button";
 import { HangupIcon } from "../../shared/ui/call-icons";
 import { IconButton } from "../../shared/ui/icon-button";
+import { useToastStore } from "../../shared/ui/toast-store";
 
+import { AudioRouteIcon } from "./AudioRouteIcon";
+import { AudioRouteSheet } from "./AudioRouteSheet";
 import {
   ConnectionQualityBanner,
   type CallConnectionQuality,
@@ -16,6 +26,7 @@ import {
 import { useCallPeer } from "./use-call-peer";
 import type { CallSessionHandle } from "./use-call-session";
 import { useElapsedMs } from "./use-call-timer";
+import { useNativeAudioRoutes } from "./use-native-audio-routes";
 import { useNativePip } from "./use-native-pip";
 import { useTrackAttach } from "./use-track-attach";
 import { useWakeLock } from "./use-wake-lock";
@@ -176,6 +187,7 @@ export function CallScreen({ session }: CallScreenProps) {
   const minimized = useCallStore((state) => state.minimized);
   const minimize = useCallStore((state) => state.minimize);
   const pip = useNativePip();
+  const held = useCallStore((state) => state.held);
   const { hangup, cancel } = useCallActions();
   const chatId = call?.chatId ?? draft?.chatId ?? null;
   const peer = useCallPeer(chatId, call);
@@ -187,6 +199,15 @@ export function CallScreen({ session }: CallScreenProps) {
   // — it never hangs up. Mirrors the render conditions below.
   const connected = phase === "connecting" || phase === "active" || phase === "reconnecting";
   useBackToClose(!minimized && (phase === "outgoing" || (connected && call !== null)), minimize);
+
+  // Phone audio routes (T-087): the hook yields routes only in the app, so a browser never gets the button.
+  const audioRoutes = useNativeAudioRoutes(connected);
+  const [routeSheetOpen, setRouteSheetOpen] = useState(false);
+  const routeCount = audioRoutes?.available.length ?? 0;
+  // The sheet must not wait around to pop open when a third route comes back later.
+  useEffect(() => {
+    if (routeCount < 3) setRouteSheetOpen(false);
+  }, [routeCount]);
 
   useEffect(() => {
     if (phase === "idle" || phase === "ended") return;
@@ -248,6 +269,19 @@ export function CallScreen({ session }: CallScreenProps) {
 
   if (minimized) return null;
 
+  const toggleRoutes = routeCount === 2 ? audioRoutes : null;
+  const sheetRoutes = routeCount >= 3 ? audioRoutes : null;
+  const chooseRoute = (route: NativeAudioRoute): void => {
+    void setNativeAudioRoute(route);
+    setRouteSheetOpen(false);
+  };
+  // Two routes: one tap flips between them, "Динамик" being the one named on the button.
+  const toggleSpeaker = (): void => {
+    if (!toggleRoutes) return;
+    const other = toggleRoutes.available.find(({ route }) => route !== "speaker");
+    chooseRoute(toggleRoutes.current === "speaker" && other ? other.route : "speaker");
+  };
+
   if (phase === "outgoing") {
     return (
       <OutgoingCallScreen
@@ -281,8 +315,33 @@ export function CallScreen({ session }: CallScreenProps) {
       <div className="flex h-16 flex-none items-center justify-between px-4">
         <div className="flex flex-col">
           <span className="text-[15px] font-medium">{peerName}</span>
-          <span className="font-mono text-xs text-white/70">
-            {phase === "active" ? formatDuration(elapsedMs) : "Соединение…"}
+          <span className="flex items-center gap-2 font-mono text-xs text-white/70">
+            <span>
+              {held
+                ? "На удержании"
+                : phase === "active"
+                  ? formatDuration(elapsedMs)
+                  : "Соединение…"}
+            </span>
+            {held && isNativeApp() && (
+              <Button
+                variant="secondary"
+                aria-label="Продолжить звонок"
+                className="px-3 py-1 text-xs"
+                onClick={() => {
+                  // On success native sends `resume`, which clears `held` — nothing to do here.
+                  void resumeNativeCall().then((resumed) => {
+                    if (!resumed) {
+                      useToastStore
+                        .getState()
+                        .push({ variant: "error", message: "Не удалось продолжить звонок" });
+                    }
+                  });
+                }}
+              >
+                Продолжить
+              </Button>
+            )}
           </span>
         </div>
         <IconButton icon={<MinimizeIcon />} label="Свернуть" variant="inverse" onClick={minimize} />
@@ -336,6 +395,7 @@ export function CallScreen({ session }: CallScreenProps) {
           label={micEnabled ? "Выключить микрофон" : "Включить микрофон"}
           variant="inverse"
           onClick={toggleMic}
+          disabled={held}
           className="h-13 w-13 bg-white/10"
         />
         {call.video && (
@@ -356,6 +416,28 @@ export function CallScreen({ session }: CallScreenProps) {
             className="h-13 w-13 bg-white/10"
           />
         )}
+        {toggleRoutes && (
+          <IconButton
+            icon={<AudioRouteIcon route={toggleRoutes.current ?? "earpiece"} />}
+            label="Динамик"
+            aria-pressed={toggleRoutes.current === "speaker"}
+            variant="inverse"
+            onClick={toggleSpeaker}
+            className={`h-13 w-13 ${toggleRoutes.current === "speaker" ? "bg-white/25" : "bg-white/10"}`}
+          />
+        )}
+        {sheetRoutes && (
+          <IconButton
+            icon={<AudioRouteIcon route={sheetRoutes.current ?? "earpiece"} />}
+            label="Аудиовыход"
+            aria-haspopup="menu"
+            variant="inverse"
+            onClick={() => {
+              setRouteSheetOpen(true);
+            }}
+            className="h-13 w-13 bg-white/10"
+          />
+        )}
         <IconButton
           icon={<HangupIcon />}
           label="Завершить звонок"
@@ -363,6 +445,16 @@ export function CallScreen({ session }: CallScreenProps) {
           className="h-13 w-13 bg-danger text-white"
         />
       </div>
+
+      {routeSheetOpen && sheetRoutes && (
+        <AudioRouteSheet
+          routes={sheetRoutes}
+          onSelect={chooseRoute}
+          onClose={() => {
+            setRouteSheetOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

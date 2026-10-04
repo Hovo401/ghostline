@@ -18,17 +18,18 @@ fun ongoingForegroundTypes(sdk: Int, micGranted: Boolean, cameraGranted: Boolean
     return types
 }
 
-/** What the ongoing-call notification says about the phase; the timer takes over once there is an `answeredAt`. */
-fun ongoingStatus(phase: CallPhase, answeredAt: Long?): String = when {
+/** What the ongoing-call notification says about the phase (or the hold); the timer takes over once there is an `answeredAt`. */
+fun ongoingStatus(phase: CallPhase, answeredAt: Long?, held: Boolean = false): String = when {
+    held -> "На удержании"
     phase == CallPhase.Reconnecting -> "Переподключение…"
     answeredAt != null -> "Идёт звонок"
     phase == CallPhase.Outgoing -> "Вызов…"
     else -> "Соединение…"
 }
 
-/** "Идёт звонок · Анна", "Вызов… · Анна". */
-fun ongoingTitle(phase: CallPhase, answeredAt: Long?, peerName: String): String {
-    val status = ongoingStatus(phase, answeredAt)
+/** "Идёт звонок · Анна", "Вызов… · Анна", "На удержании · Анна". */
+fun ongoingTitle(phase: CallPhase, answeredAt: Long?, peerName: String, held: Boolean = false): String {
+    val status = ongoingStatus(phase, answeredAt, held)
     return if (peerName.isBlank()) status else "$status · $peerName"
 }
 

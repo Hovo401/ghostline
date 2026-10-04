@@ -118,7 +118,7 @@ matter at start-up and on Android ≤ 14.
 - `TelecomBridge` (core-telecom, ADR-0019) runs one coroutine per call inside `CallsManager.addCall`;
   `IncomingCallService` registers a ringing call there, so a `call:closed`/decline/timeout ends the entry
   (`RingEnd`), while an answer leaves it for `CallSession`. `addCall` failing (GSM call, missing permission)
-  is logged and the call goes on without Telecom. Holds, audio routes and the headset button: T-087.
+  is logged and the call goes on without Telecom. Holds, audio routes and the headset button: see below (T-087).
 - `setCallState`, `consumeLaunchAction` and the `callCommand` event don't exist in older APKs; the site calls
   them through `shared/native/native-call.ts`.
 
@@ -143,3 +143,38 @@ matter at start-up and on Android ≤ 14.
   so `onPause` only notifies plugins), otherwise the video freezes. Keep the cookie flush in `onPause`/`onStop`
   (ADR-0021).
 - `pipModeChanged` doesn't exist in older APKs; the site listens through `shared/native/native-call.ts`.
+
+## Audio routes, proximity, hold (T-087, ADR-0022)
+
+- `AudioRouter` (`calls/`) is the one owner of where a call's sound goes. With a Telecom entry `TelecomBridge`
+  feeds it the endpoint flows and it switches with `requestEndpointChange`; if `addCall` failed `AudioFallback`
+  does it with `AudioManager` (`MODE_IN_COMMUNICATION`, `setCommunicationDevice` on 12+, speakerphone/SCO
+  below) and reports a lost audio focus as hold. Every change is an `audioRoutes` event; `getAudioRoutes` /
+  `setAudioRoute` answer the page (`UNAVAILABLE` for a route that isn't connected). The rules (initial route,
+  headset priority, the user's pick is kept, Bluetooth hidden without permission) are pure functions in
+  `AudioRouteLogic.kt` and `HoldLogic.kt` (`decideRoute` leaves a route the list doesn't offer alone). Telecom's
+  Bluetooth endpoints are never filtered; only the `AudioManager` path hides Bluetooth without the permission.
+- `BLUETOOTH_CONNECT` is asked once, only when the `AudioManager` fallback starts and a Bluetooth output is around.
+  Without it Bluetooth is simply not in the list.
+- `ProximityLock` (screen off at the ear) lives in `OngoingCallService`: audio call, `connecting`/`active`,
+  earpiece (`shouldHoldProximity`); released in `onDestroy`.
+- Hold: Telecom `onSetInactive`/`onSetActive` (or audio focus without Telecom) -> `CallSession.onSystemHold(callId,
+hold)` -> `hold`/`resume` `callCommand` plus "На удержании" in the notification. It applies only to the current
+  call and only in `active`/`reconnecting` (`shouldApplyHold`). `NativeCallState.held` is native's own and is never
+  read from the page's JSON. Telecom may not report the end of a GSM call, so while held `TelecomBridge` retries
+  `setActive()` every 3 s (one loop per hold) unless a GSM call is on (`MODE_IN_CALL`/`MODE_RINGTONE`); the manual path is `Ghostline.resumeCall`
+  (no args, `UNAVAILABLE` if nothing is held or Telecom refuses) behind the page's "Продолжить". Hold does not stop
+  the camera of a video call (native can't): known limitation, ADR-0022.
+- Headset: Telecom `onAnswer` on a ringing call runs `IncomingCallService.answer` (the same code as the
+  "Ответить" button); `onDisconnect` from the system sends `hangup` (a ringing call is declined instead,
+  `disconnectAction`). An entry the app ended itself is flagged `ending`, so the system's echo is not mistaken
+  for the user. Limit: between a native answer and the page's `connecting` the entry is not yet marked answered,
+  so a system disconnect in that gap counts as a rejection and does nothing. `IncomingCallService.answer` hands the
+  answer straight to a listening page and only opens the app (`planAnswer`); otherwise it waits in
+  `LaunchActionStore` and rides the intent, and `MainActivity` discards that copy if the page took it anyway.
+  A page reloaded during a hold gets `hold` again with each state it reports (`shouldResendHold`).
+- `getAudioRoutes`, `setAudioRoute`, `resumeCall`, `audioRoutes`, `hold`/`resume` are newer than the first APK: the site goes
+  through `shared/native/native-call.ts`.
+- Not verifiable on an emulator, check on a phone: Bluetooth headset (route list, switching, its button),
+  wired headphones, a real GSM call during a call (hold and resume), the proximity sensor at the ear, that
+  WebView audio really follows `requestEndpointChange` (ADR-0022 spike).

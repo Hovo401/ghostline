@@ -113,4 +113,62 @@ describe("useCallSession", () => {
     expect(result.current.cameraEnabled).toBe(true);
     expect(result.current.localVideoTrack).toBe(track);
   });
+
+  describe("setMic", () => {
+    async function mounted() {
+      cameraEnabledImpl.mockResolvedValue(undefined);
+      const hook = renderHook(() => useCallSession());
+      await waitFor(() => {
+        expect(rooms[0]).toBeDefined();
+      });
+      const room = rooms[0];
+      if (!room) throw new Error("room not created");
+      const mic = room.localParticipant.setMicrophoneEnabled;
+      // The join itself turns the mic on — start counting after that.
+      await waitFor(() => {
+        expect(mic).toHaveBeenCalled();
+      });
+      mic.mockClear();
+      return { ...hook, mic };
+    }
+
+    it("applies requests in order, so the last one wins even if the first is slow", async () => {
+      const { result, mic } = await mounted();
+      let releaseFirst: () => void = () => undefined;
+      mic.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            releaseFirst = resolve;
+          }),
+      );
+      let both: Promise<unknown> = Promise.resolve();
+      act(() => {
+        both = Promise.all([result.current.setMic(false), result.current.setMic(true)]);
+      });
+      await act(async () => {
+        await Promise.resolve();
+        releaseFirst();
+        await both;
+      });
+      expect(mic.mock.calls).toEqual([[false], [true]]);
+      expect(result.current.micEnabled).toBe(true);
+    });
+
+    it("is idempotent and keeps the real state when the request fails", async () => {
+      const { result, mic } = await mounted();
+      mic.mockRejectedValueOnce(new Error("device busy"));
+      await act(async () => {
+        await result.current.setMic(false);
+      });
+      expect(result.current.micEnabled).toBe(true);
+      expect(result.current.mediaError.microphone).toBe("device busy");
+
+      await act(async () => {
+        await result.current.setMic(false);
+        await result.current.setMic(false);
+      });
+      expect(result.current.micEnabled).toBe(false);
+      expect(result.current.mediaError.microphone).toBeNull();
+    });
+  });
 });

@@ -15,9 +15,11 @@ export interface BackdropProps {
   onClose: () => void;
   /** Extra classes — e.g. `bg-transparent` for a light popover menu. */
   className?: string;
+  /** Stacking class — defaults to `z-40`; a sheet over the `z-50` call screen needs a higher one. */
+  zClass?: string;
 }
 
-export function Backdrop({ open, onClose, className }: BackdropProps) {
+export function Backdrop({ open, onClose, className, zClass = "z-40" }: BackdropProps) {
   useBackToClose(open, onClose);
   useEffect(() => {
     if (!open) return;
@@ -36,7 +38,8 @@ export function Backdrop({ open, onClose, className }: BackdropProps) {
       data-testid="backdrop"
       onClick={onClose}
       className={[
-        "fixed inset-0 z-40 bg-black/55 transition-opacity duration-300",
+        "fixed inset-0 bg-black/55 transition-opacity duration-300",
+        zClass,
         open ? "opacity-100" : "pointer-events-none opacity-0",
         className,
       ]

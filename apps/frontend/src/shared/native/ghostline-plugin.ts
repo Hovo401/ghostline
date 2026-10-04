@@ -95,6 +95,11 @@ export interface GhostlinePlugin {
   getAudioRoutes(): Promise<NativeAudioRoutes>;
   /** Newer (T-087). Rejects with `UNAVAILABLE` when that route is not connected. */
   setAudioRoute(options: { route: NativeAudioRoute }): Promise<void>;
+  /**
+   * Newer (T-087). The "Продолжить" button on a held call: asks the phone to take the call off hold;
+   * native then sends the `resume` command. Rejects with `UNAVAILABLE` when no call is on hold.
+   */
+  resumeCall(): Promise<void>;
   checkPermissions(): Promise<{ notifications: PermissionState }>;
   requestPermissions(): Promise<{ notifications: PermissionState }>;
   addListener(

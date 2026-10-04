@@ -4,9 +4,12 @@ import android.Manifest
 import android.os.Build
 import android.util.Base64
 import android.util.Log
+import app.ghostline.calls.AudioRoute
+import app.ghostline.calls.AudioRouter
 import app.ghostline.calls.CallSession
 import app.ghostline.calls.LaunchActionStore
 import app.ghostline.calls.NativeCallState
+import app.ghostline.calls.toJson
 import app.ghostline.messages.MessageNotifier
 import app.ghostline.push.DeviceKeyStore
 import app.ghostline.push.PushNotifier
@@ -133,15 +136,31 @@ class GhostlinePlugin : Plugin() {
         call.resolve(JSObject().put("action", action?.toJson() ?: JSObject.NULL))
     }
 
-    // TODO(T-087): AudioRouter answers these; until then the page sees "no route picker".
+    /** The routes right now (`NativeAudioRoutes`); empty outside a call. Later changes arrive as `audioRoutes`. */
     @PluginMethod
     fun getAudioRoutes(call: PluginCall) {
-        call.unimplemented("audio routes: T-087")
+        call.resolve(AudioRouter.snapshot().toJson())
     }
 
     @PluginMethod
     fun setAudioRoute(call: PluginCall) {
-        call.unimplemented("audio routes: T-087")
+        val route = AudioRoute.parse(call.getString("route"))
+        if (route == null || !AudioRouter.select(route)) {
+            call.reject("No such audio route right now", "UNAVAILABLE")
+            return
+        }
+        call.resolve()
+    }
+
+    /**
+     * "Продолжить" on a call the system put on hold, for when it never says the other call ended. Resolves when
+     * the call is taken back; rejects with `UNAVAILABLE` if nothing is on hold or Telecom refused.
+     */
+    @PluginMethod
+    fun resumeCall(call: PluginCall) {
+        CallSession.resumeHeld(context) { resumed ->
+            if (resumed) call.resolve() else call.reject("No call on hold to resume", "UNAVAILABLE")
+        }
     }
 
     /** `routes` is a `NativeAudioRoutes` (`{current, available: [{route, name}]}`). */

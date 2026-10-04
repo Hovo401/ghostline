@@ -48,6 +48,7 @@ vi.mock("./use-call-session", () => ({
     mediaError: { camera: null, microphone: null },
     canFlipCamera: false,
     toggleMic: vi.fn(),
+    setMic: vi.fn().mockResolvedValue(undefined),
     toggleCamera: vi.fn(),
     flipCamera: vi.fn(),
   }),
@@ -77,6 +78,7 @@ describe("CallRoot", () => {
       draft: null,
       endReason: null,
       remoteJoined: true,
+      held: false,
     });
   });
 
@@ -98,5 +100,23 @@ describe("CallRoot", () => {
     expect(container.querySelector("[role=dialog]")).toBeNull();
     expect(container.querySelector("audio")).toBe(audio);
     expect(detach).not.toHaveBeenCalled();
+  });
+
+  it("mutes the remote audio while the call is on hold, without detaching it", () => {
+    const { container } = render(<CallRoot />);
+    const audio = container.querySelector("audio");
+    expect(audio?.muted).toBe(false);
+
+    act(() => {
+      useCallStore.getState().setHeld(true);
+    });
+    expect(container.querySelector("audio")).toBe(audio);
+    expect(audio?.muted).toBe(true);
+    expect(detach).not.toHaveBeenCalled();
+
+    act(() => {
+      useCallStore.getState().setHeld(false);
+    });
+    expect(audio?.muted).toBe(false);
   });
 });

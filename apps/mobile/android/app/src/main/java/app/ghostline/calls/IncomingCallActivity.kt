@@ -75,7 +75,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import app.ghostline.MainActivity
 import app.ghostline.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -181,12 +180,7 @@ class IncomingCallActivity : ComponentActivity() {
     // Straight from this (visible) activity: a receiver would not be allowed to open the app.
     private fun openCall() {
         answering = true
-        IncomingCallService.stopFor(this, call.callId, RingEnd.Answered)
-        if (!call.isTest) {
-            // MainActivity stores the action itself when the page can't take it yet.
-            val action = LaunchAction.Answer(call.callId, call.chatId, call.video)
-            startActivity(action.putInto(Intent(this, MainActivity::class.java)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        }
+        IncomingCallService.answer(this, call.callId, call.chatId, call.video, openPage = !call.isTest)
         finish()
     }
 

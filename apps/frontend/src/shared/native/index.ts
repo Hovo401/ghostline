@@ -20,6 +20,7 @@ export {
   listenForNativeAudioRoutes,
   listenForNativeCallCommands,
   listenForNativePipMode,
+  resumeNativeCall,
   setNativeAudioRoute,
   setNativeCallState,
 } from "./native-call";

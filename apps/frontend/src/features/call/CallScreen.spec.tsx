@@ -1,13 +1,32 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ConnectionQuality, ConnectionState } from "livekit-client";
 import type { Track } from "livekit-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useCallStore, type Call } from "../../entities/call";
 import type * as CallEntity from "../../entities/call";
+import type { NativeAudioRoutes } from "../../shared/native";
+import { useToastStore } from "../../shared/ui/toast-store";
 
 import { CallScreen } from "./CallScreen";
 import type { CallSessionHandle } from "./use-call-session";
+
+const nativeMocks = vi.hoisted(() => ({
+  isNativeApp: vi.fn(() => false),
+  resumeNativeCall: vi.fn<() => Promise<boolean>>(),
+  setNativeAudioRoute: vi.fn<(route: string) => Promise<boolean>>(),
+  routes: null as NativeAudioRoutes | null,
+}));
+
+vi.mock("../../shared/native", () => ({
+  isNativeApp: nativeMocks.isNativeApp,
+  resumeNativeCall: nativeMocks.resumeNativeCall,
+  setNativeAudioRoute: nativeMocks.setNativeAudioRoute,
+}));
+
+vi.mock("./use-native-audio-routes", () => ({
+  useNativeAudioRoutes: () => nativeMocks.routes,
+}));
 
 const cancelFn = vi.fn();
 const hangupFn = vi.fn();
@@ -65,6 +84,7 @@ function fakeSession(overrides: Partial<CallSessionHandle> = {}): CallSessionHan
     mediaError: { camera: null, microphone: null },
     canFlipCamera: false,
     toggleMic: vi.fn(),
+    setMic: vi.fn().mockResolvedValue(undefined),
     toggleCamera: vi.fn(),
     flipCamera: vi.fn(),
     ...overrides,
@@ -76,6 +96,10 @@ describe("CallScreen", () => {
     cancelFn.mockReset();
     hangupFn.mockReset();
     pipState.active = false;
+    nativeMocks.setNativeAudioRoute.mockReset().mockResolvedValue(true);
+    nativeMocks.isNativeApp.mockReturnValue(false);
+    nativeMocks.resumeNativeCall.mockReset().mockResolvedValue(true);
+    nativeMocks.routes = null;
     useCallStore.setState({
       phase: "idle",
       call: null,
@@ -86,6 +110,7 @@ describe("CallScreen", () => {
       draft: null,
       endReason: null,
       remoteJoined: false,
+      held: false,
     });
   });
 
@@ -170,6 +195,155 @@ describe("CallScreen", () => {
       <CallScreen session={fakeSession({ localVideoTrack: track, cameraEnabled: false })} />,
     );
     expect(detach).toHaveBeenCalledWith(video);
+  });
+
+  describe("audio route button (T-087)", () => {
+    const activeCall = (): void => {
+      useCallStore.setState({
+        call: call(),
+        livekitUrl: "wss://lk",
+        token: "tok",
+        phase: "active",
+      });
+    };
+
+    it("is absent until native reports routes (browser, old APK)", () => {
+      activeCall();
+      render(<CallScreen session={fakeSession()} />);
+      expect(screen.queryByLabelText("Динамик")).toBeNull();
+      expect(screen.queryByLabelText("Аудиовыход")).toBeNull();
+    });
+
+    it("with two routes toggles the speaker on and back off", () => {
+      nativeMocks.routes = {
+        current: "earpiece",
+        available: [
+          { route: "earpiece", name: "Phone" },
+          { route: "speaker", name: "Speaker" },
+        ],
+      };
+      activeCall();
+      const { rerender } = render(<CallScreen session={fakeSession()} />);
+
+      fireEvent.click(screen.getByLabelText("Динамик"));
+      expect(nativeMocks.setNativeAudioRoute).toHaveBeenLastCalledWith("speaker");
+
+      nativeMocks.routes = { ...nativeMocks.routes, current: "speaker" };
+      rerender(<CallScreen session={fakeSession()} />);
+      expect(screen.getByLabelText("Динамик")).toHaveAttribute("aria-pressed", "true");
+      fireEvent.click(screen.getByLabelText("Динамик"));
+      expect(nativeMocks.setNativeAudioRoute).toHaveBeenLastCalledWith("earpiece");
+    });
+
+    it("with three routes opens the sheet and switches to the chosen one", () => {
+      nativeMocks.routes = {
+        current: "earpiece",
+        available: [
+          { route: "earpiece", name: "Phone" },
+          { route: "speaker", name: "Speaker" },
+          { route: "bluetooth", name: "Buds" },
+        ],
+      };
+      activeCall();
+      render(<CallScreen session={fakeSession()} />);
+      expect(screen.queryByRole("menu")).toBeNull();
+
+      fireEvent.click(screen.getByLabelText("Аудиовыход"));
+      expect(screen.getByRole("menu")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("menuitemradio", { name: /Bluetooth/ }));
+      expect(nativeMocks.setNativeAudioRoute).toHaveBeenCalledWith("bluetooth");
+      expect(screen.queryByRole("menu")).toBeNull();
+    });
+
+    it("does not reopen a dismissed-by-disconnect sheet when the third route returns", () => {
+      const three: NativeAudioRoutes = {
+        current: "earpiece",
+        available: [
+          { route: "earpiece", name: "Phone" },
+          { route: "speaker", name: "Speaker" },
+          { route: "bluetooth", name: "Buds" },
+        ],
+      };
+      nativeMocks.routes = three;
+      activeCall();
+      const { rerender } = render(<CallScreen session={fakeSession()} />);
+      fireEvent.click(screen.getByLabelText("Аудиовыход"));
+      expect(screen.getByRole("menu")).toBeInTheDocument();
+
+      nativeMocks.routes = { ...three, available: three.available.slice(0, 2) };
+      rerender(<CallScreen session={fakeSession()} />);
+      expect(screen.queryByRole("menu")).toBeNull();
+
+      nativeMocks.routes = three;
+      rerender(<CallScreen session={fakeSession()} />);
+      expect(screen.queryByRole("menu")).toBeNull();
+    });
+  });
+
+  describe("resume button on a held call", () => {
+    const heldCall = (): void => {
+      useCallStore.setState({
+        call: call(),
+        livekitUrl: "wss://lk",
+        token: "tok",
+        phase: "active",
+        held: true,
+      });
+    };
+
+    it("asks native to resume, and leaves the held state to native's resume command", () => {
+      nativeMocks.isNativeApp.mockReturnValue(true);
+      heldCall();
+      render(<CallScreen session={fakeSession()} />);
+      fireEvent.click(screen.getByLabelText("Продолжить звонок"));
+      expect(nativeMocks.resumeNativeCall).toHaveBeenCalledTimes(1);
+      expect(useCallStore.getState().held).toBe(true);
+    });
+
+    it("shows a toast when native could not resume", async () => {
+      nativeMocks.isNativeApp.mockReturnValue(true);
+      nativeMocks.resumeNativeCall.mockResolvedValue(false);
+      useToastStore.setState({ toasts: [] });
+      heldCall();
+      render(<CallScreen session={fakeSession()} />);
+      fireEvent.click(screen.getByLabelText("Продолжить звонок"));
+      await waitFor(() => {
+        expect(useToastStore.getState().toasts.map((t) => t.message)).toEqual([
+          "Не удалось продолжить звонок",
+        ]);
+      });
+    });
+
+    it("disables the microphone button while held", () => {
+      heldCall();
+      render(<CallScreen session={fakeSession()} />);
+      expect(screen.getByLabelText("Выключить микрофон")).toBeDisabled();
+    });
+
+    it("is absent outside the app and when the call is not held", () => {
+      heldCall();
+      const { rerender } = render(<CallScreen session={fakeSession()} />);
+      expect(screen.queryByLabelText("Продолжить звонок")).toBeNull();
+
+      nativeMocks.isNativeApp.mockReturnValue(true);
+      useCallStore.setState({ held: false });
+      rerender(<CallScreen session={fakeSession()} />);
+      expect(screen.queryByLabelText("Продолжить звонок")).toBeNull();
+    });
+  });
+
+  it("shows 'На удержании' instead of the timer while the phone holds the call", () => {
+    useCallStore.setState({
+      call: call(),
+      livekitUrl: "wss://lk",
+      token: "tok",
+      phase: "active",
+      held: true,
+    });
+    render(<CallScreen session={fakeSession()} />);
+    expect(screen.getByText("На удержании")).toBeInTheDocument();
+    expect(screen.queryByText("Соединение…")).toBeNull();
   });
 
   describe("picture-in-picture", () => {

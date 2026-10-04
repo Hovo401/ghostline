@@ -1,14 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getAudioRoutes, setAudioRoute, addListener, hasGhostlinePlugin } = vi.hoisted(() => ({
-  getAudioRoutes: vi.fn(),
-  setAudioRoute: vi.fn(),
-  addListener: vi.fn(),
-  hasGhostlinePlugin: vi.fn(),
-}));
+const { getAudioRoutes, setAudioRoute, resumeCall, addListener, hasGhostlinePlugin } = vi.hoisted(
+  () => ({
+    getAudioRoutes: vi.fn(),
+    setAudioRoute: vi.fn(),
+    resumeCall: vi.fn(),
+    addListener: vi.fn(),
+    hasGhostlinePlugin: vi.fn(),
+  }),
+);
 
 vi.mock("./ghostline-plugin", () => ({
-  Ghostline: { getAudioRoutes, setAudioRoute, addListener },
+  Ghostline: { getAudioRoutes, setAudioRoute, resumeCall, addListener },
   hasGhostlinePlugin,
 }));
 
@@ -16,6 +19,7 @@ import {
   getNativeAudioRoutes,
   listenForNativeAudioRoutes,
   listenForNativePipMode,
+  resumeNativeCall,
   setNativeAudioRoute,
 } from "./native-call";
 
@@ -86,5 +90,29 @@ describe("native audio routes", () => {
     listenForNativeAudioRoutes(vi.fn())();
     listenForNativePipMode(vi.fn())();
     expect(addListener).not.toHaveBeenCalled();
+  });
+});
+
+describe("resumeNativeCall", () => {
+  beforeEach(() => {
+    hasGhostlinePlugin.mockReset().mockReturnValue(true);
+    resumeCall.mockReset().mockResolvedValue(undefined);
+  });
+
+  it("asks native to resume and reports success", async () => {
+    expect(await resumeNativeCall()).toBe(true);
+    expect(resumeCall).toHaveBeenCalledTimes(1);
+  });
+
+  it("is false when nothing is on hold, in an old APK, or outside the app", async () => {
+    resumeCall.mockRejectedValue({ code: "UNAVAILABLE" });
+    expect(await resumeNativeCall()).toBe(false);
+    resumeCall.mockRejectedValue({ code: "UNIMPLEMENTED" });
+    expect(await resumeNativeCall()).toBe(false);
+
+    hasGhostlinePlugin.mockReturnValue(false);
+    resumeCall.mockClear();
+    expect(await resumeNativeCall()).toBe(false);
+    expect(resumeCall).not.toHaveBeenCalled();
   });
 });

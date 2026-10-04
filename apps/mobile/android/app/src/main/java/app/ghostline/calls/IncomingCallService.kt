@@ -20,6 +20,8 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
+import app.ghostline.GhostlinePlugin
+import app.ghostline.MainActivity
 import app.ghostline.R
 import app.ghostline.push.PushNotifier
 
@@ -283,6 +285,29 @@ class IncomingCallService : Service() {
                 // ForegroundServiceStartNotAllowedException: the system won't let this push start a service.
                 pendingCallId = null
                 Log.w(PushNotifier.LOG_TAG, "incoming call service not allowed to start", e)
+            }
+        }
+
+        /**
+         * Answers the ringing call [callId] natively, from the call screen or the system (a headset button,
+         * through Telecom): the ring stops and the page gets the answer. A listening page is told directly and the app
+         * is only brought up; without one the action waits in [LaunchActionStore] and rides the intent, so a
+         * background start the system refuses still leaves the answer for the page that opens later
+         * ([planAnswer]). [openPage] is false for the test call, which has no page to open.
+         */
+        fun answer(context: Context, callId: String, chatId: String, video: Boolean, openPage: Boolean = true) {
+            stopFor(context, callId, RingEnd.Answered)
+            if (!openPage) return
+            val action = LaunchAction.Answer(callId, chatId, video)
+            val plan = planAnswer(GhostlinePlugin.instance?.emitCommand(action.toJson()) ?: false)
+            if (plan.keepInStore) LaunchActionStore.shared.put(action, System.currentTimeMillis())
+            val intent = Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            try {
+                context.startActivity(
+                    if (plan.carryAction) action.putInto(intent) else intent.putExtra(MainActivity.EXTRA_OPEN_CALL, true),
+                )
+            } catch (e: RuntimeException) {
+                Log.w(PushNotifier.LOG_TAG, "could not open the app for an answered call", e)
             }
         }
 

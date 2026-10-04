@@ -28,6 +28,7 @@ const RESET_STATE = {
   draft: null,
   endReason: null,
   remoteJoined: false,
+  held: false,
 };
 
 beforeEach(() => {
@@ -206,6 +207,19 @@ describe("useCallStore", () => {
       useCallStore.getState().applyActiveCall(activeCall({ call: call({ id: "call-b" }) }));
       expect(useCallStore.getState().call?.id).toBe("call-a");
     });
+  });
+
+  it("setHeld marks the call as held, and reset clears it", () => {
+    useCallStore.getState().setHeld(true);
+    expect(useCallStore.getState().held).toBe(true);
+    useCallStore.getState().reset();
+    expect(useCallStore.getState().held).toBe(false);
+  });
+
+  it("a fresh draft or incoming call starts not held", () => {
+    useCallStore.getState().setHeld(true);
+    useCallStore.getState().startDraft("chat-1", false);
+    expect(useCallStore.getState().held).toBe(false);
   });
 
   it("reset clears everything back to idle", () => {

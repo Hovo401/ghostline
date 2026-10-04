@@ -51,6 +51,15 @@ sealed interface LaunchAction {
 }
 
 /**
+ * How a native answer reaches the page. A page that is listening takes the action at once; then nothing is
+ * kept and `MainActivity` is only brought up (`EXTRA_OPEN_CALL`), so neither a blocked background start nor a
+ * reload within the store's TTL can answer twice. Otherwise the action waits in the store and rides the intent.
+ */
+data class AnswerPlan(val keepInStore: Boolean, val carryAction: Boolean)
+
+fun planAnswer(delivered: Boolean) = AnswerPlan(keepInStore = !delivered, carryAction = !delivered)
+
+/**
  * The one pending [LaunchAction], in memory: it only has to outlive the gap between a tap and the page
  * starting, and a process that died in between has lost the tap's intent anyway. Handed out once and
  * dropped after [ttlMs] — an answer older than the ring window must not pick up a later call.
@@ -63,6 +72,12 @@ class LaunchActionStore(private val ttlMs: Long = TTL_MS) {
     fun put(newAction: LaunchAction, nowMs: Long) {
         action = newAction
         putAtMs = nowMs
+    }
+
+    /** Drops [action] if it is the pending one: the page took it directly, a copy kept for a cold start would repeat it. */
+    @Synchronized
+    fun discard(action: LaunchAction) {
+        if (this.action == action) this.action = null
     }
 
     /** The pending action if it is still fresh; it is gone afterwards either way. */

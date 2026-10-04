@@ -19,6 +19,11 @@ import androidx.core.content.ContextCompat
 import app.ghostline.MainActivity
 import app.ghostline.R
 import app.ghostline.push.PushNotifier
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 /**
  * Foreground service for a call in progress: keeps the process (and the WebView's microphone) alive in the
@@ -29,19 +34,29 @@ class OngoingCallService : Service() {
     private var lastStartId = 0
     private var inForeground = false
     private var foregroundTypes = 0
+    private var state: NativeCallState? = null
+    private lateinit var proximity: ProximityLock
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         running = true
+        proximity = ProximityLock(this)
+        // The route can change under a running call (a headset plugged in, the user's pick).
+        scope.launch { AudioRouter.routes.collect { updateProximity() } }
     }
 
     override fun onDestroy() {
         running = false
+        scope.cancel()
+        proximity.hold(false)
         CallSession.onOngoingStopped()
         super.onDestroy()
     }
+
+    private fun updateProximity() = proximity.hold(shouldHoldProximity(state, AudioRouter.routes.value.current))
 
     // Swiped out of Recents: the page and its media are gone, so the call notification and Telecom entry go too.
     override fun onTaskRemoved(rootIntent: Intent?) {
@@ -69,6 +84,8 @@ class OngoingCallService : Service() {
     }
 
     private fun show(state: NativeCallState) {
+        this.state = state
+        updateProximity()
         val types = ongoingForegroundTypes(
             sdk = Build.VERSION.SDK_INT,
             micGranted = granted(Manifest.permission.RECORD_AUDIO),
@@ -95,6 +112,8 @@ class OngoingCallService : Service() {
     }
 
     private fun leave() {
+        state = null
+        updateProximity()
         inForeground = false
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         stopSelf(lastStartId)
@@ -144,7 +163,7 @@ class OngoingCallService : Service() {
         )
         val builder = NotificationCompat.Builder(this, PushNotifier.CHANNEL_ONGOING_CALL)
             .setSmallIcon(R.drawable.ic_stat_notify)
-            .setContentTitle(ongoingTitle(state.phase, state.answeredAt, state.peerName))
+            .setContentTitle(ongoingTitle(state.phase, state.answeredAt, state.peerName, state.held))
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -175,8 +194,8 @@ class OngoingCallService : Service() {
         val muteIcon = if (state.muted) R.drawable.ic_mic_off else R.drawable.ic_mic
         val builder = NotificationCompat.Builder(this, PushNotifier.CHANNEL_ONGOING_CALL)
             .setSmallIcon(R.drawable.ic_stat_notify)
-            .setContentTitle(ongoingTitle(state.phase, state.answeredAt, state.peerName))
-            .setContentText(ongoingStatus(state.phase, state.answeredAt))
+            .setContentTitle(ongoingTitle(state.phase, state.answeredAt, state.peerName, state.held))
+            .setContentText(ongoingStatus(state.phase, state.answeredAt, state.held))
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
