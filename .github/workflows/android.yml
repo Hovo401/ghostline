@@ -52,7 +52,9 @@ jobs:
       - name: verify + describe the release
         run: |
           APK=$(ls apps/mobile/android/app/build/outputs/apk/release/*.apk | head -n1)
-          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs "$APK"
+          # The runner has several build-tools versions; a bare glob would pass them all as args.
+          APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n1)
+          "$APKSIGNER" verify --print-certs "$APK"
           mkdir -p out
           cp "$APK" "out/ghostline-$GITHUB_RUN_NUMBER.apk"
           cp "$APK" out/ghostline.apk
