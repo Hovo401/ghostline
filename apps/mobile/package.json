@@ -1,0 +1,25 @@
+{
+  "name": "@ghostline/mobile",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "sync": "cap sync android",
+    "open": "cap open android",
+    "run:android": "cap run android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
+    "@ghostline/config": "workspace:*",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.19.0",
+    "typescript": "^5.9.0"
+  }
+}

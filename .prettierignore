@@ -6,3 +6,5 @@ pnpm-lock.yaml
 node_modules
 apps/backend/prisma/generated
 docs/**/*.md
+apps/mobile/android
+apps/mobile/www

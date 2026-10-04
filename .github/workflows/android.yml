@@ -1,0 +1,89 @@
+name: Android release
+
+# Signed APK → /downloads/android/ on the dev server. Native code changes rarely, so this is
+# manual (or a tag), not on every push. One-time setup: deploy/README.md.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["android-v*"]
+
+concurrency:
+  group: android-release
+  cancel-in-progress: false
+
+env:
+  DEPLOY_HOST: diotek.pp.ua
+  DEPLOY_USER: hovo
+  DOWNLOADS_DIR: /var/www/ghostline-downloads
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @ghostline/mobile sync
+
+      - name: build signed APK
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        working-directory: apps/mobile/android
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          export ANDROID_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
+          VERSION_NAME=$(jq -r .versionName ../android-release.json)
+          ./gradlew assembleRelease -PversionCode="$GITHUB_RUN_NUMBER" -PversionName="$VERSION_NAME"
+
+      - name: verify + describe the release
+        run: |
+          APK=$(ls apps/mobile/android/app/build/outputs/apk/release/*.apk | head -n1)
+          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs "$APK"
+          mkdir -p out
+          cp "$APK" "out/ghostline-$GITHUB_RUN_NUMBER.apk"
+          cp "$APK" out/ghostline.apk
+          jq -n \
+            --argjson versionCode "$GITHUB_RUN_NUMBER" \
+            --arg sha256 "$(sha256sum "$APK" | cut -d' ' -f1)" \
+            --arg url "/downloads/android/ghostline-$GITHUB_RUN_NUMBER.apk" \
+            --slurpfile meta apps/mobile/android-release.json \
+            '$meta[0] + {versionCode: $versionCode, sha256: $sha256, url: $url}' > out/latest.json
+          cat out/latest.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ghostline-apk
+          path: out/ghostline-${{ github.run_number }}.apk
+
+      - name: configure ssh
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      # latest.json goes last: it must never point at an APK that isn't there yet.
+      - name: publish
+        run: |
+          DEST="$DEPLOY_USER@$DEPLOY_HOST:$DOWNLOADS_DIR/android/"
+          rsync -a -e "ssh -i ~/.ssh/id_deploy" out/*.apk "$DEST"
+          rsync -a -e "ssh -i ~/.ssh/id_deploy" out/latest.json "$DEST"
+          ssh -i ~/.ssh/id_deploy "$DEPLOY_USER@$DEPLOY_HOST" \
+            "cd $DOWNLOADS_DIR/android && ls -1t ghostline-*.apk | tail -n +4 | xargs -r rm --"

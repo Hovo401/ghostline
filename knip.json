@@ -25,6 +25,10 @@
       ],
       "ignore": ["src/shared/api/socket-client.ts", "src/sw-notification-options.d.ts"]
     },
+    "apps/mobile": {
+      "project": ["*.ts"],
+      "ignoreDependencies": ["@capacitor/app"]
+    },
     "packages/contracts": {
       "entry": ["src/index.ts"],
       "project": ["src/**/*.ts"]

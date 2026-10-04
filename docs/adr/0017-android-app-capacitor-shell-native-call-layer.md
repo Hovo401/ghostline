@@ -1,6 +1,6 @@
 # 0017. Android app = Capacitor shell over the live site + a native call/notification layer
 
-Status: proposed
+Status: accepted
 
 ## Context
 
@@ -70,6 +70,8 @@ them natively would mean two clients to keep in sync.
    - Since the UI updates itself from the site, an APK release is only needed for native changes.
    - The app compares its `versionCode` with `latest.json` and shows a "Доступна новая версия"
      banner linking to the download (not dismissible below `minVersionCode`).
+   - `latest.json` is the `AndroidReleaseSchema` contract. The APK link is a plain `<a download>`:
+     `MainActivity`'s `DownloadListener` hands it to the system, so no JS bridge is needed.
 
 ## Alternatives considered
 

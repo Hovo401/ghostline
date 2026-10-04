@@ -8,10 +8,10 @@ let registered = false;
  * (`app/main.tsx`) rather than at module import time, so importing this
  * module in a test doesn't register a real service worker as a side effect.
  *
- * `immediate: true` activates a waiting worker without prompting the user —
- * this app has no offline asset cache that could go stale (`injectManifest`
- * mode without a precache list, just the push handlers), so there's nothing
- * a new SW version could break by taking over right away.
+ * `immediate: true` registers right away; a new worker takes over on its own
+ * (`sw.ts` calls `skipWaiting`) without reloading open pages
+ * (`registerType: "prompt"`, see `pwa.config.ts`) — the freshly precached shell
+ * is used from the next load.
  */
 export function registerServiceWorker(): void {
   if (registered) return;
