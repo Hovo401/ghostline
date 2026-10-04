@@ -23,6 +23,12 @@ vi.mock("../../entities/notification", () => ({
   useUpdateNotificationSettings: () => ({ mutate: updateMutate }),
 }));
 
+// The install button asks the shared native layer for a published APK; no QueryClientProvider here.
+vi.mock("../../shared/native", () => ({
+  isNativeApp: () => false,
+  useLatestAndroidRelease: () => null,
+}));
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();

@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-import { isNativeApp } from "../native";
+import { isNativeApp, useLatestAndroidRelease } from "../native";
 
 /** Chromium's install prompt event — not in TypeScript's DOM lib. */
 interface BeforeInstallPromptEvent extends Event {
@@ -81,20 +81,24 @@ export function isStandaloneDisplay(): boolean {
 }
 
 /** `"android-apk"` — an Android browser (even an installed PWA) is offered the
- * native app, which rings on a locked phone; `"prompt"` — the browser's own
- * install dialog is available; `"ios"` — Safari has no install API, only
- * "Поделиться → На экран «Домой»"; `null` — already installed or the browser
- * can't install (Firefox desktop): render nothing. */
+ * native app, which rings on a locked phone, once an APK is published;
+ * `"prompt"` — the browser's own install dialog is available; `"ios"` —
+ * Safari has no install API, only "Поделиться → На экран «Домой»"; `null` —
+ * already installed or the browser can't install (Firefox desktop): render
+ * nothing. */
 export type PwaInstallMode = "android-apk" | "prompt" | "ios" | null;
 
 export function usePwaInstall(): { mode: PwaInstallMode; install: () => Promise<void> } {
   const deferred = usePwaInstallStore((state) => state.deferred);
   const installed = usePwaInstallStore((state) => state.installed);
 
+  const androidBrowser = !isNativeApp() && isAndroidUserAgent(navigator.userAgent);
+  const apkPublished = useLatestAndroidRelease(androidBrowser) !== null;
+
   let mode: PwaInstallMode = null;
   if (isNativeApp()) {
     // Already the app.
-  } else if (isAndroidUserAgent(navigator.userAgent)) {
+  } else if (androidBrowser && apkPublished) {
     mode = "android-apk";
   } else if (!installed && !isStandaloneDisplay()) {
     if (deferred) mode = "prompt";
