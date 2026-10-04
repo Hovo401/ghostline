@@ -52,6 +52,16 @@
             android:name=".calls.CallActionReceiver"
             android:exported="false" />
 
+        <!-- A call in progress (T-086). The microphone/camera types are only requested when the permission is granted. -->
+        <service
+            android:name=".calls.OngoingCallService"
+            android:exported="false"
+            android:foregroundServiceType="phoneCall|microphone|camera" />
+
+        <receiver
+            android:name=".calls.OngoingCallActionReceiver"
+            android:exported="false" />
+
         <activity
             android:name=".calls.IncomingCallActivity"
             android:exported="false"
@@ -84,6 +94,9 @@
     <!-- Incoming call (T-085): ringing foreground service of type phoneCall, ringtone vibration. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <!-- Call in progress (T-086): the page keeps using the microphone/camera with the app in the background. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <uses-permission android:name="android.permission.VIBRATE" />
 </manifest>

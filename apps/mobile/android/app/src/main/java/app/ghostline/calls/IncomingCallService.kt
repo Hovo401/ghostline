@@ -13,6 +13,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.telecom.DisconnectCause
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -22,11 +23,22 @@ import androidx.core.content.ContextCompat
 import app.ghostline.R
 import app.ghostline.push.PushNotifier
 
+/** Why a ring ended, which decides what happens to the call's Telecom entry. */
+enum class RingEnd(val telecomCause: Int?) {
+    /** The user picked up: the call lives on, so does its Telecom entry (see [CallSession.watchAnswer]). */
+    Answered(null),
+    Declined(DisconnectCause.REJECTED),
+
+    /** `call:closed` / `call:missed`: the other side hung up, or someone else answered. */
+    Closed(DisconnectCause.REMOTE),
+    ;
+}
+
 /**
  * Foreground service (`phoneCall`) for the ringing phase of an incoming call: the CallStyle
  * notification with a full-screen intent to [IncomingCallActivity], the ringtone ([Ringer]) and a
- * local 45 s timeout. It lives only while the call rings; T-086 hands a picked-up call to the
- * ongoing-call service.
+ * local 45 s timeout. It lives only while the call rings; a picked-up call goes on in the page, with
+ * [OngoingCallService] and the Telecom entry (registered here, see [TelecomBridge]) following its state.
  */
 class IncomingCallService : Service() {
     private val handler = Handler(Looper.getMainLooper())
@@ -34,7 +46,10 @@ class IncomingCallService : Service() {
     private var notification: Notification? = null
     private var lastStartId = 0
     private var screenOffRegistered = false
-    private val timeout = Runnable { finishCall() }
+    private val timeout = Runnable {
+        call?.let { TelecomBridge.end(it.callId, DisconnectCause.MISSED) }
+        finishCall()
+    }
 
     // The power button silences the ringer; the screen and the call stay.
     private val screenOff = object : BroadcastReceiver() {
@@ -96,6 +111,9 @@ class IncomingCallService : Service() {
         }
         call = incoming
         notification = built
+        if (!incoming.isTest) {
+            TelecomBridge.registerIncoming(this, incoming.callId, incoming.chatId, incoming.callerName, incoming.video)
+        }
         // Published first: the full-screen activity launched by the notification closes itself
         // when the state no longer names its call.
         IncomingCallState.set(incoming)
@@ -129,7 +147,10 @@ class IncomingCallService : Service() {
         call = null
         notification = null
         fallbackCallId = incoming.callId
-        MAIN.postDelayed({ clearFallback(incoming.callId) }, remainingMs)
+        MAIN.postDelayed({
+            if (fallbackCallId == incoming.callId) TelecomBridge.end(incoming.callId, DisconnectCause.MISSED)
+            clearFallback(incoming.callId)
+        }, remainingMs)
         stopSelf(lastStartId)
     }
 
@@ -162,7 +183,7 @@ class IncomingCallService : Service() {
         val decline = PendingIntent.getBroadcast(
             this, 0, CallActionReceiver.intent(this, CallActionReceiver.ACTION_DECLINE, incoming), PENDING_FLAGS,
         )
-        // An activity, not a broadcast: answering opens the chat, and Android 12+ blocks that from
+        // An activity, not a broadcast: answering opens the app, and Android 12+ blocks that from
         // a receiver a notification tap started. The screen does the answering itself.
         val answer = PendingIntent.getActivity(
             this,
@@ -227,6 +248,9 @@ class IncomingCallService : Service() {
         private val MAIN = Handler(Looper.getMainLooper())
         private val recentlyClosed = RecentlyClosed()
 
+        /** Calls answered on this phone: their own `answered-elsewhere` push is not a reason to end them. */
+        private val recentlyAnswered = RecentlyClosed()
+
         fun callSubtitle(video: Boolean) = if (video) "Видеозвонок Ghostline" else "Аудиозвонок Ghostline"
 
         fun start(
@@ -262,9 +286,23 @@ class IncomingCallService : Service() {
             }
         }
 
-        /** Ends the ring for [callId] (decline / answer / closed elsewhere); a no-op if it isn't ringing. */
-        fun stopFor(context: Context, callId: String) {
-            recentlyClosed.add(callId, System.currentTimeMillis())
+        /**
+         * Ends the ring for [callId] ([end] says why); a no-op if it isn't ringing. Unless the call was
+         * [RingEnd.Answered] — then it goes on — this also ends its Telecom entry and ongoing notification,
+         * but only per [shouldEndCallOnClose]: our own answer comes back as `answered-elsewhere`.
+         */
+        fun stopFor(context: Context, callId: String, end: RingEnd = RingEnd.Closed, answeredElsewhere: Boolean = false) {
+            val now = System.currentTimeMillis()
+            recentlyClosed.add(callId, now)
+            val ringingHere = (IncomingCallState.call.value?.callId == callId || pendingCallId == callId ||
+                fallbackCallId == callId) && !recentlyAnswered.contains(callId, now)
+            if (end == RingEnd.Answered) {
+                recentlyAnswered.add(callId, now)
+                CallSession.watchAnswer(callId, now)
+            } else if (shouldEndCallOnClose(ringingHere, answeredElsewhere)) {
+                end.telecomCause?.let { TelecomBridge.end(callId, it) }
+                CallSession.onClosed(context, callId)
+            }
             if (fallbackCallId == callId) {
                 NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
                 clearFallback(callId)

@@ -34,7 +34,11 @@ class NativePushTest {
 
     @Test
     fun parsesTheRemainingKinds() {
-        assertEquals(NativePush.CallClosed(call), NativePush.parse("""{"kind":"call:closed","callId":"$call","reason":"ended"}"""))
+        assertEquals(NativePush.CallClosed(call, false), NativePush.parse("""{"kind":"call:closed","callId":"$call","reason":"ended"}"""))
+        assertEquals(
+            NativePush.CallClosed(call, true),
+            NativePush.parse("""{"kind":"call:closed","callId":"$call","reason":"answered-elsewhere"}"""),
+        )
         assertEquals(
             NativePush.CallMissed(call, chat, "Алиса", false),
             NativePush.parse("""{"kind":"call:missed","callId":"$call","chatId":"$chat","callerName":"Алиса","video":false}"""),

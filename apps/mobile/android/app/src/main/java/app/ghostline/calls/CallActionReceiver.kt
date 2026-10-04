@@ -12,7 +12,7 @@ import java.util.concurrent.Executors
 /**
  * "Отклонить" on the incoming call (notification button and the full-screen screen). It silences
  * the ring at once and tells the server in the background — no WebView, authorized by the push's
- * `declineToken`. Answering is done by [IncomingCallActivity] itself: it has to open the chat,
+ * `declineToken`. Answering is done by [IncomingCallActivity] itself: it has to open the app,
  * which a receiver started from a notification is not allowed to.
  */
 class CallActionReceiver : BroadcastReceiver() {
@@ -20,7 +20,7 @@ class CallActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != ACTION_DECLINE) return
         val call = IncomingCall.from(intent) ?: return
-        IncomingCallService.stopFor(context, call.callId)
+        IncomingCallService.stopFor(context, call.callId, RingEnd.Declined)
         if (call.isTest) return
         val pending = goAsync()
         EXECUTOR.execute {

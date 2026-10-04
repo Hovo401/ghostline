@@ -171,7 +171,7 @@ call screen, the ongoing-call service, audio routes and PiP. APK served from our
       checklist (FR-APP-05/07). Depends on T-083b.
 - [x] T-085 — Native incoming call: ringing FGS, system ringtone, CallStyle + Compose
       `IncomingCallActivity`, token decline, timeout, missed call (FR-APP-02/06). Depends on T-083b.
-- [ ] T-086 — Answer flow, `use-native-call-bridge`, ongoing-call FGS with chronometer,
+- [x] T-086 — Answer flow, `use-native-call-bridge`, ongoing-call FGS with chronometer,
       core-telecom (FR-APP-03). Depends on T-085.
 - [ ] T-087 — Audio routes, proximity, GSM hold, headset button (FR-APP-04). Depends on T-086.
 - [ ] T-088 — Picture-in-picture for video calls (FR-APP-08). Depends on T-086.

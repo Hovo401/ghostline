@@ -2,9 +2,11 @@ package app.ghostline.calls
 
 import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import app.ghostline.MainActivity
 import app.ghostline.R
 import app.ghostline.push.PushNotifier
 
@@ -15,11 +17,11 @@ object MissedCallNotifier {
     fun show(context: Context, callId: String, chatId: String, callerName: String, video: Boolean) {
         PushNotifier.ensureCallChannels(context)
         val title = if (video) "Пропущенный видеозвонок" else "Пропущенный аудиозвонок"
-        // TODO(T-086): start the call directly instead of opening the chat
+        // The call starts at once (T-086): MainActivity hands the callback to the page, which dials.
         val callBack = PendingIntent.getActivity(
             context,
             "callback:$callId".hashCode(),
-            PushNotifier.openChatIntent(context, chatId),
+            LaunchAction.Callback(chatId, video).putInto(Intent(context, MainActivity::class.java)),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val notification = NotificationCompat.Builder(context, PushNotifier.CHANNEL_MISSED_CALLS)

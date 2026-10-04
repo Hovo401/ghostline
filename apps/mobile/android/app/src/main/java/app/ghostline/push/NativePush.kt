@@ -27,7 +27,8 @@ sealed interface NativePush {
         /** Epoch millis; the ring window (45 s) counts from here. */
         val createdAt: Long,
     ) : NativePush
-    data class CallClosed(val callId: String) : NativePush
+    /** [answeredElsewhere]: some device picked up (possibly this one); otherwise the call ended for good. */
+    data class CallClosed(val callId: String, val answeredElsewhere: Boolean) : NativePush
     data class CallMissed(val callId: String, val chatId: String, val callerName: String, val video: Boolean) : NativePush
     data class ChatRead(val chatId: String, val readSeq: Long) : NativePush
     data object Test : NativePush
@@ -56,7 +57,7 @@ sealed interface NativePush {
                     declineToken = o.getString("declineToken"),
                     createdAt = Instant.parse(o.getString("createdAt")).toEpochMilli(),
                 )
-                "call:closed" -> CallClosed(o.getString("callId"))
+                "call:closed" -> CallClosed(o.getString("callId"), o.optString("reason") == "answered-elsewhere")
                 "call:missed" -> CallMissed(
                     o.getString("callId"),
                     o.getString("chatId"),

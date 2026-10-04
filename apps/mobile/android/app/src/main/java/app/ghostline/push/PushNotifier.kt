@@ -13,12 +13,14 @@ import app.ghostline.MainActivity
 import app.ghostline.R
 import app.ghostline.calls.IncomingCallService
 import app.ghostline.calls.MissedCallNotifier
+import app.ghostline.calls.RingEnd
 import app.ghostline.messages.MessageNotifier
 import com.getcapacitor.CapConfig
 
 /**
  * Routes a decrypted push to its notification. Messages are [MessageNotifier] (T-084); a ringing
- * call is [IncomingCallService] and a missed one [MissedCallNotifier] (T-085). Tags match the
+ * call is [IncomingCallService] and a missed one [MissedCallNotifier] (T-085); the call in progress is
+ * [app.ghostline.calls.OngoingCallService] (T-086). Tags match the
  * web's (`chat:<id>`, `call:<id>`, see `sw-notifications.ts`), so a newer push replaces an older
  * one and `chat:read` can dismiss it.
  */
@@ -27,6 +29,7 @@ object PushNotifier {
     const val CHANNEL_MESSAGES = "messages"
     const val CHANNEL_INCOMING_CALLS = "incoming_calls"
     const val CHANNEL_MISSED_CALLS = "missed_calls"
+    const val CHANNEL_ONGOING_CALL = "ongoing_call"
     private const val NOTIFICATION_ID = 0
 
     fun handle(context: Context, push: NativePush) {
@@ -42,7 +45,12 @@ object PushNotifier {
                 push.declineToken,
                 push.createdAt,
             )
-            is NativePush.CallClosed -> IncomingCallService.stopFor(context, push.callId)
+            is NativePush.CallClosed -> IncomingCallService.stopFor(
+                context,
+                push.callId,
+                RingEnd.Closed,
+                answeredElsewhere = push.answeredElsewhere,
+            )
             is NativePush.CallMissed -> {
                 IncomingCallService.stopFor(context, push.callId)
                 MissedCallNotifier.show(context, push.callId, push.chatId, push.callerName, push.video)
@@ -123,6 +131,13 @@ object PushNotifier {
                 lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
             }
         val missed = NotificationChannel(CHANNEL_MISSED_CALLS, "Пропущенные", NotificationManager.IMPORTANCE_DEFAULT)
-        context.getSystemService(NotificationManager::class.java).createNotificationChannels(listOf(incoming, missed))
+        // Quiet: the call is already on the phone's ear; the notification is only the way back and the hang-up.
+        val ongoing = NotificationChannel(CHANNEL_ONGOING_CALL, "Текущий звонок", NotificationManager.IMPORTANCE_LOW)
+            .apply {
+                setSound(null, null)
+                enableVibration(false)
+            }
+        context.getSystemService(NotificationManager::class.java)
+            .createNotificationChannels(listOf(incoming, missed, ongoing))
     }
 }

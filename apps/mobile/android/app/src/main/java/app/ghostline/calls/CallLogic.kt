@@ -47,3 +47,42 @@ fun initialsOf(name: String): String {
         .joinToString("") { String(Character.toChars(it)) }
     return if (letters.isEmpty()) "?" else letters.uppercase()
 }
+
+/**
+ * Whether a `call:closed` / decline / timeout should also end the call's Telecom entry and ongoing
+ * notification. The backend sends `answered-elsewhere` to every device of the callee, the one that just
+ * answered included: for a call that is not ringing here any more that is our own answer, and the call goes on.
+ */
+fun shouldEndCallOnClose(ringingHere: Boolean, answeredElsewhere: Boolean): Boolean =
+    ringingHere || !answeredElsewhere
+
+/**
+ * After a native "Ответить" the page has [ttlMs] to report the call as connecting/active; if it never does
+ * (the answer expired, the call is gone, the page didn't come up) the Telecom entry registered for the ring
+ * must not live on.
+ */
+class AnswerWatchdog(private val ttlMs: Long = LaunchActionStore.TTL_MS) {
+    private var callId: String? = null
+    private var sinceMs = 0L
+
+    @Synchronized
+    fun arm(callId: String, nowMs: Long) {
+        this.callId = callId
+        sinceMs = nowMs
+    }
+
+    /** The page reported [callId] as connecting/active. */
+    @Synchronized
+    fun confirm(callId: String) {
+        if (this.callId == callId) this.callId = null
+    }
+
+    /** The unconfirmed call whose time is up, once; `null` while there is none or it still has time. */
+    @Synchronized
+    fun expired(nowMs: Long): String? {
+        val id = callId ?: return null
+        if (nowMs - sinceMs < ttlMs) return null
+        callId = null
+        return id
+    }
+}

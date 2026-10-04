@@ -77,12 +77,31 @@ rings the rest of it, not a fresh 45 s. "Отклонить" goes through `CallA
 - `GhostlineMessagingService` still ignores `call:incoming` while the app is on screen: the page's
   own `IncomingCall` rings. `IncomingCall.tsx` stays silent only when the app is hidden **and**
   native push is registered, so an old APK or a failed registration never leaves a call silent.
-- "Ответить" opens the chat from the activity (a receiver may not start activities on Android 14+);
-  accepting the call is T-086 (`TODO(T-086)`), so for now the page shows its own answer dialog.
 - A `call:closed` can arrive before its `call:incoming` (FCM does not order): `RecentlyClosed` keeps
   the last 8 ids for 60 s. `stopSelf(lastStartId)` — not a bare `stopSelf()` — so a new call started
-  right after a cancelled one is not torn down with it.
+  right after a cancelled one is not torn down with it (same in `OngoingCallService`).
 - "Проверить звонок" = `POST /notifications/test?kind=call`: the app shows the same screen for a
   `test-call` push (`callId` `"test"`, no network on decline), also with the app in the foreground.
 - Emulator: the full-screen screen only shows when the screen is off or locked; with the screen on
   the same call is a heads-up notification. Check `dumpsys power | grep mWakefulness` before judging.
+
+## Answering and a call in progress (T-086)
+
+- "Ответить" (screen and heads-up) answers at once: `IncomingCallActivity.answer()` unlocks the phone
+  (`requestDismissKeyguard`; a cancelled unlock leaves the call ringing), puts `LaunchAction.Answer` in
+  `LaunchActionStore` (in memory, 60 s, handed out once) and starts `MainActivity` with the same action as
+  an extra. `MainActivity` stores it again and, if the page already listens to `callCommand`, emits it; a
+  cold page picks it up with `Ghostline.consumeLaunchAction`. "Перезвонить" on a missed call is the same
+  path with `LaunchAction.Callback`. The page ignores an answer for a call that is no longer incoming.
+- `CallSession` mirrors `Ghostline.setCallState` (idempotent): `outgoing`/`connecting`/`active`/`reconnecting`
+  keep `OngoingCallService` (FGS `phoneCall`, plus `microphone`/`camera` only when RECORD_AUDIO / CAMERA are
+  granted — Android throws otherwise; `ongoingForegroundTypes`) and the Telecom entry in step;
+  `ended`/`null` drop both. The notification is `CallStyle.forOngoingCall` (channel `ongoing_call`, low
+  importance) with a timer from `answeredAt`; "Завершить"/"Микрофон" reach the page as `callCommand`
+  (`hangup`/`toggleMute`), a tap on it as `open`. With no page to take `hangup` the notification just goes.
+- `TelecomBridge` (core-telecom, ADR-0019) runs one coroutine per call inside `CallsManager.addCall`;
+  `IncomingCallService` registers a ringing call there, so a `call:closed`/decline/timeout ends the entry
+  (`RingEnd`), while an answer leaves it for `CallSession`. `addCall` failing (GSM call, missing permission)
+  is logged and the call goes on without Telecom. Holds, audio routes and the headset button: T-087.
+- `setCallState`, `consumeLaunchAction` and the `callCommand` event don't exist in older APKs; the site calls
+  them through `shared/native/native-call.ts`.

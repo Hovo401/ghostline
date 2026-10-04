@@ -73,6 +73,8 @@ dependencies {
     implementation "androidx.activity:activity-compose:$androidxActivityVersion"
     implementation platform("com.google.firebase:firebase-bom:$firebaseBomVersion")
     implementation "com.google.firebase:firebase-messaging"
+    // Telecom registration of calls (ADR-0019).
+    implementation "androidx.core:core-telecom:$coreTelecomVersion"
     testImplementation "junit:junit:$junitVersion"
     // The android.jar stubs of org.json throw in JVM unit tests.
     testImplementation "org.json:json:$orgJsonVersion"

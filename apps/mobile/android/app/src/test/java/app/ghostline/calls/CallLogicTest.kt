@@ -67,3 +67,48 @@ class CallLogicTest {
         assertEquals("👻", initialsOf("👻"))
     }
 }
+
+class CloseDecisionTest {
+    @Test
+    fun ownAnsweredElsewhereAfterAnsweringKeepsTheCall() {
+        assertFalse(shouldEndCallOnClose(ringingHere = false, answeredElsewhere = true))
+    }
+
+    @Test
+    fun answeredOnAnotherDeviceWhileRingingHereEndsIt() {
+        assertTrue(shouldEndCallOnClose(ringingHere = true, answeredElsewhere = true))
+    }
+
+    @Test
+    fun anEndedCallEndsEvenIfNotRinging() {
+        assertTrue(shouldEndCallOnClose(ringingHere = false, answeredElsewhere = false))
+        assertTrue(shouldEndCallOnClose(ringingHere = true, answeredElsewhere = false))
+    }
+}
+
+class AnswerWatchdogTest {
+    @Test
+    fun anUnconfirmedAnswerExpiresOnceAfterTheTtl() {
+        val dog = AnswerWatchdog(ttlMs = 60_000)
+        dog.arm("c1", nowMs = 1_000)
+        assertEquals(null, dog.expired(nowMs = 60_999))
+        assertEquals("c1", dog.expired(nowMs = 61_000))
+        assertEquals(null, dog.expired(nowMs = 62_000))
+    }
+
+    @Test
+    fun aConfirmedAnswerNeverExpires() {
+        val dog = AnswerWatchdog(ttlMs = 60_000)
+        dog.arm("c1", nowMs = 1_000)
+        dog.confirm("c1")
+        assertEquals(null, dog.expired(nowMs = 100_000))
+    }
+
+    @Test
+    fun confirmingAnotherCallChangesNothing() {
+        val dog = AnswerWatchdog(ttlMs = 60_000)
+        dog.arm("c1", nowMs = 1_000)
+        dog.confirm("c2")
+        assertEquals("c1", dog.expired(nowMs = 100_000))
+    }
+}

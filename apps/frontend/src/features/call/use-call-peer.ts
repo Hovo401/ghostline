@@ -2,6 +2,9 @@ import type { Call } from "../../entities/call";
 import { useChats } from "../../entities/chat";
 import { useCurrentUserId } from "../../entities/user";
 
+/** Shown while the other side's name cannot be resolved. */
+export const FALLBACK_PEER_NAME = "Абонент";
+
 export interface CallPeer {
   id: string;
   displayName: string;
@@ -32,5 +35,5 @@ export function useCallPeer(chatId: string | null, call: Call | null = null): Ca
     };
   if (!call) return null;
   const peerId = call.callerId === currentUserId ? call.calleeId : call.callerId;
-  return { id: peerId, displayName: "Абонент" };
+  return { id: peerId, displayName: FALLBACK_PEER_NAME };
 }

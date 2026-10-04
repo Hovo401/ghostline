@@ -14,4 +14,7 @@
     <color name="call_accept_ink">@color/ghostline_bg</color>
     <color name="call_decline">#E5484D</color>
     <color name="call_decline_ink">#FFFFFF</color>
+
+    <!-- Ongoing-call notification action icons (T-086); the system tints them. -->
+    <color name="notification_icon">#FFFFFF</color>
 </resources>

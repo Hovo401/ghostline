@@ -1,5 +1,6 @@
 package app.ghostline.calls
 
+import android.app.KeyguardManager
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -76,8 +77,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import app.ghostline.MainActivity
 import app.ghostline.R
-import app.ghostline.push.PushNotifier
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -96,6 +97,7 @@ import kotlin.math.sin
  */
 class IncomingCallActivity : ComponentActivity() {
     private lateinit var call: IncomingCall
+    private var answering = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -110,11 +112,6 @@ class IncomingCallActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT),
         )
-        // The notification's "Ответить" lands here (see IncomingCallService); nothing to draw.
-        if (intent.action == ACTION_ANSWER) {
-            answer()
-            return
-        }
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
                 IncomingCallState.call.collect { if (it?.callId != call.callId) finish() }
@@ -127,12 +124,15 @@ class IncomingCallActivity : ComponentActivity() {
                 onAnswer = ::answer,
             )
         }
+        // The notification's "Ответить" lands here (see IncomingCallService). The screen is up behind it,
+        // so a locked phone that refuses to unlock leaves the ringing call to answer by hand.
+        if (intent.action == ACTION_ANSWER) window.decorView.post { answer() }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         // The heads-up "Ответить" tapped while this screen is already up.
-        if (intent.action == ACTION_ANSWER) answer()
+        if (intent.action == ACTION_ANSWER && IncomingCall.from(intent)?.callId == call.callId) answer()
     }
 
     private fun showOverLockScreen() {
@@ -153,11 +153,44 @@ class IncomingCallActivity : ComponentActivity() {
         finish()
     }
 
-    // Straight from this (visible) activity: a receiver would not be allowed to open the chat.
+    /**
+     * Picks the call up: unlocks the phone first if it is locked (the page can't show a call over the lock
+     * screen), then hands the answer to the page and goes. A cancelled or failed unlock changes nothing —
+     * the call keeps ringing.
+     */
     private fun answer() {
-        IncomingCallService.stopFor(this, call.callId)
-        // TODO(T-086): accept the call
-        startActivity(PushNotifier.openChatIntent(this, call.chatId).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        if (answering) return
+        val keyguard = getSystemService(KeyguardManager::class.java)
+        if (call.isTest || !keyguard.isKeyguardLocked) {
+            openCall()
+            return
+        }
+        answering = true
+        keyguard.requestDismissKeyguard(
+            this,
+            object : KeyguardManager.KeyguardDismissCallback() {
+                override fun onDismissSucceeded() = openCall()
+
+                override fun onDismissCancelled() {
+                    answering = false
+                }
+
+                override fun onDismissError() {
+                    answering = false
+                }
+            },
+        )
+    }
+
+    // Straight from this (visible) activity: a receiver would not be allowed to open the app.
+    private fun openCall() {
+        answering = true
+        IncomingCallService.stopFor(this, call.callId, RingEnd.Answered)
+        if (!call.isTest) {
+            // MainActivity stores the action itself when the page can't take it yet.
+            val action = LaunchAction.Answer(call.callId, call.chatId, call.video)
+            startActivity(action.putInto(Intent(this, MainActivity::class.java)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
         finish()
     }
 
