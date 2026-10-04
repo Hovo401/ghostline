@@ -20,7 +20,8 @@ const config: CapacitorConfig = {
     backgroundColor: "#0b0d12",
   },
   plugins: {
-    // Light icons on the dark system bars painted by `styles.xml`.
+    // Start-up look: light icons on the dark bars of `styles.xml`. Once the page loads, its theme
+    // takes over through `Ghostline.setSystemBars` (bar color + icon style).
     SystemBars: { style: "DARK" },
   },
 };
