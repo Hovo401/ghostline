@@ -59,13 +59,14 @@ const unlisten = vi.fn();
 
 function setup(micEnabled = true) {
   const toggleMic = vi.fn();
+  const setMic = vi.fn<(enabled: boolean) => Promise<void>>().mockResolvedValue(undefined);
   const view = renderHook(
     (props: { micEnabled: boolean }) => {
-      useNativeCallBridge({ micEnabled: props.micEnabled, toggleMic });
+      useNativeCallBridge({ micEnabled: props.micEnabled, toggleMic, setMic });
     },
     { initialProps: { micEnabled } },
   );
-  return { toggleMic, ...view };
+  return { toggleMic, setMic, ...view };
 }
 
 const answer = (callId = "call-1", video = true): NativeCallCommand => ({
@@ -347,6 +348,17 @@ describe("useNativeCallBridge", () => {
     expect(toggleMic).toHaveBeenCalledTimes(1);
   });
 
+  it("toggleMute is ignored while the call is held", () => {
+    const { toggleMic } = setup();
+    act(() => {
+      useCallStore.setState({ phase: "active", call: baseCall, held: true });
+    });
+    act(() => {
+      send({ type: "toggleMute" });
+    });
+    expect(toggleMic).not.toHaveBeenCalled();
+  });
+
   it("open restores a minimized call screen", () => {
     setup();
     act(() => {
@@ -356,6 +368,120 @@ describe("useNativeCallBridge", () => {
       send({ type: "open" });
     });
     expect(useCallStore.getState().minimized).toBe(false);
+  });
+
+  describe("hold and resume", () => {
+    function activate() {
+      act(() => {
+        useCallStore.setState({ phase: "active", call: baseCall });
+      });
+    }
+
+    it("mutes the mic and marks the call held, then restores the mic on resume", () => {
+      const { setMic } = setup(true);
+      activate();
+      act(() => {
+        send({ type: "hold" });
+      });
+      expect(setMic).toHaveBeenLastCalledWith(false);
+      expect(useCallStore.getState().held).toBe(true);
+
+      act(() => {
+        send({ type: "resume" });
+      });
+      expect(setMic).toHaveBeenLastCalledWith(true);
+      expect(setMic).toHaveBeenCalledTimes(2);
+      expect(useCallStore.getState().held).toBe(false);
+    });
+
+    // Regression: `micEnabled` only updates after the async mic request, so a toggle-based
+    // resume right behind a hold saw "still on" and left the mic off.
+    it("hold then resume before the mic request settles ends with the mic on", () => {
+      const { setMic } = setup(true);
+      setMic.mockReturnValue(new Promise<void>(() => undefined));
+      activate();
+      act(() => {
+        send({ type: "hold" });
+        send({ type: "resume" });
+      });
+      expect(setMic.mock.calls).toEqual([[false], [true]]);
+      expect(useCallStore.getState().held).toBe(false);
+    });
+
+    it("still holds the call when muting the mic fails", async () => {
+      const { setMic } = setup(true);
+      setMic.mockRejectedValue(new Error("device busy"));
+      activate();
+      act(() => {
+        send({ type: "hold" });
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(useCallStore.getState().held).toBe(true);
+      act(() => {
+        send({ type: "resume" });
+      });
+      expect(setMic).toHaveBeenLastCalledWith(true);
+      expect(useCallStore.getState().held).toBe(false);
+    });
+
+    it("leaves a mic the user had muted muted after resume", () => {
+      const { setMic } = setup(false);
+      activate();
+      act(() => {
+        send({ type: "hold" });
+      });
+      expect(useCallStore.getState().held).toBe(true);
+      act(() => {
+        send({ type: "resume" });
+      });
+      expect(setMic).not.toHaveBeenCalledWith(true);
+      expect(useCallStore.getState().held).toBe(false);
+    });
+
+    it("holds a reconnecting call, but ignores hold in any other phase", () => {
+      const { setMic } = setup(true);
+      for (const phase of ["idle", "outgoing", "incoming", "connecting", "ended"] as const) {
+        act(() => {
+          useCallStore.setState({ phase, call: baseCall });
+        });
+        act(() => {
+          send({ type: "hold" });
+        });
+      }
+      expect(setMic).not.toHaveBeenCalled();
+      expect(useCallStore.getState().held).toBe(false);
+
+      act(() => {
+        useCallStore.setState({ phase: "reconnecting" });
+      });
+      act(() => {
+        send({ type: "hold" });
+      });
+      expect(useCallStore.getState().held).toBe(true);
+    });
+
+    it("a second hold keeps the remembered mic, and resume without hold is a no-op", () => {
+      const { setMic, rerender } = setup(true);
+      act(() => {
+        send({ type: "resume" });
+      });
+      expect(setMic).not.toHaveBeenCalled();
+
+      activate();
+      act(() => {
+        send({ type: "hold" });
+      });
+      rerender({ micEnabled: false });
+      act(() => {
+        send({ type: "hold" });
+      });
+      act(() => {
+        send({ type: "resume" });
+      });
+      expect(setMic.mock.calls).toEqual([[false], [true]]);
+    });
   });
 
   it("stops listening on unmount", () => {

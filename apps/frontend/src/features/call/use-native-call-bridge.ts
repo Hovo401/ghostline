@@ -29,11 +29,15 @@ interface PendingAnswer {
  * Keeps the phone's call layer (ongoing notification, Telecom entry, call screen) in step with the
  * page (ADR-0017, T-086): reports every phase/mute change to native and executes the commands native
  * sends back — "Ответить" (accepts at once, no second tap on the site), "Перезвонить", hang up, mute,
- * open. In a browser or an APK without the call layer every native wrapper is a silent no-op.
+ * open, hold/resume (a GSM call took the line). In a browser or an APK without the call layer every native wrapper is a silent no-op.
  *
  * Called once, from `CallRoot`, next to `useCallSession` whose `toggleMic`/`micEnabled` it needs.
  */
-export function useNativeCallBridge(session: { micEnabled: boolean; toggleMic: () => void }): void {
+export function useNativeCallBridge(session: {
+  micEnabled: boolean;
+  toggleMic: () => void;
+  setMic: (enabled: boolean) => Promise<void>;
+}): void {
   const phase = useCallStore((state) => state.phase);
   const call = useCallStore((state) => state.call);
   const draft = useCallStore((state) => state.draft);
@@ -46,6 +50,12 @@ export function useNativeCallBridge(session: { micEnabled: boolean; toggleMic: (
   const toggleMicRef = useRef(session.toggleMic);
   actionsRef.current = actions;
   toggleMicRef.current = session.toggleMic;
+  const setMicRef = useRef(session.setMic);
+  setMicRef.current = session.setMic;
+  const micEnabledRef = useRef(session.micEnabled);
+  micEnabledRef.current = session.micEnabled;
+  // Whether the mic was on when native put the call on hold — `resume` gives it back only then.
+  const micBeforeHoldRef = useRef(false);
 
   const pendingAnswerRef = useRef<PendingAnswer | null>(null);
   const acceptedCallIdRef = useRef<string | null>(null);
@@ -119,7 +129,22 @@ export function useNativeCallBridge(session: { micEnabled: boolean; toggleMic: (
           }
           return;
         case "toggleMute":
-          toggleMicRef.current();
+          // On hold the mic stays off until `resume`, whatever a notification button says.
+          if (!state.held) toggleMicRef.current();
+          return;
+        case "hold":
+          // Only a live call can be held; a repeated `hold` must not overwrite the remembered mic.
+          if ((state.phase !== "active" && state.phase !== "reconnecting") || state.held) return;
+          micBeforeHoldRef.current = micEnabledRef.current;
+          // `setMic` is absolute and queued: a `resume` right behind this `hold` still lands last.
+          void setMicRef.current(false);
+          state.setHeld(true);
+          return;
+        case "resume":
+          if (!state.held) return;
+          if (micBeforeHoldRef.current) void setMicRef.current(true);
+          micBeforeHoldRef.current = false;
+          state.setHeld(false);
           return;
         case "open":
           state.restore();

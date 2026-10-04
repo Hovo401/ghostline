@@ -33,9 +33,18 @@ object CallSession {
     /** The id of a call the page dialled: its Telecom entry is outgoing, whatever phase we first hear about. */
     private var outgoingCallId: String? = null
 
+    /** The call the system has on hold (T-087); native's own, the page only hears `hold`/`resume`. */
+    private var heldCallId: String? = null
+
     @Synchronized
-    fun reconcile(context: Context, next: NativeCallState?) {
-        if (next == state) return
+    fun reconcile(context: Context, reported: NativeCallState?) {
+        val next = reported?.copy(held = reported.callId == heldCallId)
+        // A page that reloaded during a hold reports the call as if nothing happened: tell it again.
+        val resendHold = shouldResendHold(reported, heldCallId)
+        if (next == state) {
+            if (resendHold) sendCommand(context, CallCommand.Hold)
+            return
+        }
         val app = context.applicationContext
         val previous = state
         if (previous != null && next != null && previous.callId != next.callId) {
@@ -44,6 +53,8 @@ object CallSession {
         if (next == null || next.phase == CallPhase.Ended) {
             state = null
             outgoingCallId = null
+            heldCallId = null
+            AudioRouter.end()
             (next?.callId ?: previous?.callId)?.let { TelecomBridge.end(it, DisconnectCause.LOCAL) }
             if (ongoingUp || OngoingCallService.running) {
                 OngoingCallService.stop(app)
@@ -70,7 +81,9 @@ object CallSession {
             }
             CallPhase.Reconnecting -> Unit
         }
+        AudioRouter.begin(app, next.callId, next.video)
         ongoingUp = OngoingCallService.show(app, next, running = ongoingUp || OngoingCallService.running) || ongoingUp
+        if (resendHold) sendCommand(app, CallCommand.Hold)
     }
 
     /**
@@ -82,6 +95,36 @@ object CallSession {
         main.postDelayed({
             answerWatchdog.expired(System.currentTimeMillis())?.let { TelecomBridge.end(it, DisconnectCause.LOCAL) }
         }, LaunchActionStore.TTL_MS + 1_000)
+    }
+
+    /**
+     * The system put call [callId] on hold (a GSM call came in) or gave it back — from Telecom's `onSetInactive` /
+     * `onSetActive`, or from the audio focus when Telecom is not in play. The page mutes and shows it; the
+     * notification says "На удержании". What changes nothing is decided by [shouldApplyHold].
+     */
+    @Synchronized
+    fun onSystemHold(context: Context, callId: String, hold: Boolean) {
+        val current = state
+        if (current == null || !shouldApplyHold(current, heldCallId, callId, hold)) return
+        heldCallId = if (hold) callId else null
+        val next = current.copy(held = hold)
+        state = next
+        if (ongoingUp || OngoingCallService.running) {
+            OngoingCallService.show(context.applicationContext, next, running = true)
+        }
+        sendCommand(context, if (hold) CallCommand.Hold else CallCommand.Resume)
+    }
+
+    /**
+     * "Продолжить": the user takes the held call back by hand, for when the system never reports that the
+     * other call ended. [onResult] is `false` if nothing is on hold or Telecom refused.
+     */
+    fun resumeHeld(context: Context, onResult: (Boolean) -> Unit) {
+        val callId = synchronized(this) { heldCallId } ?: return onResult(false)
+        // Without a Telecom entry (the audio-focus fallback) there is nobody to ask: the user's word is enough.
+        if (TelecomBridge.resume(context, callId, onResult)) return
+        onSystemHold(context, callId, false)
+        onResult(true)
     }
 
     /** The ongoing-call service went away (stopped, or refused to run): it is not "up" any more. */

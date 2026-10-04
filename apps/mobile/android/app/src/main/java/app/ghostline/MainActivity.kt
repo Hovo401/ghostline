@@ -39,9 +39,10 @@ class MainActivity : BridgeActivity() {
      */
     private fun handleCallIntent(intent: Intent) {
         LaunchAction.takeFrom(intent)?.let { action ->
-            // Delivered to a listening page: stored too, a page that reloads would act on it a second time.
+            // Delivered to a listening page: not kept, a page that reloads would act on it a second time (and
+            // drop the copy IncomingCallService.answer kept in case this start never happened).
             val delivered = GhostlinePlugin.instance?.emitCommand(action.toJson()) ?: false
-            if (!delivered) LaunchActionStore.shared.put(action, System.currentTimeMillis())
+            if (delivered) LaunchActionStore.shared.discard(action) else LaunchActionStore.shared.put(action, System.currentTimeMillis())
         }
         if (intent.getBooleanExtra(EXTRA_OPEN_CALL, false)) {
             intent.removeExtra(EXTRA_OPEN_CALL)

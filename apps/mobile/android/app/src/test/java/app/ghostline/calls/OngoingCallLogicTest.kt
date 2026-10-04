@@ -69,6 +69,13 @@ class OngoingCallLogicTest {
     }
 
     @Test
+    fun aHeldCallSaysSoWhateverThePhase() {
+        assertEquals("На удержании", ongoingStatus(CallPhase.Active, answeredAt = 1_000, held = true))
+        assertEquals("На удержании", ongoingStatus(CallPhase.Reconnecting, answeredAt = null, held = true))
+        assertEquals("На удержании · Анна", ongoingTitle(CallPhase.Active, answeredAt = 1_000, peerName = "Анна", held = true))
+    }
+
+    @Test
     fun aBlankPeerNameLeavesJustTheStatus() {
         assertEquals("Вызов…", ongoingTitle(CallPhase.Outgoing, answeredAt = null, peerName = "  "))
     }

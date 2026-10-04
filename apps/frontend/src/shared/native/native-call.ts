@@ -84,3 +84,14 @@ export function listenForNativePipMode(onChange: (active: boolean) => void): () 
     void handle.then((h) => h?.remove());
   };
 }
+
+/** Asks the phone to take a held call off hold; `false` when it didn't happen (old APK, nothing held). */
+export async function resumeNativeCall(): Promise<boolean> {
+  if (!hasGhostlinePlugin()) return false;
+  try {
+    await Ghostline.resumeCall();
+    return true;
+  } catch {
+    return false;
+  }
+}

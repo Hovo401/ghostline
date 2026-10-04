@@ -40,6 +40,10 @@ export interface CallSessionHandle {
   mediaError: CallMediaError;
   canFlipCamera: boolean;
   toggleMic: () => void;
+  /** Idempotent: sets the microphone to `enabled`, whatever it is now. Requests run one after
+   * another, so the last call wins even while an earlier one is still in flight. Never rejects —
+   * a failure shows up as `mediaError.microphone` and `micEnabled` keeps the real state. */
+  setMic: (enabled: boolean) => Promise<void>;
   toggleCamera: () => void;
   flipCamera: () => void;
 }
@@ -92,6 +96,7 @@ export function useCallSession(): CallSessionHandle {
   hangupMutateRef.current = hangupMutate;
 
   const roomRef = useRef<Room | null>(null);
+  const micQueueRef = useRef<Promise<void>>(Promise.resolve());
   const [connectionState, setConnectionState] = useState<ConnectionState>(
     ConnectionState.Connecting,
   );
@@ -271,19 +276,24 @@ export function useCallSession(): CallSessionHandle {
     };
   }, [phase, endLocally]);
 
-  const toggleMic = (): void => {
-    const current = roomRef.current;
-    if (!current) return;
-    const next = !micEnabled;
-    current.localParticipant
-      .setMicrophoneEnabled(next)
-      .then(() => {
-        setMicEnabled(next);
+  const setMic = (enabled: boolean): Promise<void> => {
+    const run = micQueueRef.current
+      .then(async () => {
+        const current = roomRef.current;
+        if (!current) return;
+        await current.localParticipant.setMicrophoneEnabled(enabled);
+        setMicEnabled(enabled);
         setMediaError((prev) => ({ ...prev, microphone: null }));
       })
       .catch((error: unknown) => {
         setMediaError((prev) => ({ ...prev, microphone: (error as Error).message }));
       });
+    micQueueRef.current = run;
+    return run;
+  };
+
+  const toggleMic = (): void => {
+    void setMic(!micEnabled);
   };
 
   const toggleCamera = (): void => {
@@ -331,6 +341,7 @@ export function useCallSession(): CallSessionHandle {
     mediaError,
     canFlipCamera,
     toggleMic,
+    setMic,
     toggleCamera,
     flipCamera,
   };
