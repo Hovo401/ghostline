@@ -36,6 +36,17 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @ghostline/mobile sync
 
+      # Firebase config for FCM push; a build without it compiles but can never receive a push.
+      - name: write google-services.json
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON_BASE64" ]; then
+            echo "::error::secret GOOGLE_SERVICES_JSON_BASE64 is missing (see apps/mobile/CLAUDE.md)"
+            exit 1
+          fi
+          echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > apps/mobile/android/app/google-services.json
+
       - name: build signed APK
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -47,7 +58,7 @@ jobs:
           echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
           export ANDROID_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
           VERSION_NAME=$(jq -r .versionName ../android-release.json)
-          ./gradlew assembleRelease -PversionCode="$GITHUB_RUN_NUMBER" -PversionName="$VERSION_NAME"
+          ./gradlew testReleaseUnitTest assembleRelease -PversionCode="$GITHUB_RUN_NUMBER" -PversionName="$VERSION_NAME"
 
       - name: verify + describe the release
         run: |

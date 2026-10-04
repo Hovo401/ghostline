@@ -1,7 +1,7 @@
-import { App } from "@capacitor/app";
 import { AndroidReleaseSchema, type AndroidRelease } from "@ghostline/contracts";
 import { useQuery } from "@tanstack/react-query";
 
+import { getInstalledBuild } from "./installed-build";
 import { isNativeApp } from "./is-native-app";
 
 const LATEST_RELEASE_URL = "/downloads/android/latest.json";
@@ -41,7 +41,7 @@ export function useAndroidUpdate(): AndroidUpdate {
   const release = useLatestAndroidRelease(native);
   const { data: build } = useQuery({
     queryKey: ["android-installed-build"],
-    queryFn: async () => Number((await App.getInfo()).build),
+    queryFn: getInstalledBuild,
     enabled: native,
     staleTime: Infinity,
   });

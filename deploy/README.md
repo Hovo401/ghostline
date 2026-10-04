@@ -81,6 +81,9 @@ not for real load.
 
 `.github/workflows/android.yml` needs these GitHub secrets (besides the deploy ones):
 `ANDROID_KEYSTORE_BASE64` (`[Convert]::ToBase64String([IO.File]::ReadAllBytes("ghostline-release.jks"))`),
-`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Run the playbook once so the
+`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`, and
+`GOOGLE_SERVICES_JSON_BASE64` (the Firebase app config, base64 — see `apps/mobile/CLAUDE.md`).
+For the push itself, put the Firebase service-account JSON into `fcm_service_account_json` in the
+vault and re-run the playbook. Run the playbook once so the
 downloads folder and nginx locations exist before the first release. Back up the keystore — a lost
 key means nobody can update the app in place. Release steps: `apps/mobile/CLAUDE.md`.

@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 
 import { useNotificationBannerStore, usePushSubscription } from "../../entities/notification";
+import { isNativeApp } from "../../shared/native";
 
 /**
  * Dismissible fallback nudge in the chat list — appears only once the
@@ -25,7 +26,9 @@ export function NotificationInviteBanner() {
     <div className="mx-2.5 mb-2 flex items-center justify-between gap-3 rounded-xl border border-line bg-bg2 px-3.5 py-3 text-sm">
       <span className="min-w-0 flex-1">
         {status === "denied"
-          ? "Уведомления запрещены в браузере"
+          ? isNativeApp()
+            ? "Уведомления запрещены в настройках Android"
+            : "Уведомления запрещены в браузере"
           : "Включить уведомления о сообщениях и звонках?"}
       </span>
       <div className="flex flex-none items-center gap-2">

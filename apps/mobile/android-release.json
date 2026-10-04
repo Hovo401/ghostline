@@ -1,5 +1,5 @@
 {
-  "versionName": "1.0.0",
+  "versionName": "1.1.0",
   "minVersionCode": 1,
-  "changelog": "Первый релиз Android-приложения."
+  "changelog": "Уведомления о сообщениях, когда приложение свёрнуто или закрыто."
 }

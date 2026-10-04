@@ -24,8 +24,9 @@ vi.mock("../../entities/notification", () => ({
 }));
 
 // The install button asks the shared native layer for a published APK; no QueryClientProvider here.
+let native = false;
 vi.mock("../../shared/native", () => ({
-  isNativeApp: () => false,
+  isNativeApp: () => native,
   useLatestAndroidRelease: () => null,
 }));
 
@@ -37,7 +38,33 @@ afterEach(() => {
 describe("NotificationsTab", () => {
   beforeEach(() => {
     pushStatus = "unsubscribed";
+    native = false;
     settingsData = { messages: true, calls: true, preview: true };
+  });
+
+  describe("in the Android app", () => {
+    beforeEach(() => {
+      native = true;
+    });
+
+    it("says the app is connected, with no browser-style 'Отключить'", () => {
+      pushStatus = "subscribed";
+      render(<NotificationsTab />);
+      expect(screen.getByText("Подключены (приложение)")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Отключить" })).not.toBeInTheDocument();
+    });
+
+    it("points to Android's settings when the permission is denied", () => {
+      pushStatus = "denied";
+      render(<NotificationsTab />);
+      expect(screen.getByText("Запрещены в настройках Android")).toBeInTheDocument();
+    });
+
+    it("asks an outdated app (no plugin) to update", () => {
+      pushStatus = "unsupported";
+      render(<NotificationsTab />);
+      expect(screen.getByText("Обновите приложение")).toBeInTheDocument();
+    });
   });
 
   it("shows an 'Включить уведомления' button while unsubscribed", () => {
