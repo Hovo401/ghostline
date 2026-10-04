@@ -150,8 +150,9 @@ Stickers are not part of this wave (`Later`) — see docs/adr/0015 for the sourc
 - [x] T-073 — Frontend reactions: `ReactionBar` chips under the bubble, quick-reaction row +
       "＋" picker in `MessageContextMenu`, optimistic `useSetReaction`. Depends on T-070, T-071,
       T-072.
-- [ ] T-074 — Reactions don't advance `seq`, so the `afterSeq` catch-up after a reconnect misses
+- [x] T-074 — Reactions don't advance `seq`, so the `afterSeq` catch-up after a reconnect misses
       them until the history reloads (same as edits today, FR-RT-05). Decide with the edit case.
+      Done: the newest page is re-synced on reconnect; older loaded pages still refresh on reload.
 
 ### Android app — Capacitor (docs/adr/0017, spec: [T-080-android-app.md](T-080-android-app.md))
 

@@ -50,6 +50,42 @@ export function removeMessage(queryClient: QueryClient, chatId: string, messageI
   });
 }
 
+/** Reconnect re-sync of the newest history page: edits, reactions and deletes
+ * of already-cached messages don't advance `seq`, so `afterSeq` can't see
+ * them. Confirmed messages within the page's seq range that the server no
+ * longer returns were deleted while offline and are dropped; every server
+ * message is merged via `upsertMessage`. Optimistic bubbles (`pending`/
+ * `failed`) and messages newer than the page are never touched. A socket
+ * update landing mid-fetch may be overwritten by the snapshot until the next
+ * event/reload (accepted, T-074 scope); older pages are not gap-filled. */
+export function reconcileNewestPage(
+  queryClient: QueryClient,
+  chatId: string,
+  serverPage: ChatMessage[],
+): void {
+  const first = serverPage[0];
+  const last = serverPage.at(-1);
+  if (!first || !last) return;
+  const serverIds = new Set(serverPage.map((m) => m.id));
+  queryClient.setQueryData<MessagesData>(messagesQueryKey(chatId), (old) => {
+    if (!old) return old;
+    return {
+      ...old,
+      pages: old.pages.map((page) =>
+        page.filter(
+          (m) =>
+            m.pending === true ||
+            m.failed === true ||
+            m.seq < first.seq ||
+            m.seq > last.seq ||
+            serverIds.has(m.id),
+        ),
+      ),
+    };
+  });
+  for (const message of serverPage) upsertMessage(queryClient, chatId, message);
+}
+
 /** `read:updated` (FR-RT-04) doesn't name which messages flipped, just the
  * peer's new `lastReadSeq` — flip every one of *our* messages at or before
  * it across all loaded pages instead of just the newest one. */

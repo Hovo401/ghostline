@@ -15,22 +15,31 @@ import {
   flattenMessages,
   markDeliveredUpTo,
   markReadUpTo,
+  reconcileNewestPage,
   removeMessage,
   upsertMessage,
   type MessagesData,
 } from "./message-cache";
 import type { ChatMessage } from "./message.types";
-import { fetchMessagesAfter } from "./use-messages";
+import { fetchMessagePage, fetchMessagesAfter } from "./use-messages";
 
 async function catchUp(queryClient: QueryClient): Promise<void> {
   const caches = queryClient.getQueriesData<MessagesData>({ queryKey: ["messages"] });
   await Promise.all(
     caches.map(async ([key, data]) => {
       const chatId = key[1];
-      const newest = flattenMessages(data).at(-1);
+      const newest = flattenMessages(data)
+        .filter((m) => !m.pending && !m.failed)
+        .at(-1);
       if (typeof chatId !== "string" || !newest) return;
       try {
-        for (const message of await fetchMessagesAfter(chatId, newest.seq)) {
+        const [newer, page] = await Promise.all([
+          fetchMessagesAfter(chatId, newest.seq),
+          fetchMessagePage(chatId, undefined),
+        ]);
+        // Page first: the afterSeq rows carry tombstones, so deletes win.
+        reconcileNewestPage(queryClient, chatId, page);
+        for (const message of newer) {
           if (message.deletedAt) removeMessage(queryClient, chatId, message.id);
           else upsertMessage(queryClient, chatId, message);
         }
@@ -83,7 +92,9 @@ export function useMessageRealtime(): void {
 
     // Anything sent/edited/deleted while the socket was down never reached
     // the caches — after a *re*connect, pull what's newer than each loaded
-    // chat's latest message (the first connect has nothing to catch up on).
+    // chat's latest confirmed message and re-sync its newest page, so edits,
+    // reactions and deletes within it are caught too (the first connect has
+    // nothing to catch up on).
     let hasConnected = socket.connected;
     const handleConnect = (): void => {
       if (!hasConnected) {

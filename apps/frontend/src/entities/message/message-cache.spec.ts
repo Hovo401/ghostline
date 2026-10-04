@@ -3,7 +3,13 @@ import { describe, expect, it } from "vitest";
 
 import { messagesQueryKey } from "../../shared/api/query-keys";
 
-import { markDeliveredUpTo, upsertMessage, type MessagesData } from "./message-cache";
+import {
+  flattenMessages,
+  markDeliveredUpTo,
+  reconcileNewestPage,
+  upsertMessage,
+  type MessagesData,
+} from "./message-cache";
 import type { ChatMessage } from "./message.types";
 
 function makeMessage(overrides: Partial<ChatMessage>): ChatMessage {
@@ -72,5 +78,66 @@ describe("markDeliveredUpTo", () => {
     markDeliveredUpTo(client, "chat-1", "peer", "me", 2n);
     const data = client.getQueryData<MessagesData>(messagesQueryKey("chat-1"));
     expect(data?.pages[0]?.map((m) => m.status)).toEqual(["read", "delivered", "sent"]);
+  });
+});
+
+describe("reconcileNewestPage", () => {
+  const ids = (client: QueryClient): string[] =>
+    flattenMessages(client.getQueryData<MessagesData>(messagesQueryKey("chat-1"))).map((m) => m.id);
+
+  it("replaces an edited message and its reactions", () => {
+    const a = makeMessage({ id: "a", clientMessageId: "ca", seq: 5n });
+    const client = seed([[a]]);
+    const reactions = [{ emoji: "x", userIds: ["u2"] }] as ChatMessage["reactions"];
+
+    reconcileNewestPage(client, "chat-1", [
+      { ...a, text: "edited", editedAt: "2026-01-02T00:00:00.000Z", reactions },
+    ]);
+
+    const [m] = flattenMessages(client.getQueryData<MessagesData>(messagesQueryKey("chat-1")));
+    expect(m?.text).toBe("edited");
+    expect(m?.reactions).toEqual(reactions);
+  });
+
+  it("removes a confirmed message missing from the server page", () => {
+    const a = makeMessage({ id: "a", clientMessageId: "ca", seq: 5n });
+    const b = makeMessage({ id: "b", clientMessageId: "cb", seq: 6n });
+    const c = makeMessage({ id: "c", clientMessageId: "cc", seq: 7n });
+    const client = seed([[a, b, c]]);
+    reconcileNewestPage(client, "chat-1", [a, c]);
+    expect(ids(client)).toEqual(["a", "c"]);
+  });
+
+  it("keeps pending and failed bubbles", () => {
+    const a = makeMessage({ id: "a", clientMessageId: "ca", seq: 5n });
+    const p = makeMessage({ id: "p", clientMessageId: "cp", seq: 9n, pending: true });
+    const f = makeMessage({ id: "f", clientMessageId: "cf", seq: 9n, failed: true });
+    const client = seed([[a, p, f]]);
+    reconcileNewestPage(client, "chat-1", [a]);
+    expect(ids(client).sort()).toEqual(["a", "f", "p"]);
+  });
+
+  it("leaves messages older than the server page alone", () => {
+    const old = makeMessage({ id: "old", clientMessageId: "co", seq: 1n });
+    const a = makeMessage({ id: "a", clientMessageId: "ca", seq: 50n });
+    const client = seed([[a], [old]]);
+    reconcileNewestPage(client, "chat-1", [a]);
+    expect(ids(client)).toEqual(["old", "a"]);
+  });
+
+  it("removes nothing for an empty page", () => {
+    const a = makeMessage({ id: "a", clientMessageId: "ca", seq: 5n });
+    const client = seed([[a]]);
+    reconcileNewestPage(client, "chat-1", []);
+    expect(ids(client)).toEqual(["a"]);
+  });
+
+  it("keeps confirmed messages newer than the server page", () => {
+    const a = makeMessage({ id: "a", clientMessageId: "ca", seq: 5n });
+    const live = makeMessage({ id: "live", clientMessageId: "cl", seq: 8n });
+    const acked = makeMessage({ id: "acked", clientMessageId: "ck", seq: 9n, pending: false });
+    const client = seed([[a, live, acked]]);
+    reconcileNewestPage(client, "chat-1", [a]);
+    expect(ids(client)).toEqual(["a", "live", "acked"]);
   });
 });
