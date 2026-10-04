@@ -97,8 +97,13 @@ export class AuthService {
       throw new UnauthorizedException("session expired");
     }
 
+    // The previous token is accepted too (ADR-0021): a client that never got or never persisted the
+    // last rotation retries with it. It stops matching as soon as the current token is used once.
     const presentedHash = this.tokens.hashRefreshToken(rawToken);
-    if (session.revokedAt || presentedHash !== session.tokenHash) {
+    const isCurrent = presentedHash === session.tokenHash;
+    const isPrevious =
+      session.previousTokenHash !== null && presentedHash === session.previousTokenHash;
+    if (session.revokedAt || (!isCurrent && !isPrevious)) {
       await this.prisma.session.updateMany({
         where: { familyId: session.familyId, revokedAt: null },
         data: { revokedAt: new Date() },
@@ -122,6 +127,8 @@ export class AuthService {
       where: { id: session.id },
       data: {
         tokenHash: this.tokens.hashRefreshToken(refreshToken),
+        // Retrying with the previous token keeps it as the fallback; the lost current one is dropped.
+        previousTokenHash: isCurrent ? session.tokenHash : session.previousTokenHash,
         lastUsedAt: new Date(),
         expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
       },

@@ -1,36 +1,39 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const plugin = vi.hoisted(() => ({
-  has: true,
-  setSystemBars: vi.fn<(o: { color: string; darkIcons: boolean }) => Promise<void>>(),
+const mocks = vi.hoisted(() => ({
+  native: true,
+  setStyle: vi.fn<(o: { style: string }) => Promise<void>>(),
 }));
 
-vi.mock("./ghostline-plugin", () => ({
-  Ghostline: { setSystemBars: plugin.setSystemBars },
-  hasGhostlinePlugin: () => plugin.has,
+vi.mock("@capacitor/core", () => ({
+  SystemBars: { setStyle: mocks.setStyle },
+  SystemBarsStyle: { Dark: "DARK", Light: "LIGHT" },
 }));
+vi.mock("./is-native-app", () => ({ isNativeApp: () => mocks.native }));
 
-import { setNativeSystemBars } from "./native-system-bars";
+import { setNativeBarStyle } from "./native-system-bars";
 
-describe("setNativeSystemBars", () => {
+describe("setNativeBarStyle", () => {
   beforeEach(() => {
-    plugin.has = true;
-    plugin.setSystemBars.mockReset().mockResolvedValue(undefined);
+    mocks.native = true;
+    mocks.setStyle.mockReset().mockResolvedValue(undefined);
   });
 
-  it("passes the color and icon style to the plugin", async () => {
-    await setNativeSystemBars("light-bg", true);
-    expect(plugin.setSystemBars).toHaveBeenCalledWith({ color: "light-bg", darkIcons: true });
+  it("uses dark icons on a light page and light icons on a dark one", async () => {
+    await setNativeBarStyle("light");
+    expect(mocks.setStyle).toHaveBeenLastCalledWith({ style: "LIGHT" });
+    await setNativeBarStyle("dark");
+    expect(mocks.setStyle).toHaveBeenLastCalledWith({ style: "DARK" });
   });
 
   it("does nothing outside the app", async () => {
-    plugin.has = false;
-    await setNativeSystemBars("dark-bg", false);
-    expect(plugin.setSystemBars).not.toHaveBeenCalled();
+    mocks.native = false;
+    await setNativeBarStyle("light");
+    expect(mocks.setStyle).not.toHaveBeenCalled();
   });
 
-  it("swallows UNIMPLEMENTED from an older APK", async () => {
-    plugin.setSystemBars.mockRejectedValue(new Error("UNIMPLEMENTED"));
-    await expect(setNativeSystemBars("dark-bg", false)).resolves.toBeUndefined();
+  it("swallows a plugin failure", async () => {
+    mocks.setStyle.mockRejectedValue(new Error("UNIMPLEMENTED"));
+    await expect(setNativeBarStyle("dark")).resolves.toBeUndefined();
   });
 });

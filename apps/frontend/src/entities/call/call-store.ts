@@ -46,6 +46,9 @@ interface CallState {
    * connection state alone (that's just "I reached the SFU", not "the other
    * person is here"). */
   remoteJoined: boolean;
+  /** The phone put this call on hold (a GSM call came in, T-087) — the mic is off and the peer is
+   * muted until native sends `resume`. Never set by the web UI itself. */
+  held: boolean;
 
   setLocalVideoIntent: (enabled: boolean) => void;
   /** This device is about to place a call — before any network round trip. */
@@ -82,6 +85,7 @@ interface CallState {
    * mutation error) calls this FIRST, synchronously — the UI must never
    * wait on a network round trip to stop ringing/stop the call screen. */
   endLocally: (reason: CallEndReason) => void;
+  setHeld: (held: boolean) => void;
   minimize: () => void;
   restore: () => void;
   reset: () => void;
@@ -97,6 +101,7 @@ const IDLE_STATE = {
   draft: null as CallDraft | null,
   endReason: null as CallEndReason | null,
   remoteJoined: false,
+  held: false,
 };
 
 export const useCallStore = create<CallState>((set, get) => ({
@@ -185,6 +190,10 @@ export const useCallStore = create<CallState>((set, get) => ({
 
   endLocally: (reason) => {
     set({ phase: "ended", endReason: reason });
+  },
+
+  setHeld: (held) => {
+    set({ held });
   },
 
   minimize: () => {

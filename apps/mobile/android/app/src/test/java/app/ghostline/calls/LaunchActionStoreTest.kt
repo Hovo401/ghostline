@@ -58,4 +58,17 @@ class LaunchActionStoreTest {
         store.put(answer, nowMs = 10_000)
         assertNull(store.consume(nowMs = 5_000))
     }
+
+    @Test
+    fun aDeliveredActionIsDiscardedButANewerOneIsNot() {
+        val store = LaunchActionStore()
+        store.put(answer, nowMs = 1_000)
+        store.discard(answer)
+        assertNull(store.consume(nowMs = 2_000))
+
+        val callback = LaunchAction.Callback(chatId = "chat2", video = false)
+        store.put(callback, nowMs = 1_000)
+        store.discard(answer)
+        assertEquals(callback, store.consume(nowMs = 2_000))
+    }
 }

@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { ensureSession } from "../entities/session";
+import { ensureSession, SessionPending } from "../entities/session";
 import { Auth } from "../features/auth";
 import { useSessionStore } from "../shared/api/session-store";
 
@@ -25,5 +25,6 @@ export const Route = createFileRoute("/login")({
       throw redirect({ to: "/app", replace: true });
     }
   },
+  pendingComponent: SessionPending,
   component: Auth,
 });

@@ -1,3 +1,5 @@
+import { useCallStore } from "../../entities/call";
+
 import { CallEnded } from "./CallEnded";
 import { CallScreen } from "./CallScreen";
 import { IncomingCall } from "./IncomingCall";
@@ -21,11 +23,13 @@ import { useTrackAttach } from "./use-track-attach";
 export function CallRoot() {
   const session = useCallSession();
   useNativeCallBridge(session);
+  // On hold (a GSM call took the line) the peer must not be heard — the track stays attached.
+  const held = useCallStore((state) => state.held);
   const remoteAudioRef = useTrackAttach(session.remoteAudioTrack);
 
   return (
     <>
-      {session.remoteAudioTrack && <audio ref={remoteAudioRef} autoPlay />}
+      {session.remoteAudioTrack && <audio ref={remoteAudioRef} autoPlay muted={held} />}
       <IncomingCall />
       <CallEnded />
       <CallScreen session={session} />

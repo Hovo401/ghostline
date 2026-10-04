@@ -85,13 +85,21 @@ rings the rest of it, not a fresh 45 s. "Отклонить" goes through `CallA
 - Emulator: the full-screen screen only shows when the screen is off or locked; with the screen on
   the same call is a heads-up notification. Check `dumpsys power | grep mWakefulness` before judging.
 
-## System bars
+## Session cookie (ADR-0021)
 
-`styles.xml` paints the status/navigation bars dark for the start-up moment only. The page then reports
-its background through `Ghostline.setSystemBars({color, darkIcons})` (called from
-`shared/theme/use-apply-appearance.ts` on every theme change); `GhostlinePlugin` sets the window and WebView
-background (what shows under the transparent bars on Android 15+), the bars' own colors (≤14) and the icon
-style. The method doesn't exist in older APKs — the site calls it through `shared/native/native-system-bars.ts`.
+The refresh token is an httpOnly cookie that rotates on every refresh, and the WebView's `CookieManager`
+writes cookies to disk lazily. `MainActivity` calls `CookieManager.flush()` in `onPause`/`onStop` so a
+swipe from Recents or an APK update right after a refresh can't bring back the previous cookie — which
+the server would otherwise take for a stolen token and log the user out. Keep that flush.
+
+## System bars (ADR-0020)
+
+The WebView draws edge to edge. `viewport-fit=cover` in `apps/frontend/index.html` makes Capacitor's
+`SystemBars` publish `--safe-area-inset-*` (and stop padding the WebView); the site's `--safe-*` tokens and
+`p-safe`/`pt-safe`/`pb-safe` utilities in `shared/theme/theme.css` pad content with them. Backgrounds go
+under the bars, content doesn't: any new `fixed inset-*` layer needs safe padding. Icon color follows the
+theme through `SystemBars.setStyle` (`shared/native/native-system-bars.ts`). `styles.xml`'s bar colors only
+matter at start-up and on Android ≤ 14.
 
 ## Answering and a call in progress (T-086)
 
@@ -110,6 +118,63 @@ style. The method doesn't exist in older APKs — the site calls it through `sha
 - `TelecomBridge` (core-telecom, ADR-0019) runs one coroutine per call inside `CallsManager.addCall`;
   `IncomingCallService` registers a ringing call there, so a `call:closed`/decline/timeout ends the entry
   (`RingEnd`), while an answer leaves it for `CallSession`. `addCall` failing (GSM call, missing permission)
-  is logged and the call goes on without Telecom. Holds, audio routes and the headset button: T-087.
+  is logged and the call goes on without Telecom. Holds, audio routes and the headset button: see below (T-087).
 - `setCallState`, `consumeLaunchAction` and the `callCommand` event don't exist in older APKs; the site calls
   them through `shared/native/native-call.ts`.
+
+## Picture-in-picture (T-088)
+
+- `MainActivity` is `supportsPictureInPicture`; `calls/PipLogic.kt` holds the pure part: `pipAllowed(state)` =
+  video call in `active`/`reconnecting`, `pipActions(state)` (mic toggle by `muted`, then hang up), 9:16.
+- `CallSession.stateListener` (set in `onStart`, cleared in `onDestroy`; posted to the main thread) makes the
+  activity refresh `setPictureInPictureParams` on every state change, `muted` included. Android 12+: params
+  carry `setAutoEnterEnabled(pipAllowed)`; 8-11: `onUserLeaveHint` calls `enterPictureInPictureMode`.
+- The window's buttons are `RemoteAction`s on the existing `OngoingCallActionReceiver` (`ACTION_TOGGLE_MUTE`,
+  `ACTION_HANGUP`), so they reach the page as `callCommand` like the notification's. No new receiver.
+- `onPictureInPictureModeChanged` -> `Ghostline.pipModeChanged {active}` and `AppVisibility.foreground =
+!inPip` (with only the window up, message pushes show). Dismissing the window (X / swipe) removes the task and
+  destroys the activity, WebView and LiveKit with it, so the call can't survive: it is ended with
+  `CallCommand.Hangup` while the page still exists (mode change to "out" below `STARTED`, or `onStop` outside PiP
+  with `pipActive`; `endsCallOnPipClose`). Expanding the window is not a dismissal. NOT verified live yet
+  (needs a real video call): reviewer's reading of AOSP, check on a phone that no ghost notification stays.
+- Devices without `FEATURE_PICTURE_IN_PICTURE` skip every PiP call (they throw `IllegalStateException`), which
+  are also wrapped in try/catch. If the call ends while the window is up the activity goes `moveTaskToBack`.
+- In PiP the activity is not stopped, so the WebView is never paused (Capacitor `KeepRunning` defaults to true,
+  so `onPause` only notifies plugins), otherwise the video freezes. Keep the cookie flush in `onPause`/`onStop`
+  (ADR-0021).
+- `pipModeChanged` doesn't exist in older APKs; the site listens through `shared/native/native-call.ts`.
+
+## Audio routes, proximity, hold (T-087, ADR-0022)
+
+- `AudioRouter` (`calls/`) is the one owner of where a call's sound goes. With a Telecom entry `TelecomBridge`
+  feeds it the endpoint flows and it switches with `requestEndpointChange`; if `addCall` failed `AudioFallback`
+  does it with `AudioManager` (`MODE_IN_COMMUNICATION`, `setCommunicationDevice` on 12+, speakerphone/SCO
+  below) and reports a lost audio focus as hold. Every change is an `audioRoutes` event; `getAudioRoutes` /
+  `setAudioRoute` answer the page (`UNAVAILABLE` for a route that isn't connected). The rules (initial route,
+  headset priority, the user's pick is kept, Bluetooth hidden without permission) are pure functions in
+  `AudioRouteLogic.kt` and `HoldLogic.kt` (`decideRoute` leaves a route the list doesn't offer alone). Telecom's
+  Bluetooth endpoints are never filtered; only the `AudioManager` path hides Bluetooth without the permission.
+- `BLUETOOTH_CONNECT` is asked once, only when the `AudioManager` fallback starts and a Bluetooth output is around.
+  Without it Bluetooth is simply not in the list.
+- `ProximityLock` (screen off at the ear) lives in `OngoingCallService`: audio call, `connecting`/`active`,
+  earpiece (`shouldHoldProximity`); released in `onDestroy`.
+- Hold: Telecom `onSetInactive`/`onSetActive` (or audio focus without Telecom) -> `CallSession.onSystemHold(callId,
+hold)` -> `hold`/`resume` `callCommand` plus "На удержании" in the notification. It applies only to the current
+  call and only in `active`/`reconnecting` (`shouldApplyHold`). `NativeCallState.held` is native's own and is never
+  read from the page's JSON. Telecom may not report the end of a GSM call, so while held `TelecomBridge` retries
+  `setActive()` every 3 s (one loop per hold) unless a GSM call is on (`MODE_IN_CALL`/`MODE_RINGTONE`); the manual path is `Ghostline.resumeCall`
+  (no args, `UNAVAILABLE` if nothing is held or Telecom refuses) behind the page's "Продолжить". Hold does not stop
+  the camera of a video call (native can't): known limitation, ADR-0022.
+- Headset: Telecom `onAnswer` on a ringing call runs `IncomingCallService.answer` (the same code as the
+  "Ответить" button); `onDisconnect` from the system sends `hangup` (a ringing call is declined instead,
+  `disconnectAction`). An entry the app ended itself is flagged `ending`, so the system's echo is not mistaken
+  for the user. Limit: between a native answer and the page's `connecting` the entry is not yet marked answered,
+  so a system disconnect in that gap counts as a rejection and does nothing. `IncomingCallService.answer` hands the
+  answer straight to a listening page and only opens the app (`planAnswer`); otherwise it waits in
+  `LaunchActionStore` and rides the intent, and `MainActivity` discards that copy if the page took it anyway.
+  A page reloaded during a hold gets `hold` again with each state it reports (`shouldResendHold`).
+- `getAudioRoutes`, `setAudioRoute`, `resumeCall`, `audioRoutes`, `hold`/`resume` are newer than the first APK: the site goes
+  through `shared/native/native-call.ts`.
+- Not verifiable on an emulator, check on a phone: Bluetooth headset (route list, switching, its button),
+  wired headphones, a real GSM call during a call (hold and resume), the proximity sensor at the ear, that
+  WebView audio really follows `requestEndpointChange` (ADR-0022 spike).

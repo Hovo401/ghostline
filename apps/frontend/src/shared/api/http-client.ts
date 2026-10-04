@@ -54,7 +54,7 @@ let refreshInFlight: Promise<string | null> | null = null;
  * file and a static import the other way would be a circular import
  * between the two `shared/api` modules. Resolves `null` if nothing
  * registered a refresher yet (shouldn't happen once the app has booted) or
- * the refresh itself fails.
+ * the refresh itself fails (the session is cleared only when the server answered 401).
  */
 async function refreshAccessToken(): Promise<string | null> {
   const refresher = getSessionRefresher();
@@ -65,8 +65,12 @@ async function refreshAccessToken(): Promise<string | null> {
       useSessionStore.getState().setSession(data.accessToken, data.user);
       return data.accessToken;
     })
-    .catch(() => {
-      useSessionStore.getState().clearSession();
+    .catch((error: unknown) => {
+      // Only the server rejecting the refresh cookie ends the session — a network blip or a 5xx
+      // must not log the user out (the request just fails and gets retried).
+      if (error instanceof ApiError && error.status === 401) {
+        useSessionStore.getState().clearSession();
+      }
       return null;
     })
     .finally(() => {

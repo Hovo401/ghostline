@@ -1,6 +1,8 @@
 export { Ghostline, hasGhostlinePlugin } from "./ghostline-plugin";
 export type {
   GhostlinePlugin,
+  NativeAudioRoute,
+  NativeAudioRoutes,
   NativeCallCommand,
   NativeCallPhase,
   NativeCallState,
@@ -14,11 +16,16 @@ export { isNativeApp } from "./is-native-app";
 export { listenForNativeBack } from "./native-back-button";
 export {
   consumeNativeLaunchAction,
+  getNativeAudioRoutes,
+  listenForNativeAudioRoutes,
   listenForNativeCallCommands,
+  listenForNativePipMode,
+  resumeNativeCall,
+  setNativeAudioRoute,
   setNativeCallState,
 } from "./native-call";
 export { listenForNativeLinks } from "./native-deep-links";
-export { setNativeSystemBars } from "./native-system-bars";
+export { setNativeBarStyle } from "./native-system-bars";
 export {
   clearNativeNotifications,
   NATIVE_PERMISSIONS_KEY,

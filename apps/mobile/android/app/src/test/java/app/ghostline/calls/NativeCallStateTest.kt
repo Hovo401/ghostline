@@ -38,6 +38,12 @@ class NativeCallStateTest {
     }
 
     @Test
+    fun holdIsNativeOwnAndNeverComesFromThePage() {
+        val state = NativeCallState.parse(JSONObject("""{"callId":"c","phase":"active","held":true}"""))
+        assertEquals(false, state?.held)
+    }
+
+    @Test
     fun aStateNativeCannotReadIsNull() {
         assertNull(NativeCallState.parse(JSONObject("""{"callId":"c1","phase":"teleporting"}""")))
         assertNull(NativeCallState.parse(JSONObject("""{"phase":"active"}""")))

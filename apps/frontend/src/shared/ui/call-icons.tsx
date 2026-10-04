@@ -57,3 +57,61 @@ export function HangupIcon({ size = 22 }: CallIconProps) {
     </svg>
   );
 }
+
+/** Audio-route glyphs (T-087) — the earpiece route reuses `PhoneIcon`. */
+export function SpeakerIcon({ size = 20 }: CallIconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" />
+      <path d="M15.5 9a4 4 0 010 6M18 6.5a7.5 7.5 0 010 11" />
+    </svg>
+  );
+}
+
+export function BluetoothIcon({ size = 20 }: CallIconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M7 7.5l10 9-5 4.5V3l5 4.5-10 9" />
+    </svg>
+  );
+}
+
+export function HeadsetIcon({ size = 20 }: CallIconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 15v-3a8 8 0 0116 0v3" />
+      <rect x="3" y="14" width="4" height="6" rx="1.5" />
+      <rect x="17" y="14" width="4" height="6" rx="1.5" />
+    </svg>
+  );
+}

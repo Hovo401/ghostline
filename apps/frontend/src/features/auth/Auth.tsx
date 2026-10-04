@@ -56,7 +56,7 @@ export function Auth() {
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      <div className="flex flex-col gap-10 px-8 pt-7 pb-10 lg:px-14">
+      <div className="flex flex-col gap-10 px-8 pt-[calc(1.75rem+var(--safe-top))] pb-[calc(2.5rem+var(--safe-bottom))] lg:px-14">
         <Link
           to="/"
           className="flex w-fit items-center gap-1.5 text-xl font-semibold tracking-tight"

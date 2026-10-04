@@ -150,8 +150,9 @@ Stickers are not part of this wave (`Later`) — see docs/adr/0015 for the sourc
 - [x] T-073 — Frontend reactions: `ReactionBar` chips under the bubble, quick-reaction row +
       "＋" picker in `MessageContextMenu`, optimistic `useSetReaction`. Depends on T-070, T-071,
       T-072.
-- [ ] T-074 — Reactions don't advance `seq`, so the `afterSeq` catch-up after a reconnect misses
+- [x] T-074 — Reactions don't advance `seq`, so the `afterSeq` catch-up after a reconnect misses
       them until the history reloads (same as edits today, FR-RT-05). Decide with the edit case.
+      Done: the newest page is re-synced on reconnect; older loaded pages still refresh on reload.
 
 ### Android app — Capacitor (docs/adr/0017, spec: [T-080-android-app.md](T-080-android-app.md))
 
@@ -173,8 +174,23 @@ call screen, the ongoing-call service, audio routes and PiP. APK served from our
       `IncomingCallActivity`, token decline, timeout, missed call (FR-APP-02/06). Depends on T-083b.
 - [x] T-086 — Answer flow, `use-native-call-bridge`, ongoing-call FGS with chronometer,
       core-telecom (FR-APP-03). Depends on T-085.
-- [ ] T-087 — Audio routes, proximity, GSM hold, headset button (FR-APP-04). Depends on T-086.
-- [ ] T-088 — Picture-in-picture for video calls (FR-APP-08). Depends on T-086.
+- [x] T-087 — Audio routes, proximity, GSM hold, headset button (FR-APP-04). Depends on T-086.
+- [x] T-088 — Picture-in-picture for video calls (FR-APP-08). Depends on T-086.
+
+### Session stays alive on Android (FR-AUTH-06; docs/adr/0021)
+
+Users were logged out after reopening the app or after an update: the WebView lost the rotated
+refresh cookie and the server took the old one for a stolen token.
+
+- [~] T-089 — Previous refresh token accepted once (`Session.previousTokenHash`), `CookieManager.flush()`
+      in `MainActivity`, frontend logs out only on a 401 and retries on network/5xx, single-flight
+      refresh with a Web Lock. Code and migration (`add_session_previous_token_hash`) are done; open: deploy,
+      release an APK (bump `android-release.json`).
+- [ ] T-090 — Compare-and-swap on refresh rotation: two parallel refreshes with the same token can
+      leave the client with a token the server no longer knows (one forced re-login). Do it only if
+      logouts keep being reported after T-089 is live ~2 weeks. Depends on T-089.
+- [x] T-091 — `/app` waits on `checking` forever while offline (`ensureSession` retries): show a
+      "Нет сети, подключаемся…" state instead of a blank screen. Depends on T-089.
 
 ## M7 — Open source
 

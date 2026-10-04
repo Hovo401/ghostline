@@ -13,10 +13,11 @@ import { useSessionStore } from "../shared/api/session-store";
 // from under `/app` fails here. The features are stubbed — this is about
 // what stays mounted, not what they render.
 const lifecycle = vi.hoisted(() => ({ callRootMounts: 0, callRootUnmounts: 0, sessions: 0 }));
+const ensureSessionMock = vi.hoisted(() => vi.fn((): Promise<void> => Promise.resolve()));
 
 vi.mock("../entities/session", async (importOriginal) => ({
   ...(await importOriginal<object>()),
-  ensureSession: () => Promise.resolve(),
+  ensureSession: ensureSessionMock,
 }));
 
 vi.mock("../features/call", () => ({
@@ -58,12 +59,38 @@ describe("/app layout", () => {
     lifecycle.callRootMounts = 0;
     lifecycle.callRootUnmounts = 0;
     lifecycle.sessions = 0;
+    ensureSessionMock.mockImplementation(() => Promise.resolve());
     useSessionStore.setState({ status: "authenticated", accessToken: "token", user: null });
   });
 
   afterEach(() => {
     cleanup();
-    useSessionStore.setState({ status: "checking", accessToken: null, user: null });
+    useSessionStore.setState({
+      status: "checking",
+      accessToken: null,
+      user: null,
+      reconnecting: false,
+    });
+  });
+
+  it("shows the offline message instead of a blank page while the session is retrying", async () => {
+    ensureSessionMock.mockImplementation(() => new Promise<void>(() => undefined));
+    useSessionStore.setState({
+      status: "checking",
+      accessToken: null,
+      user: null,
+      reconnecting: true,
+    });
+    const router = createRouter({
+      routeTree,
+      history: createMemoryHistory({ initialEntries: ["/app"] }),
+      defaultPendingMs: 0,
+      defaultPendingMinMs: 0,
+    });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByText("Нет сети, подключаемся…")).toBeInTheDocument();
+    expect(screen.queryByText("chat list")).not.toBeInTheDocument();
   });
 
   it("keeps the call and the messenger session mounted across settings and back", async () => {

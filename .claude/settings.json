@@ -258,7 +258,11 @@
       "PowerShell($conn = Get-NetTCPConnection -LocalPort 5199 -State Listen -ErrorAction SilentlyContinue; if \\($conn\\) { Stop-Process -Id $conn.OwningProcess -Force; \"stopped pid $\\($conn.OwningProcess\\)\" } else { \"nothing listening\" })",
       "Bash(curl -s -o /dev/null -w \"emojibase via nginx: %{http_code}\\\\n\" http://localhost/emojibase/ru/messages.json)",
       "Bash(curl -s -o /dev/null -w \"%{content_type} %{size_download}B\\\\n\" http://localhost/emojibase/ru/messages.json)",
-      "PowerShell(npm view @capacitor/core version; npm view @capacitor/android version; npm view @capacitor/app version; npm view workbox-precaching version; java -version 2>&1 | Select-Object -First 1; $env:ANDROID_HOME; $env:ANDROID_SDK_ROOT; Test-Path \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\"; Test-Path \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\\\\bin\\\\java.exe\")"
+      "PowerShell(npm view @capacitor/core version; npm view @capacitor/android version; npm view @capacitor/app version; npm view workbox-precaching version; java -version 2>&1 | Select-Object -First 1; $env:ANDROID_HOME; $env:ANDROID_SDK_ROOT; Test-Path \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\"; Test-Path \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\\\\bin\\\\java.exe\")",
+      "Bash(git reset *)",
+      "Bash(cd \"c:/Users/Lenovo/Diotek/data/my_project/chat/apps/mobile/android\")",
+      "Bash(export JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\")",
+      "Bash(./gradlew testDebugUnitTest compileDebugKotlin --console=plain -q)"
     ],
     "deny": [
       "Read(**/node_modules/**)",

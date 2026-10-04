@@ -45,8 +45,11 @@ export function SegmentedTabs<T extends string>({
               onChange(opt.value);
             }}
             className={[
-              "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-200",
-              fill ? "flex-1" : "",
+              "rounded-lg py-1.5 text-sm font-medium transition-colors duration-200",
+              // Equal-width segments on a narrow phone can be thinner than a
+              // single long word ("Уведомления") — let it hyphenate (html
+              // lang="ru") instead of spilling past the border.
+              fill ? "min-w-0 flex-1 px-1.5 wrap-break-word hyphens-auto" : "px-3",
               selected ? "bg-fg text-bg" : "text-mute",
             ]
               .filter(Boolean)

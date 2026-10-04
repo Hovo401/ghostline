@@ -15,7 +15,7 @@ function parseMessagePage(data: unknown): ChatMessage[] {
   return data.map((item) => MessageSchema.parse(item));
 }
 
-async function fetchMessagePage(chatId: string, beforeSeq: string | undefined) {
+export async function fetchMessagePage(chatId: string, beforeSeq: string | undefined) {
   const data = await apiFetch("/messages", {
     searchParams: beforeSeq ? { chatId, beforeSeq } : { chatId },
   });

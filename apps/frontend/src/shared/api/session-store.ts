@@ -9,7 +9,10 @@ import { create } from "zustand";
  * client and the `/app` route guard read `status`/`user`.
  *
  * `checking` is the boot state until `entities/session`'s bootstrap either
- * confirms a session (via the refresh cookie) or gives up.
+ * confirms a session (via the refresh cookie) or gives up. `reconnecting`
+ * is true while `checking` and the bootstrap is retrying after a transient
+ * failure (no network / 5xx), so the pending screen can say so instead of
+ * staying blank; `setSession`/`clearSession` reset it.
  */
 export type SessionStatus = "checking" | "authenticated" | "anonymous";
 
@@ -17,11 +20,13 @@ interface SessionState {
   status: SessionStatus;
   accessToken: string | null;
   user: UserPublicProfile | null;
+  reconnecting: boolean;
 }
 
 interface SessionActions {
   setSession: (accessToken: string, user: UserPublicProfile) => void;
   clearSession: () => void;
+  setReconnecting: () => void;
   /** Patches the cached profile in place — `entities/session`'s
    * `useUpdateMe` (after a `PATCH /me`) and `useMeRealtime` (after a
    * `user:updated` push for this device's own user) both go through this
@@ -34,11 +39,15 @@ export const useSessionStore = create<SessionState & SessionActions>((set) => ({
   status: "checking",
   accessToken: null,
   user: null,
+  reconnecting: false,
   setSession: (accessToken, user) => {
-    set({ status: "authenticated", accessToken, user });
+    set({ status: "authenticated", accessToken, user, reconnecting: false });
   },
   clearSession: () => {
-    set({ status: "anonymous", accessToken: null, user: null });
+    set({ status: "anonymous", accessToken: null, user: null, reconnecting: false });
+  },
+  setReconnecting: () => {
+    set({ reconnecting: true });
   },
   updateUser: (user) => {
     set({ user });

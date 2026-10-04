@@ -60,6 +60,9 @@ model Session {
   userId     String    @db.Uuid
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   tokenHash  String    @unique
+  // The hash `tokenHash` replaced on the last rotation — ADR-0021: still accepted once, so a client
+  // that lost the rotated cookie (WebView killed before it hit the disk) is not logged out.
+  previousTokenHash String?
   familyId   String    @db.Uuid
   userAgent  String?
   ip         String?

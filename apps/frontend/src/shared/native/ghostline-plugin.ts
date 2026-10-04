@@ -52,7 +52,20 @@ export type NativeCallCommand =
   | { type: "hangup" }
   | { type: "toggleMute" }
   /** The ongoing-call notification was tapped: bring the call screen up. */
-  | { type: "open" };
+  | { type: "open" }
+  /** The system put the call on hold (a GSM call came in) / gave it back (T-087). */
+  | { type: "hold" }
+  | { type: "resume" };
+
+/** Where the call's sound goes (T-087); `wired` covers headphones and USB headsets. */
+export type NativeAudioRoute = "earpiece" | "speaker" | "bluetooth" | "wired";
+
+export interface NativeAudioRoutes {
+  /** `null` until native has settled on one. */
+  current: NativeAudioRoute | null;
+  /** `name` is the device's own name for Bluetooth/wired, shown in the route sheet. */
+  available: { route: NativeAudioRoute; name: string }[];
+}
 
 /** The commands that can arrive before the page is up, so native holds them for `consumeLaunchAction`. */
 export type NativeLaunchAction = Extract<NativeCallCommand, { type: "answer" | "callback" }>;
@@ -78,8 +91,15 @@ export interface GhostlinePlugin {
    * there is none or it is older than a minute.
    */
   consumeLaunchAction(): Promise<{ action: NativeLaunchAction | null }>;
-  /** Newer. Colors the status/navigation bars (`#rrggbb`); `darkIcons` for a light background. */
-  setSystemBars(options: { color: string; darkIcons: boolean }): Promise<void>;
+  /** Newer (T-087). The routes right now; later changes arrive as `audioRoutes`. */
+  getAudioRoutes(): Promise<NativeAudioRoutes>;
+  /** Newer (T-087). Rejects with `UNAVAILABLE` when that route is not connected. */
+  setAudioRoute(options: { route: NativeAudioRoute }): Promise<void>;
+  /**
+   * Newer (T-087). The "Продолжить" button on a held call: asks the phone to take the call off hold;
+   * native then sends the `resume` command. Rejects with `UNAVAILABLE` when no call is on hold.
+   */
+  resumeCall(): Promise<void>;
   checkPermissions(): Promise<{ notifications: PermissionState }>;
   requestPermissions(): Promise<{ notifications: PermissionState }>;
   addListener(
@@ -90,6 +110,16 @@ export interface GhostlinePlugin {
   addListener(
     event: "callCommand",
     listener: (command: NativeCallCommand) => void,
+  ): Promise<PluginListenerHandle>;
+  /** Newer (T-087). */
+  addListener(
+    event: "audioRoutes",
+    listener: (routes: NativeAudioRoutes) => void,
+  ): Promise<PluginListenerHandle>;
+  /** Newer (T-088). The call window went into / out of picture-in-picture. */
+  addListener(
+    event: "pipModeChanged",
+    listener: (event: { active: boolean }) => void,
   ): Promise<PluginListenerHandle>;
 }
 

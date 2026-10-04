@@ -1,10 +1,9 @@
 import { useEffect } from "react";
 
-import { setNativeSystemBars } from "../native";
+import { setNativeBarStyle } from "../native";
 
 import { resolveTheme, resolveTone, useAppearanceStore } from "./appearance-store";
 import { applyCustomAccent, applyCustomTheme } from "./apply-custom-appearance";
-import { cssRgbToHex } from "./color-utils";
 
 /**
  * Keeps `<html data-theme data-tone data-accent data-font data-scale
@@ -41,9 +40,8 @@ export function useApplyAppearance(usePrefs = true): void {
       root.setAttribute("data-theme", resolved);
       const tone = resolveTone(resolved, customTheme.bg);
       root.setAttribute("data-tone", tone);
-      // The phone's status/navigation bars take the page background (no-op outside the app).
-      const bg = cssRgbToHex(getComputedStyle(document.body).backgroundColor);
-      if (bg) void setNativeSystemBars(bg, tone === "light");
+      // The app draws under the phone's bars; only their icon color follows the theme.
+      void setNativeBarStyle(tone);
     };
     apply();
 

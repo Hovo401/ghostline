@@ -1,15 +1,15 @@
 package app.ghostline
 
 import android.Manifest
-import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.util.Base64
 import android.util.Log
-import androidx.core.view.WindowCompat
+import app.ghostline.calls.AudioRoute
+import app.ghostline.calls.AudioRouter
 import app.ghostline.calls.CallSession
 import app.ghostline.calls.LaunchActionStore
 import app.ghostline.calls.NativeCallState
+import app.ghostline.calls.toJson
 import app.ghostline.messages.MessageNotifier
 import app.ghostline.push.DeviceKeyStore
 import app.ghostline.push.PushNotifier
@@ -129,40 +129,47 @@ class GhostlinePlugin : Plugin() {
         call.resolve()
     }
 
-    /**
-     * The page's background as the bars' color (`color` = `#rrggbb`), dark icons for a light one. From
-     * Android 15 the bars are transparent and show the window background; before that, their own colors.
-     */
-    @PluginMethod
-    fun setSystemBars(call: PluginCall) {
-        val color = try {
-            Color.parseColor(call.getString("color") ?: "")
-        } catch (_: IllegalArgumentException) {
-            call.reject("color must be #rrggbb")
-            return
-        }
-        val darkIcons = call.getBoolean("darkIcons") ?: false
-        activity.runOnUiThread {
-            val window = activity.window
-            window.setBackgroundDrawable(ColorDrawable(color))
-            @Suppress("DEPRECATION")
-            window.statusBarColor = color
-            @Suppress("DEPRECATION")
-            window.navigationBarColor = color
-            bridge.webView.setBackgroundColor(color)
-            WindowCompat.getInsetsController(window, window.decorView).apply {
-                isAppearanceLightStatusBars = darkIcons
-                isAppearanceLightNavigationBars = darkIcons
-            }
-            call.resolve()
-        }
-    }
-
     /** The answer/callback chosen before the page was up: `{action: {...}}` or `{action: null}`, once. */
     @PluginMethod
     fun consumeLaunchAction(call: PluginCall) {
         val action = LaunchActionStore.shared.consume(System.currentTimeMillis())
         call.resolve(JSObject().put("action", action?.toJson() ?: JSObject.NULL))
+    }
+
+    /** The routes right now (`NativeAudioRoutes`); empty outside a call. Later changes arrive as `audioRoutes`. */
+    @PluginMethod
+    fun getAudioRoutes(call: PluginCall) {
+        call.resolve(AudioRouter.snapshot().toJson())
+    }
+
+    @PluginMethod
+    fun setAudioRoute(call: PluginCall) {
+        val route = AudioRoute.parse(call.getString("route"))
+        if (route == null || !AudioRouter.select(route)) {
+            call.reject("No such audio route right now", "UNAVAILABLE")
+            return
+        }
+        call.resolve()
+    }
+
+    /**
+     * "Продолжить" on a call the system put on hold, for when it never says the other call ended. Resolves when
+     * the call is taken back; rejects with `UNAVAILABLE` if nothing is on hold or Telecom refused.
+     */
+    @PluginMethod
+    fun resumeCall(call: PluginCall) {
+        CallSession.resumeHeld(context) { resumed ->
+            if (resumed) call.resolve() else call.reject("No call on hold to resume", "UNAVAILABLE")
+        }
+    }
+
+    /** `routes` is a `NativeAudioRoutes` (`{current, available: [{route, name}]}`). */
+    fun emitAudioRoutes(routes: JSObject) {
+        notifyListeners("audioRoutes", routes)
+    }
+
+    fun emitPipMode(active: Boolean) {
+        notifyListeners("pipModeChanged", JSObject().put("active", active))
     }
 
     fun emitTokenChanged(token: String) {

@@ -28,6 +28,8 @@ data class NativeCallState(
     /** Epoch millis the call was answered, `null` while it is still ringing or connecting. */
     val answeredAt: Long?,
     val muted: Boolean,
+    /** Native's own: the system put the call on hold ([CallSession.onSystemHold]). Never read from the page. */
+    val held: Boolean = false,
 ) {
     /** Carries the state into the [OngoingCallService] start intent (the service may start with the process cold). */
     fun putInto(intent: Intent): Intent = intent
@@ -38,6 +40,7 @@ data class NativeCallState(
         .putExtra(EXTRA_PEER_NAME, peerName)
         .putExtra(EXTRA_ANSWERED_AT, answeredAt ?: NO_ANSWER)
         .putExtra(EXTRA_MUTED, muted)
+        .putExtra(EXTRA_HELD, held)
 
     companion object {
         private const val EXTRA_CALL_ID = "stateCallId"
@@ -47,6 +50,7 @@ data class NativeCallState(
         private const val EXTRA_PEER_NAME = "statePeerName"
         private const val EXTRA_ANSWERED_AT = "stateAnsweredAt"
         private const val EXTRA_MUTED = "stateMuted"
+        private const val EXTRA_HELD = "stateHeld"
         private const val NO_ANSWER = -1L
 
         /** `null` for anything that isn't a well-formed state (a newer page, a bug): native then does nothing. */
@@ -76,6 +80,7 @@ data class NativeCallState(
                 peerName = intent.getStringExtra(EXTRA_PEER_NAME) ?: "",
                 answeredAt = intent.getLongExtra(EXTRA_ANSWERED_AT, NO_ANSWER).takeIf { it >= 0 },
                 muted = intent.getBooleanExtra(EXTRA_MUTED, false),
+                held = intent.getBooleanExtra(EXTRA_HELD, false),
             )
         }
     }

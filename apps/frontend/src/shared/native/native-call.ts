@@ -1,6 +1,8 @@
 import {
   Ghostline,
   hasGhostlinePlugin,
+  type NativeAudioRoute,
+  type NativeAudioRoutes,
   type NativeCallCommand,
   type NativeCallState,
   type NativeLaunchAction,
@@ -38,4 +40,58 @@ export function listenForNativeCallCommands(
   return () => {
     void handle.then((h) => h?.remove());
   };
+}
+
+/** The audio routes right now; `null` outside the app or in an APK older than T-087 (no route picker). */
+export async function getNativeAudioRoutes(): Promise<NativeAudioRoutes | null> {
+  if (!hasGhostlinePlugin()) return null;
+  try {
+    return await Ghostline.getAudioRoutes();
+  } catch {
+    return null;
+  }
+}
+
+/** Switches the call's sound; `false` when it didn't happen (old APK, route gone). */
+export async function setNativeAudioRoute(route: NativeAudioRoute): Promise<boolean> {
+  if (!hasGhostlinePlugin()) return false;
+  try {
+    await Ghostline.setAudioRoute({ route });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Route changes (a headset plugged in, a Bluetooth device gone); returns the unsubscribe. */
+export function listenForNativeAudioRoutes(
+  onRoutes: (routes: NativeAudioRoutes) => void,
+): () => void {
+  if (!hasGhostlinePlugin()) return () => undefined;
+  const handle = Ghostline.addListener("audioRoutes", onRoutes).catch(() => null);
+  return () => {
+    void handle.then((h) => h?.remove());
+  };
+}
+
+/** The call window entering/leaving picture-in-picture; returns the unsubscribe. */
+export function listenForNativePipMode(onChange: (active: boolean) => void): () => void {
+  if (!hasGhostlinePlugin()) return () => undefined;
+  const handle = Ghostline.addListener("pipModeChanged", (e) => {
+    onChange(e.active);
+  }).catch(() => null);
+  return () => {
+    void handle.then((h) => h?.remove());
+  };
+}
+
+/** Asks the phone to take a held call off hold; `false` when it didn't happen (old APK, nothing held). */
+export async function resumeNativeCall(): Promise<boolean> {
+  if (!hasGhostlinePlugin()) return false;
+  try {
+    await Ghostline.resumeCall();
+    return true;
+  } catch {
+    return false;
+  }
 }

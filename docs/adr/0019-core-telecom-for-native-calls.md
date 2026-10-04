@@ -18,7 +18,7 @@ Calls are registered through **`androidx.core:core-telecom`** (`CallsManager`, s
 phase the page reports through `Ghostline.setCallState`.
 
 T-086 only registers and ends calls (answer, active, disconnect). Routes, hold and the headset button
-are T-087, which starts with a spike: does core-telecom switch the audio of a WebRTC stream running
+are T-087 (decision and spike: [ADR-0022](0022-audio-routing-for-webview-calls.md)), which starts with a spike: does core-telecom switch the audio of a WebRTC stream running
 inside a WebView? If it does not, T-087 falls back to `AudioManager.setCommunicationDevice`, and this
 registration stays, because it is what the system uses to rank and hold calls.
 

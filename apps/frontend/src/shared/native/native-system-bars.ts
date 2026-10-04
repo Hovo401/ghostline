@@ -1,15 +1,18 @@
-import { Ghostline, hasGhostlinePlugin } from "./ghostline-plugin";
+import { SystemBars, SystemBarsStyle } from "@capacitor/core";
+
+import { isNativeApp } from "./is-native-app";
 
 /**
- * Paints the phone's status/navigation bars with the page's background (`#rrggbb`) and picks
- * dark icons for a light one. Outside the app, or in an APK without the method, the bars keep
- * the shell's default.
+ * The page draws under the phone's status/navigation bars (ADR-0020), so their background is the
+ * page's own; only the icons need to follow the theme: dark on a light page, light on a dark one.
  */
-export async function setNativeSystemBars(color: string, darkIcons: boolean): Promise<void> {
-  if (!hasGhostlinePlugin()) return;
+export async function setNativeBarStyle(tone: "light" | "dark"): Promise<void> {
+  if (!isNativeApp()) return;
   try {
-    await Ghostline.setSystemBars({ color, darkIcons });
+    await SystemBars.setStyle({
+      style: tone === "light" ? SystemBarsStyle.Light : SystemBarsStyle.Dark,
+    });
   } catch {
-    // An older APK has no such method — its bars stay dark.
+    // A shell without the plugin keeps the icons it started with.
   }
 }

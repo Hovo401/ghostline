@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
 import { selectHasActiveUploads, useUploadQueueStore } from "../entities/attachment";
-import { ensureSession } from "../entities/session";
+import { ensureSession, SessionPending } from "../entities/session";
 import { CallMiniBar, CallRoot } from "../features/call";
 import { useMessengerSession } from "../features/chat";
 import { MediaViewer } from "../features/media-viewer";
@@ -31,7 +31,7 @@ function AppShell() {
 
   return (
     <>
-      <div className="flex h-dvh flex-col">
+      <div className="p-safe flex h-dvh flex-col">
         <CallMiniBar />
         <div className="min-h-0 flex-1">
           <Outlet />
@@ -70,5 +70,6 @@ export const Route = createFileRoute("/app")({
       throw redirect({ to: "/login", replace: true });
     }
   },
+  pendingComponent: SessionPending,
   component: AppShell,
 });

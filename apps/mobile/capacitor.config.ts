@@ -20,9 +20,9 @@ const config: CapacitorConfig = {
     backgroundColor: "#0b0d12",
   },
   plugins: {
-    // Start-up look: light icons on the dark bars of `styles.xml`. Once the page loads, its theme
-    // takes over through `Ghostline.setSystemBars` (bar color + icon style).
-    SystemBars: { style: "DARK" },
+    // The page draws under the bars (ADR-0020) and publishes `--safe-area-inset-*`; `DARK` is only the
+    // icons' start-up style, `setNativeBarStyle` follows the theme once the page loads.
+    SystemBars: { insetsHandling: "css", style: "DARK" },
   },
 };
 
