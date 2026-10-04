@@ -18,6 +18,7 @@ export {
   setNativeCallState,
 } from "./native-call";
 export { listenForNativeLinks } from "./native-deep-links";
+export { setNativeSystemBars } from "./native-system-bars";
 export {
   clearNativeNotifications,
   NATIVE_PERMISSIONS_KEY,

@@ -24,6 +24,14 @@ export function isValidHex(hex: string): boolean {
   return HEX_RE.test(hex);
 }
 
+/** `rgb(11, 13, 18)` / `rgba(…)` as computed by the browser → `#0b0d12`; `null` for anything else. */
+export function cssRgbToHex(css: string): string | null {
+  const m = /^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/.exec(css);
+  if (!m) return null;
+  const hex = (v: string) => Math.min(255, Number(v)).toString(16).padStart(2, "0");
+  return `#${hex(m[1] ?? "0")}${hex(m[2] ?? "0")}${hex(m[3] ?? "0")}`;
+}
+
 /** Relative luminance (0–1) by the same fast weighting the prototype uses. */
 export function luminance(hex: string): number {
   const normalized = normalizeHex(hex);

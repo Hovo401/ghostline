@@ -1,7 +1,10 @@
 import { useEffect } from "react";
 
+import { setNativeSystemBars } from "../native";
+
 import { resolveTheme, resolveTone, useAppearanceStore } from "./appearance-store";
 import { applyCustomAccent, applyCustomTheme } from "./apply-custom-appearance";
+import { cssRgbToHex } from "./color-utils";
 
 /**
  * Keeps `<html data-theme data-tone data-accent data-font data-scale
@@ -36,7 +39,11 @@ export function useApplyAppearance(usePrefs = true): void {
     const apply = (): void => {
       const resolved = resolveTheme(theme);
       root.setAttribute("data-theme", resolved);
-      root.setAttribute("data-tone", resolveTone(resolved, customTheme.bg));
+      const tone = resolveTone(resolved, customTheme.bg);
+      root.setAttribute("data-tone", tone);
+      // The phone's status/navigation bars take the page background (no-op outside the app).
+      const bg = cssRgbToHex(getComputedStyle(document.body).backgroundColor);
+      if (bg) void setNativeSystemBars(bg, tone === "light");
     };
     apply();
 

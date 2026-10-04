@@ -85,6 +85,14 @@ rings the rest of it, not a fresh 45 s. "Отклонить" goes through `CallA
 - Emulator: the full-screen screen only shows when the screen is off or locked; with the screen on
   the same call is a heads-up notification. Check `dumpsys power | grep mWakefulness` before judging.
 
+## System bars
+
+`styles.xml` paints the status/navigation bars dark for the start-up moment only. The page then reports
+its background through `Ghostline.setSystemBars({color, darkIcons})` (called from
+`shared/theme/use-apply-appearance.ts` on every theme change); `GhostlinePlugin` sets the window and WebView
+background (what shows under the transparent bars on Android 15+), the bars' own colors (≤14) and the icon
+style. The method doesn't exist in older APKs — the site calls it through `shared/native/native-system-bars.ts`.
+
 ## Answering and a call in progress (T-086)
 
 - "Ответить" (screen and heads-up) answers at once: `IncomingCallActivity.answer()` unlocks the phone

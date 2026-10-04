@@ -78,6 +78,8 @@ export interface GhostlinePlugin {
    * there is none or it is older than a minute.
    */
   consumeLaunchAction(): Promise<{ action: NativeLaunchAction | null }>;
+  /** Newer. Colors the status/navigation bars (`#rrggbb`); `darkIcons` for a light background. */
+  setSystemBars(options: { color: string; darkIcons: boolean }): Promise<void>;
   checkPermissions(): Promise<{ notifications: PermissionState }>;
   requestPermissions(): Promise<{ notifications: PermissionState }>;
   addListener(
