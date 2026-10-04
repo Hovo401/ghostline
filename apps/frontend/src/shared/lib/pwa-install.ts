@@ -2,6 +2,8 @@ import { useCallback } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import { isNativeApp } from "../native";
+
 /** Chromium's install prompt event — not in TypeScript's DOM lib. */
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -59,6 +61,15 @@ export function isIosUserAgent(userAgent: string): boolean {
   return IOS_UA_PATTERN.test(userAgent);
 }
 
+const ANDROID_UA_PATTERN = /android/i;
+
+export function isAndroidUserAgent(userAgent: string): boolean {
+  return ANDROID_UA_PATTERN.test(userAgent);
+}
+
+/** Latest signed APK, published by `.github/workflows/android.yml`. */
+export const ANDROID_APK_URL = "/downloads/android/ghostline.apk";
+
 /** Whether the page is currently running installed to the home screen /
  * standalone — already installed, so nothing to offer. */
 export function isStandaloneDisplay(): boolean {
@@ -69,18 +80,23 @@ export function isStandaloneDisplay(): boolean {
   );
 }
 
-/** `"prompt"` — the browser's own install dialog is available; `"ios"` —
- * Safari has no install API, only "Поделиться → На экран «Домой»";
- * `null` — already installed or the browser can't install (Firefox
- * desktop): render nothing. */
-export type PwaInstallMode = "prompt" | "ios" | null;
+/** `"android-apk"` — an Android browser (even an installed PWA) is offered the
+ * native app, which rings on a locked phone; `"prompt"` — the browser's own
+ * install dialog is available; `"ios"` — Safari has no install API, only
+ * "Поделиться → На экран «Домой»"; `null` — already installed or the browser
+ * can't install (Firefox desktop): render nothing. */
+export type PwaInstallMode = "android-apk" | "prompt" | "ios" | null;
 
 export function usePwaInstall(): { mode: PwaInstallMode; install: () => Promise<void> } {
   const deferred = usePwaInstallStore((state) => state.deferred);
   const installed = usePwaInstallStore((state) => state.installed);
 
   let mode: PwaInstallMode = null;
-  if (!installed && !isStandaloneDisplay()) {
+  if (isNativeApp()) {
+    // Already the app.
+  } else if (isAndroidUserAgent(navigator.userAgent)) {
+    mode = "android-apk";
+  } else if (!installed && !isStandaloneDisplay()) {
     if (deferred) mode = "prompt";
     else if (isIosUserAgent(navigator.userAgent)) mode = "ios";
   }
@@ -95,6 +111,10 @@ export function usePwaInstall(): { mode: PwaInstallMode; install: () => Promise<
 
   return { mode, install };
 }
+
+/** Shown after tapping the APK link — Android blocks installs from a browser by default. */
+export const ANDROID_INSTALL_HINT =
+  "Откройте скачанный файл и разрешите установку из этого источника.";
 
 /** Shared copy for the iOS path — Safari can only install by hand. */
 export const IOS_INSTALL_HINT = "Нажмите «Поделиться», затем «На экран «Домой»».";

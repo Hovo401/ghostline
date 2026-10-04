@@ -6,9 +6,17 @@
 // `tsc` program; `pnpm run typecheck` runs both. See `sw-notifications.ts`
 // for the pure payload → `Notification` options mapping this calls into.
 export {};
-declare const self: ServiceWorkerGlobalScope;
+declare const self: ServiceWorkerGlobalScope & {
+  __WB_MANIFEST: Parameters<typeof precacheAndRoute>[0];
+};
 
 import type { PushPayload } from "@ghostline/contracts";
+import {
+  cleanupOutdatedCaches,
+  createHandlerBoundToURL,
+  precacheAndRoute,
+} from "workbox-precaching";
+import { NavigationRoute, registerRoute } from "workbox-routing";
 
 import {
   buildNotificationOptions,
@@ -35,6 +43,16 @@ interface NotificationClickHandoffMessage {
   callId?: string;
   answer?: boolean;
 }
+
+// Offline app shell: precached assets plus the SPA's index.html for every navigation,
+// except paths that belong to the server, not the SPA.
+precacheAndRoute(self.__WB_MANIFEST);
+cleanupOutdatedCaches();
+registerRoute(
+  new NavigationRoute(createHandlerBoundToURL("/index.html"), {
+    denylist: [/^\/api\//, /^\/socket\.io\//, /^\/rtc/, /^\/downloads\//, /^\/\.well-known\//],
+  }),
+);
 
 self.addEventListener("install", () => {
   void self.skipWaiting();

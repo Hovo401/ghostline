@@ -4,7 +4,7 @@ Web messenger without a phone number. Full product spec: [docs/REQUIREMENTS.md](
 Visual design: [docs/DESIGN-BRIEF.md](docs/DESIGN-BRIEF.md). Architecture summary: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 Decisions and why: [docs/adr/](docs/adr/). Current work: [docs/tasks/BACKLOG.md](docs/tasks/BACKLOG.md).
 
-Nested `CLAUDE.md` files exist in `apps/backend/`, `apps/frontend/`, `packages/contracts/` —
+Nested `CLAUDE.md` files exist in `apps/backend/`, `apps/frontend/`, `apps/mobile/`, `packages/contracts/` —
 read the one for the area you're touching; don't load all of them into context at once.
 
 ## Repo map
@@ -12,6 +12,7 @@ read the one for the area you're touching; don't load all of them into context a
 ```
 apps/backend      NestJS — REST API (main.ts) + BullMQ worker (main.worker.ts), same image
 apps/frontend     React + Vite + TanStack Router (file-based routes)
+apps/mobile       Capacitor Android shell over the live site + native Kotlin layer (ADR-0017)
 packages/contracts  zod schemas + WS event types — the ONLY source of truth for the wire format
 packages/config   shared tsconfig/eslint/prettier — apps extend this, never redefine rules
 docker/           Dockerfiles, nginx configs, seaweedfs/certbot scripts

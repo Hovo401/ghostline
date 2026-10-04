@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Ghostline</title>
+    <!-- Bundled in the APK and shown by `server.errorPath` when the first launch has no network.
+         It is not part of apps/frontend (no tokens/themes there), so the palette is inlined. -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0b0d12;
+        color: #e8eaf0;
+        font-family: system-ui, sans-serif;
+      }
+      main {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding: 24px;
+        text-align: center;
+      }
+      p {
+        margin: 0;
+        color: #9aa0ae;
+      }
+      button {
+        border: 0;
+        border-radius: 12px;
+        padding: 12px 28px;
+        font: inherit;
+        background: #6c8cff;
+        color: #0b0d12;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Нет соединения</h1>
+      <p>Проверьте интернет и попробуйте ещё раз.</p>
+      <button type="button" onclick="history.back()">Повторить</button>
+    </main>
+  </body>
+</html>

@@ -7,7 +7,12 @@ import {
   useUpdateNotificationSettings,
   type NotificationSettings,
 } from "../../entities/notification";
-import { isStandaloneDisplay, usePwaInstall } from "../../shared/lib/pwa-install";
+import {
+  ANDROID_APK_URL,
+  ANDROID_INSTALL_HINT,
+  isStandaloneDisplay,
+  usePwaInstall,
+} from "../../shared/lib/pwa-install";
 import { Button } from "../../shared/ui/button";
 import { Toggle } from "../../shared/ui/toggle";
 
@@ -108,6 +113,18 @@ export function NotificationsTab() {
           )}
         </div>
         {platformHint && <p className="text-sm text-mute">{platformHint.text}</p>}
+        {installMode === "android-apk" && (
+          <div className="flex flex-col gap-2">
+            <a
+              href={ANDROID_APK_URL}
+              download
+              className="self-start rounded-xl border border-line bg-panel px-4 py-2 text-sm font-semibold text-fg"
+            >
+              Скачать для Android
+            </a>
+            <p className="text-sm text-mute">{ANDROID_INSTALL_HINT}</p>
+          </div>
+        )}
         {installMode === "prompt" && (
           <Button
             variant="secondary"

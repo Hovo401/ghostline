@@ -27,6 +27,9 @@
     - { path: "{{ app_dir }}/shared", mode: "0750" }
     # Owned by the deploy user so CI can rsync without sudo; nginx only reads.
     - { path: "{{ frontend_static_dir }}", mode: "0755" }
+    # APK + latest.json, written by .github/workflows/android.yml.
+    - { path: "{{ downloads_dir }}", mode: "0755" }
+    - { path: "{{ downloads_dir }}/android", mode: "0755" }
 
 - name: Deploy the runtime environment file
   ansible.builtin.template:

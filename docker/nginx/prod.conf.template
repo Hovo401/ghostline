@@ -50,6 +50,30 @@ server {
         proxy_read_timeout 1h;
     }
 
+    location = /.well-known/assetlinks.json {
+        root /usr/share/nginx/html;
+        default_type application/json;
+    }
+
+    location ^~ /downloads/android/ {
+        alias /usr/share/nginx/downloads/android/;
+        types { application/vnd.android.package-archive apk; }
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location = /downloads/android/ghostline.apk {
+        alias /usr/share/nginx/downloads/android/ghostline.apk;
+        default_type application/vnd.android.package-archive;
+        add_header Cache-Control "no-cache";
+    }
+
+    location = /downloads/android/latest.json {
+        alias /usr/share/nginx/downloads/android/latest.json;
+        default_type application/json;
+        add_header Cache-Control "no-cache";
+    }
+
     location /assets/ {
         root /usr/share/nginx/html;
         expires 1y;

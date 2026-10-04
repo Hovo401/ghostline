@@ -184,6 +184,7 @@ services:
     volumes:
       - letsencrypt:/etc/letsencrypt:ro
       - certbot-webroot:/var/www/certbot:ro
+      - ${DOWNLOADS_DIR:-./downloads}:/usr/share/nginx/downloads:ro # APK + latest.json, see apps/mobile/CLAUDE.md
     depends_on:
       - backend
       - seaweedfs

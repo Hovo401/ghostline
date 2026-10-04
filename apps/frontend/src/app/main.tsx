@@ -9,6 +9,7 @@ import "../shared/theme/theme.css";
 import { registerServiceWorker } from "../entities/notification";
 import { routeTree } from "../routeTree.gen";
 import { listenForInstallPrompt } from "../shared/lib/pwa-install";
+import { listenForNativeBack, listenForNativeLinks } from "../shared/native";
 import { useApplyAppearance } from "../shared/theme/use-apply-appearance";
 
 const router = createRouter({ routeTree });
@@ -18,6 +19,11 @@ const router = createRouter({ routeTree });
 // boot since it doesn't itself request notification permission or subscribe.
 registerServiceWorker();
 listenForInstallPrompt();
+// Android shell (ADR-0017): system Back and App Links; no-ops in a browser.
+listenForNativeBack();
+listenForNativeLinks((href) => {
+  router.history.push(href);
+});
 
 declare module "@tanstack/react-router" {
   interface Register {

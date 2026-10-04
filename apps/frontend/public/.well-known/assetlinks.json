@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.ghostline",
+      "sha256_cert_fingerprints": [
+        "60:68:51:E0:38:B8:7A:1A:D4:A1:C8:94:3F:E3:73:78:CD:49:83:2D:97:E0:76:E8:DA:DF:F8:F7:B5:77:27:55",
+        "B2:F8:45:EF:FB:71:79:2C:39:17:0B:06:AE:97:FD:BB:2E:AC:27:21:A6:91:6B:59:6D:7A:53:3F:58:3D:D2:93"
+      ]
+    }
+  }
+]

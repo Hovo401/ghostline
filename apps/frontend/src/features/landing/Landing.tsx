@@ -1,7 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { IOS_INSTALL_HINT, usePwaInstall } from "../../shared/lib/pwa-install";
+import {
+  ANDROID_APK_URL,
+  ANDROID_INSTALL_HINT,
+  IOS_INSTALL_HINT,
+  usePwaInstall,
+} from "../../shared/lib/pwa-install";
 import { GhostField } from "../../shared/ui/ghost-field";
 import { Scramble } from "../../shared/ui/scramble";
 
@@ -53,27 +58,40 @@ function scrollToNextStage() {
 
 /** Nav "Установить" — only where the app can be installed and isn't yet
  * (`usePwaInstall`). iOS Safari has no install API, so there it reveals the
- * manual steps under the button instead. */
+ * manual steps under the button instead; Android gets the APK. */
 function InstallAppButton() {
   const { mode, install } = usePwaInstall();
-  const [showIosHint, setShowIosHint] = useState(false);
+  const [showHint, setShowHint] = useState(false);
   if (mode === null) return null;
 
   return (
     <div className="relative">
-      <button
-        type="button"
-        onClick={() => {
-          if (mode === "prompt") void install();
-          else setShowIosHint((shown) => !shown);
-        }}
-        className="flex h-10 cursor-pointer items-center rounded-xl border border-line bg-bg px-4.5 text-sm"
-      >
-        Установить
-      </button>
-      {showIosHint && (
+      {mode === "android-apk" ? (
+        <a
+          href={ANDROID_APK_URL}
+          download
+          onClick={() => {
+            setShowHint(true);
+          }}
+          className="flex h-10 cursor-pointer items-center rounded-xl border border-line bg-bg px-4.5 text-sm"
+        >
+          Скачать для Android
+        </a>
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            if (mode === "prompt") void install();
+            else setShowHint((shown) => !shown);
+          }}
+          className="flex h-10 cursor-pointer items-center rounded-xl border border-line bg-bg px-4.5 text-sm"
+        >
+          Установить
+        </button>
+      )}
+      {showHint && (
         <p className="absolute top-12 right-0 w-56 rounded-xl border border-line bg-panel p-3 text-xs text-mute">
-          {IOS_INSTALL_HINT}
+          {mode === "android-apk" ? ANDROID_INSTALL_HINT : IOS_INSTALL_HINT}
         </p>
       )}
     </div>

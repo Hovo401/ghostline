@@ -36,3 +36,17 @@ apps/frontend/src/routeTree.gen.ts
 # misc
 *.local
 .playwright-mcp/
+
+# android (apps/mobile)
+.gradle/
+local.properties
+*.jks
+*.keystore
+apps/mobile/android/app/src/main/assets/public
+apps/mobile/android/app/src/main/assets/capacitor.config.json
+apps/mobile/android/app/src/main/assets/capacitor.plugins.json
+apps/mobile/android/capacitor-cordova-android-plugins
+apps/mobile/android/app/src/main/res/xml/config.xml
+
+# Release APKs served at /downloads/android (compose.prod.yaml bind mount)
+/downloads/

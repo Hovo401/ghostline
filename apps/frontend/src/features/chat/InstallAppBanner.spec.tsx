@@ -42,6 +42,15 @@ describe("InstallAppBanner", () => {
     expect(screen.getByText(/На экран «Домой»/)).toBeInTheDocument();
   });
 
+  it("on Android links the APK and shows the sideload hint", () => {
+    mode = "android-apk";
+    render(<InstallAppBanner />);
+    const link = screen.getByRole("link", { name: "Скачать для Android" });
+    expect(link).toHaveAttribute("href", "/downloads/android/ghostline.apk");
+    fireEvent.click(link);
+    expect(screen.getByText(/разрешите установку/)).toBeInTheDocument();
+  });
+
   it("dismissing it persists and hides it", () => {
     const { container } = render(<InstallAppBanner />);
     fireEvent.click(screen.getByLabelText("Скрыть предложение установить"));

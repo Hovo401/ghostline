@@ -35,8 +35,8 @@ The BACKLOG rows T-080a…T-088 are this epic's slices.
 
 | Slice | What |
 | --- | --- |
-| T-080a | Capacitor shell (`apps/mobile`, `server.url`, `offline.html`), `MainActivity` (no gesture requirement for media, SW → bridge, WebView permissions), back button, App Links, `shared/native`, SW precache for an offline shell |
-| T-082 | CI-signed APK, `/downloads/android/` + `latest.json` (both deploy paths), "Скачать для Android" on Android web, in-app update banner |
+| T-080a ✅ | Capacitor shell (`apps/mobile`, `server.url`, `offline.html`), `MainActivity` (no gesture requirement for media, SW → bridge, WebView permissions), back button, App Links, `shared/native`, SW precache for an offline shell |
+| T-082 ✅ | CI-signed APK, `/downloads/android/` + `latest.json` (both deploy paths), "Скачать для Android" on Android web, in-app update banner |
 | T-083 | Backend native transport: contracts, `NativePushDevice`, `sid` in the access token, register/unregister, optional FCM env, FCM HTTP v1 client + AES-GCM, transport routing (ring-repeat web-only, `chat:read` native-only), action tokens + reply/read routes, test call |
 | T-083b | Android push client: Firebase Messaging service, device key, registration from JS, logout unregister, settings status |
 | T-084 | Message notifications (reply/read/dismiss), channels, permissions screen + checklist |

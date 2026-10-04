@@ -62,6 +62,29 @@ server {
         proxy_read_timeout 1h;
     }
 
+    location = /.well-known/assetlinks.json {
+        default_type application/json;
+    }
+
+    location ^~ /downloads/android/ {
+        alias {{ downloads_dir }}/android/;
+        types { application/vnd.android.package-archive apk; }
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location = /downloads/android/ghostline.apk {
+        alias {{ downloads_dir }}/android/ghostline.apk;
+        default_type application/vnd.android.package-archive;
+        add_header Cache-Control "no-cache";
+    }
+
+    location = /downloads/android/latest.json {
+        alias {{ downloads_dir }}/android/latest.json;
+        default_type application/json;
+        add_header Cache-Control "no-cache";
+    }
+
     location /assets/ {
         expires 1y;
         add_header Cache-Control "public, immutable";

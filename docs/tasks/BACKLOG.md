@@ -158,9 +158,9 @@ Stickers are not part of this wave (`Later`) — see docs/adr/0015 for the sourc
 WebView loads the live site; native Kotlin owns push (FCM, encrypted), ringing, the full-screen
 call screen, the ongoing-call service, audio routes and PiP. APK served from our server.
 
-- [ ] T-080a — Capacitor shell in `apps/mobile` (`server.url`, `offline.html`), `MainActivity`
+- [x] T-080a — Capacitor shell in `apps/mobile` (`server.url`, `offline.html`), `MainActivity`
       media/SW/permission setup, back button, App Links, `shared/native`, SW precache.
-- [ ] T-082 — CI-signed APK, `/downloads/android/` + `latest.json` on both deploy paths,
+- [x] T-082 — CI-signed APK, `/downloads/android/` + `latest.json` on both deploy paths,
       "Скачать для Android" on Android web, in-app update banner (FR-APP-01). Depends on T-080a.
 - [x] T-083 — Backend native transport: contracts, `NativePushDevice`, `sid` in the access token,
       optional FCM env, FCM HTTP v1 + AES-GCM, transport routing, action tokens + reply/read

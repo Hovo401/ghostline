@@ -8,19 +8,23 @@ import type { VitePWAOptions } from "vite-plugin-pwa";
  * logic" rule.
  *
  * `injectManifest` mode, not the default `generateSW`: `src/sw.ts` is a
- * hand-written service worker (push + notificationclick only, see
- * docs/adr/0010) with no offline asset cache to precache, so
- * `injectionPoint: undefined` skips Workbox's `self.__WB_MANIFEST`
- * requirement entirely instead of injecting an unused precache list.
+ * hand-written service worker (push + notificationclick, see docs/adr/0010)
+ * that also precaches the built app shell so the site — and the Android
+ * app, which loads it (docs/adr/0017) — starts offline.
  */
 export const vitePwaOptions: Partial<VitePWAOptions> = {
   strategies: "injectManifest",
   srcDir: "src",
   filename: "sw.ts",
   injectManifest: {
-    injectionPoint: undefined,
+    // Scripts/styles/html/icons only: fonts and emoji data stay network-first so
+    // the precache isn't dozens of unused subsets; offline falls back to system fonts.
+    globPatterns: ["**/*.{js,css,html,svg}"],
   },
-  registerType: "autoUpdate",
+  // "prompt", not "autoUpdate": autoUpdate reloads every open page when a new SW takes
+  // over, which would drop a call on each deploy. `sw.ts` still skipWaiting()s, so the new
+  // shell is simply used from the next launch.
+  registerType: "prompt",
   manifest: {
     name: "Ghostline",
     short_name: "Ghostline",

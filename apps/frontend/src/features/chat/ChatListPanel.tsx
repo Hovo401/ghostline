@@ -6,6 +6,7 @@ import { useCurrentUserId } from "../../entities/user";
 import { useSessionStore } from "../../shared/api/session-store";
 import { Avatar } from "../../shared/ui/avatar";
 
+import { AppUpdateBanner } from "./AppUpdateBanner";
 import { useChatUiStore } from "./chat-ui-store";
 import { ChatListRow } from "./ChatListRow";
 import { chatDisplayName } from "./format";
@@ -75,6 +76,7 @@ export function ChatListPanel({ className }: { className?: string }) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 pb-2">
+        <AppUpdateBanner />
         <InstallAppBanner />
         <NotificationInviteBanner />
         {isLoading && <p className="p-3 font-mono text-xs text-mute">Загрузка…</p>}

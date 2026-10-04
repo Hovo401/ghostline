@@ -13,6 +13,7 @@ Ansible for running Ghostline natively on `diotek.pp.ua`, next to the apps
 | Redis instance `ghostline-redis` on `127.0.0.1:6380`                 | —                                             |
 | `/opt/ghostline` (releases, `shared/.env`, pm2 ecosystem)            | Node 24, pm2                                  |
 | `/var/www/ghostline` (built SPA)                                     | —                                             |
+| `/var/www/ghostline-downloads/android` (APK + `latest.json`)         | —                                             |
 | `/etc/nginx/conf.d/ghostline.diotek.pp.ua.conf` + Let's Encrypt cert | nginx.org, certbot, `/var/www/certbot`        |
 
 It never edits `nginx.conf`, other `conf.d` files, `postgresql.conf`, ufw,
@@ -75,3 +76,11 @@ Postgres allows 20 connections host-wide, so `DATABASE_URL` carries
 `connection_limit=2` per process. RAM is short: pm2 restarts a process that
 crosses `*_max_memory`, and the host leans on swap — fine for a dev server,
 not for real load.
+
+## Android APK release
+
+`.github/workflows/android.yml` needs these GitHub secrets (besides the deploy ones):
+`ANDROID_KEYSTORE_BASE64` (`[Convert]::ToBase64String([IO.File]::ReadAllBytes("ghostline-release.jks"))`),
+`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Run the playbook once so the
+downloads folder and nginx locations exist before the first release. Back up the keystore — a lost
+key means nobody can update the app in place. Release steps: `apps/mobile/CLAUDE.md`.

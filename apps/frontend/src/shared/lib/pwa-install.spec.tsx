@@ -1,10 +1,15 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { isNativeApp } from "../native";
+
 import { listenForInstallPrompt, usePwaInstall, usePwaInstallStore } from "./pwa-install";
+
+vi.mock("../native", () => ({ isNativeApp: vi.fn(() => false) }));
 
 const ANDROID_UA =
   "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/128.0 Mobile Safari/537.36";
+const DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128.0";
 const IOS_UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1";
 
@@ -35,7 +40,8 @@ describe("usePwaInstall", () => {
   beforeEach(() => {
     usePwaInstallStore.setState({ deferred: null, installed: false, bannerDismissed: false });
     stubStandalone(false);
-    stubUserAgent(ANDROID_UA);
+    vi.mocked(isNativeApp).mockReturnValue(false);
+    stubUserAgent(DESKTOP_UA);
   });
 
   afterEach(() => {
@@ -83,6 +89,21 @@ describe("usePwaInstall", () => {
   it("offers nothing when already running installed", () => {
     stubUserAgent(IOS_UA);
     stubStandalone(true);
+    const { result } = renderHook(() => usePwaInstall());
+    fireInstallPrompt();
+    expect(result.current.mode).toBeNull();
+  });
+
+  it("offers the APK in an Android browser, even installed as a PWA", () => {
+    stubUserAgent(ANDROID_UA);
+    stubStandalone(true);
+    const { result } = renderHook(() => usePwaInstall());
+    expect(result.current.mode).toBe("android-apk");
+  });
+
+  it("offers nothing inside the Android app", () => {
+    stubUserAgent(ANDROID_UA);
+    vi.mocked(isNativeApp).mockReturnValue(true);
     const { result } = renderHook(() => usePwaInstall());
     fireInstallPrompt();
     expect(result.current.mode).toBeNull();

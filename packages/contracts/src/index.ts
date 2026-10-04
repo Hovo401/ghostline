@@ -163,3 +163,6 @@ export type {
   NativeTestCallPush,
   NativePushEnvelope,
 } from "./notification/notification.schema";
+
+export { AndroidReleaseSchema } from "./android-release/android-release.schema";
+export type { AndroidRelease } from "./android-release/android-release.schema";
