@@ -4,9 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { NativePermissionStatus } from "../../shared/native";
 
-const { openSystemSettings, subscribe } = vi.hoisted(() => ({
+const { openSystemSettings, subscribe, sendTestPush } = vi.hoisted(() => ({
   openSystemSettings: vi.fn(),
   subscribe: vi.fn(),
+  sendTestPush: vi.fn(),
 }));
 let pushStatus = "unsubscribed";
 
@@ -16,6 +17,7 @@ vi.mock("../../shared/native", () => ({
 }));
 vi.mock("./use-push-subscription", () => ({
   usePushSubscription: () => ({ status: pushStatus, subscribe }),
+  sendTestPush: (kind?: string) => sendTestPush(kind) as Promise<void>,
 }));
 
 import { isNativeSetupComplete } from "./native-setup";
@@ -41,12 +43,30 @@ describe("NativePermissionChecklist", () => {
     pushStatus = "unsubscribed";
     openSystemSettings.mockReset().mockResolvedValue(true);
     subscribe.mockReset().mockResolvedValue(undefined);
+    sendTestPush.mockReset().mockResolvedValue(undefined);
   });
   afterEach(cleanup);
 
-  it("offers no action for rows that are fine", () => {
+  it("sends a call-kind test push and tells the user to lock the screen", async () => {
     renderChecklist(OK);
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Проверить" }));
+    expect(sendTestPush).toHaveBeenCalledWith("call");
+    expect(
+      await screen.findByText("Заблокируйте экран — через 5 секунд придёт тестовый звонок"),
+    ).toBeInTheDocument();
+  });
+
+  it("says so when the test call push can't be sent", async () => {
+    sendTestPush.mockRejectedValue(new Error("offline"));
+    renderChecklist(OK);
+    fireEvent.click(screen.getByRole("button", { name: "Проверить" }));
+    expect(await screen.findByText("Не удалось отправить")).toBeInTheDocument();
+  });
+
+  it("offers no action for rows that are fine, besides the always-on call test", () => {
+    renderChecklist(OK);
+    expect(screen.getByRole("button", { name: "Проверить" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toHaveLength(1);
   });
 
   it("asks Android for the notification permission first", async () => {

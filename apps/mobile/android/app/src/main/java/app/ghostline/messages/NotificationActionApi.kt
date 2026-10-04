@@ -31,11 +31,17 @@ object NotificationActionApi {
     fun markRead(base: String, token: String, upToSeq: Long): Boolean =
         post("$base/chats/notification-read?t=${encode(token)}", JSONObject().put("upToSeq", upToSeq.toString()))
 
+    /** "Отклонить" on the ringing screen; `token` is the push's `declineToken`. */
+    fun declineCall(base: String, callId: String, token: String): Boolean =
+        post("$base/calls/$callId/decline?t=${encode(token)}", JSONObject())
+
     private fun encode(value: String) = URLEncoder.encode(value, "UTF-8")
 
     private fun post(url: String, body: JSONObject): Boolean {
-        val connection = URL(url).openConnection() as HttpURLConnection
+        var connection: HttpURLConnection? = null
         return try {
+            // Inside the try: a MalformedURLException (an IOException) message would carry the token.
+            connection = URL(url).openConnection() as HttpURLConnection
             connection.requestMethod = "POST"
             connection.connectTimeout = TIMEOUT_MS
             connection.readTimeout = TIMEOUT_MS
@@ -46,7 +52,7 @@ object NotificationActionApi {
         } catch (_: java.io.IOException) {
             false
         } finally {
-            connection.disconnect()
+            connection?.disconnect()
         }
     }
 }

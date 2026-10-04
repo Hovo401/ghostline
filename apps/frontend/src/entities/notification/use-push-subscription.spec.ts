@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { apiFetch } from "../../shared/api/http-client";
 
-import { resetPushSyncForTests, usePushSubscription } from "./use-push-subscription";
+import { resetPushSyncForTests, sendTestPush, usePushSubscription } from "./use-push-subscription";
 
 vi.mock("../../shared/api/http-client", () => ({ apiFetch: vi.fn() }));
 
@@ -194,5 +194,23 @@ describe("usePushSubscription", () => {
       body: { endpoint: "https://push.example/abc" },
     });
     expect(result.current.status).toBe("unsubscribed");
+  });
+});
+
+describe("sendTestPush", () => {
+  afterEach(() => {
+    vi.mocked(apiFetch).mockReset();
+  });
+
+  it("hits the plain test route with no kind given", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined);
+    await sendTestPush();
+    expect(apiFetch).toHaveBeenCalledWith("/notifications/test", { method: "POST" });
+  });
+
+  it("asks for a call-kind test when given one", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined);
+    await sendTestPush("call");
+    expect(apiFetch).toHaveBeenCalledWith("/notifications/test?kind=call", { method: "POST" });
   });
 });

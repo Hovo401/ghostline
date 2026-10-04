@@ -169,7 +169,7 @@ call screen, the ongoing-call service, audio routes and PiP. APK served from our
       unregister, settings status. Depends on T-080a, T-083.
 - [x] T-084 — Message notifications (reply/read/dismiss), channels, permissions screen +
       checklist (FR-APP-05/07). Depends on T-083b.
-- [ ] T-085 — Native incoming call: ringing FGS, system ringtone, CallStyle + Compose
+- [x] T-085 — Native incoming call: ringing FGS, system ringtone, CallStyle + Compose
       `IncomingCallActivity`, token decline, timeout, missed call (FR-APP-02/06). Depends on T-083b.
 - [ ] T-086 — Answer flow, `use-native-call-bridge`, ongoing-call FGS with chronometer,
       core-telecom (FR-APP-03). Depends on T-085.

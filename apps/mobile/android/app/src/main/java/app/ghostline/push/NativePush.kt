@@ -21,10 +21,14 @@ sealed interface NativePush {
         val callId: String,
         val chatId: String,
         val callerName: String,
+        val callerAvatarUrl: String?,
         val video: Boolean,
+        val declineToken: String,
+        /** Epoch millis; the ring window (45 s) counts from here. */
+        val createdAt: Long,
     ) : NativePush
     data class CallClosed(val callId: String) : NativePush
-    data class CallMissed(val callId: String, val chatId: String, val callerName: String) : NativePush
+    data class CallMissed(val callId: String, val chatId: String, val callerName: String, val video: Boolean) : NativePush
     data class ChatRead(val chatId: String, val readSeq: Long) : NativePush
     data object Test : NativePush
     data class TestCall(val callerName: String) : NativePush
@@ -44,13 +48,21 @@ sealed interface NativePush {
                     actionToken = o.getString("actionToken"),
                 )
                 "call:incoming" -> CallIncoming(
+                    callId = o.getString("callId"),
+                    chatId = o.getString("chatId"),
+                    callerName = o.getString("callerName"),
+                    callerAvatarUrl = if (o.isNull("callerAvatarUrl")) null else o.getString("callerAvatarUrl"),
+                    video = o.getBoolean("video"),
+                    declineToken = o.getString("declineToken"),
+                    createdAt = Instant.parse(o.getString("createdAt")).toEpochMilli(),
+                )
+                "call:closed" -> CallClosed(o.getString("callId"))
+                "call:missed" -> CallMissed(
                     o.getString("callId"),
                     o.getString("chatId"),
                     o.getString("callerName"),
                     o.getBoolean("video"),
                 )
-                "call:closed" -> CallClosed(o.getString("callId"))
-                "call:missed" -> CallMissed(o.getString("callId"), o.getString("chatId"), o.getString("callerName"))
                 "chat:read" -> ChatRead(o.getString("chatId"), o.getString("readSeq").toLong())
                 "test" -> Test
                 "test-call" -> TestCall(o.getString("callerName"))

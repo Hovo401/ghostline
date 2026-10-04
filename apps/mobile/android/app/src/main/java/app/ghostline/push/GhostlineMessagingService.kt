@@ -40,7 +40,8 @@ class GhostlineMessagingService : FirebaseMessagingService() {
         // The open app already got what would be shown over its socket. Dismissals still apply:
         // a chat read inside the app must clear the notification left from before.
         val dismissal = push is NativePush.ChatRead || push is NativePush.CallClosed
-        if (AppVisibility.foreground && push != NativePush.Test && !dismissal) return
+        val diagnostic = push == NativePush.Test || push is NativePush.TestCall
+        if (AppVisibility.foreground && !diagnostic && !dismissal) return
         PushNotifier.handle(this, push)
     }
 }

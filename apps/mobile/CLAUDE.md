@@ -64,3 +64,25 @@ no WebView). `chat:read` drops lines up to `readSeq`, also while the app is in t
 Plugin methods added in T-084 (`getPermissionStatus`, `openSystemSettings`, `clearNotifications`)
 don't exist in older APKs — the site must call them through `shared/native/native-permissions.ts`,
 which turns `UNIMPLEMENTED` into "no checklist".
+
+## Incoming call (T-085)
+
+`calls/`: `call:incoming` starts `IncomingCallService` (foreground type `phoneCall`), which posts a
+`CallStyle.forIncomingCall` notification (channel `incoming_calls`, full-screen intent →
+`IncomingCallActivity`, a Compose screen; ADR-0018) and runs `Ringer` (system ringtone + vibration,
+skipped for silent/DND). The ring window is 45 s counted from the push's `createdAt`, so a late push
+rings the rest of it, not a fresh 45 s. "Отклонить" goes through `CallActionReceiver` →
+`NotificationActionApi.declineCall` with the push's `declineToken` — no WebView.
+
+- `GhostlineMessagingService` still ignores `call:incoming` while the app is on screen: the page's
+  own `IncomingCall` rings. `IncomingCall.tsx` stays silent only when the app is hidden **and**
+  native push is registered, so an old APK or a failed registration never leaves a call silent.
+- "Ответить" opens the chat from the activity (a receiver may not start activities on Android 14+);
+  accepting the call is T-086 (`TODO(T-086)`), so for now the page shows its own answer dialog.
+- A `call:closed` can arrive before its `call:incoming` (FCM does not order): `RecentlyClosed` keeps
+  the last 8 ids for 60 s. `stopSelf(lastStartId)` — not a bare `stopSelf()` — so a new call started
+  right after a cancelled one is not torn down with it.
+- "Проверить звонок" = `POST /notifications/test?kind=call`: the app shows the same screen for a
+  `test-call` push (`callId` `"test"`, no network on decline), also with the app in the foreground.
+- Emulator: the full-screen screen only shows when the screen is off or locked; with the screen on
+  the same call is a heads-up notification. Check `dumpsys power | grep mWakefulness` before judging.

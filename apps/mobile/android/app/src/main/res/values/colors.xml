@@ -1,4 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ghostline_bg">#0B0D12</color>
+
+    <!-- Incoming call screen (T-085): the Signal accent, a red decline, white-on-dark text. -->
+    <color name="call_bg_top">#1B2A12</color>
+    <color name="call_bg_bottom">@color/ghostline_bg</color>
+    <color name="call_scrim">#99000000</color>
+    <color name="call_text">#FFFFFF</color>
+    <color name="call_text_dim">#B3FFFFFF</color>
+    <color name="call_ring">#66B8F25B</color>
+    <color name="call_avatar_bg">#26FFFFFF</color>
+    <color name="call_accept">#B8F25B</color>
+    <color name="call_accept_ink">@color/ghostline_bg</color>
+    <color name="call_decline">#E5484D</color>
+    <color name="call_decline_ink">#FFFFFF</color>
 </resources>

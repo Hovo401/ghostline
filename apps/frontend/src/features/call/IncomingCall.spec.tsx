@@ -12,6 +12,13 @@ const stopTone = vi.fn();
 const playRingtone = vi.fn(() => stopTone);
 const vibrateRing = vi.fn();
 const stopVibration = vi.fn();
+const isNativeApp = vi.fn(() => false);
+let pushStatus = "unsubscribed";
+
+vi.mock("../../shared/native", () => ({ isNativeApp: () => isNativeApp() }));
+vi.mock("../../entities/notification", () => ({
+  usePushSubscription: () => ({ status: pushStatus }),
+}));
 
 vi.mock("../../entities/call", async (importOriginal) => {
   const actual = await importOriginal<typeof CallEntity>();
@@ -62,6 +69,9 @@ describe("IncomingCall", () => {
     stopTone.mockClear();
     vibrateRing.mockClear();
     stopVibration.mockClear();
+    isNativeApp.mockReturnValue(false);
+    pushStatus = "unsubscribed";
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
     useCallStore.setState({
       phase: "idle",
       call: null,
@@ -75,7 +85,10 @@ describe("IncomingCall", () => {
     });
   });
 
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
 
   it("renders nothing outside the incoming phase", () => {
     const { container } = render(<IncomingCall />);
@@ -99,6 +112,40 @@ describe("IncomingCall", () => {
     rerender(<IncomingCall />);
     expect(stopTone).toHaveBeenCalled();
     expect(stopVibration).toHaveBeenCalled();
+  });
+
+  it("does not ring in JS when native push rings for it instead (app not on screen)", () => {
+    isNativeApp.mockReturnValue(true);
+    pushStatus = "subscribed";
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    useCallStore.getState().receiveIncoming(call());
+    render(<IncomingCall />);
+
+    expect(screen.getByText("Тест Пир")).toBeInTheDocument();
+    expect(playRingtone).not.toHaveBeenCalled();
+    expect(vibrateRing).not.toHaveBeenCalled();
+  });
+
+  it("rings in JS when hidden but native push isn't active (nobody else would)", () => {
+    isNativeApp.mockReturnValue(true);
+    pushStatus = "unsubscribed";
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    useCallStore.getState().receiveIncoming(call());
+    render(<IncomingCall />);
+
+    expect(playRingtone).toHaveBeenCalled();
+    expect(vibrateRing).toHaveBeenCalled();
+  });
+
+  it("still rings in JS in the native app while it's visible (foreground)", () => {
+    isNativeApp.mockReturnValue(true);
+    pushStatus = "subscribed";
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    useCallStore.getState().receiveIncoming(call());
+    render(<IncomingCall />);
+
+    expect(playRingtone).toHaveBeenCalled();
+    expect(vibrateRing).toHaveBeenCalled();
   });
 
   it("only offers an audio-only answer for a voice call", () => {
