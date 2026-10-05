@@ -41,7 +41,10 @@ class GhostlineMessagingService : FirebaseMessagingService() {
         // a chat read inside the app must clear the notification left from before.
         val dismissal = push is NativePush.ChatRead || push is NativePush.CallClosed
         val diagnostic = push == NativePush.Test || push is NativePush.TestCall
-        if (AppVisibility.foreground && !diagnostic && !dismissal) return
+        // A call is always native (T-094): in the foreground it is a quiet shade entry while the page rings,
+        // and `call:missed` must end that ring. PushNotifier skips the missed-call notification on screen.
+        val call = push is NativePush.CallIncoming || push is NativePush.CallMissed
+        if (AppVisibility.foreground && !diagnostic && !dismissal && !call) return
         PushNotifier.handle(this, push)
     }
 }
