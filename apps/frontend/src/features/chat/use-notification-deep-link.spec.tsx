@@ -13,7 +13,7 @@ import { useNotificationDeepLink } from "./use-notification-deep-link";
 const acceptMock = vi.fn();
 
 vi.mock("../../entities/call", () => ({
-  useCallActions: () => ({ accept: acceptMock }),
+  useAnswerWhenIncoming: () => acceptMock,
 }));
 
 function Probe() {
@@ -57,7 +57,7 @@ describe("useNotificationDeepLink", () => {
     expect(router.state.location.search).toEqual({ chat: "chat-1" });
   });
 
-  it("accepts the call from ?call=&answer=1 and clears the params", async () => {
+  it("answers the call from ?call=&answer=1 and clears the params", async () => {
     const { router } = await renderAt("/app?call=call-1&answer=1");
     expect(acceptMock).toHaveBeenCalledWith("call-1");
     expect(router.state.location.search).toEqual({});

@@ -11,7 +11,11 @@ const socket = {
     listeners.set(event, handler);
   }),
   off: vi.fn(),
+  connected: true,
 };
+
+const resync = vi.hoisted(() => vi.fn());
+vi.mock("./active-call", () => ({ resyncActiveCall: resync }));
 
 vi.mock("../../shared/api/socket-client", () => ({
   getSocketClient: () => socket,
@@ -32,6 +36,8 @@ function baseCall(): Call {
     createdAt: new Date().toISOString(),
     answeredAt: null,
     endedAt: null,
+    callerEndpointId: null,
+    calleeEndpointId: null,
   };
 }
 
@@ -58,6 +64,21 @@ describe("useCallRealtime", () => {
     unmount();
     expect(socket.off).toHaveBeenCalledWith("call:incoming", expect.any(Function));
     expect(socket.off).toHaveBeenCalledWith("call:updated", expect.any(Function));
+  });
+
+  it("re-syncs with GET /calls/active after a reconnect, not on the first connect", () => {
+    resync.mockReset();
+    socket.connected = false;
+    renderHook(() => {
+      useCallRealtime();
+    });
+
+    listeners.get("connect")?.(undefined);
+    expect(resync).not.toHaveBeenCalled();
+
+    listeners.get("connect")?.(undefined);
+    expect(resync).toHaveBeenCalledTimes(1);
+    socket.connected = true;
   });
 
   it("call:incoming moves the store to incoming", () => {

@@ -14,6 +14,8 @@ const call: Call = {
   createdAt: "2026-01-01T10:00:00.000Z",
   answeredAt: "2026-01-01T10:00:05.000Z",
   endedAt: null,
+  callerEndpointId: null,
+  calleeEndpointId: null,
 };
 
 describe("buildNativeCallState", () => {
@@ -39,6 +41,22 @@ describe("buildNativeCallState", () => {
       micEnabled: true,
     });
     expect(state).toMatchObject({ peerName: "Абонент", answeredAt: null, muted: false });
+  });
+
+  it("adds createdAt and the avatar for an incoming call only", () => {
+    const ringing = { ...call, answeredAt: null, status: "ringing" as const };
+    expect(
+      buildNativeCallState({
+        phase: "incoming",
+        call: ringing,
+        peerName: "Аня",
+        peerAvatarUrl: "https://x/a.png",
+        micEnabled: true,
+      }),
+    ).toMatchObject({ createdAt: ringing.createdAt, callerAvatarUrl: "https://x/a.png" });
+    expect(
+      buildNativeCallState({ phase: "active", call, peerName: "Аня", micEnabled: true }),
+    ).not.toHaveProperty("createdAt");
   });
 
   it("has nothing to report while idle or before the call has an id", () => {

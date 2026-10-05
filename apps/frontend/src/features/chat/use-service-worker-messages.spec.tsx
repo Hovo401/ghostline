@@ -14,7 +14,7 @@ import { useServiceWorkerMessages } from "./use-service-worker-messages";
 const acceptMock = vi.fn();
 
 vi.mock("../../entities/call", () => ({
-  useCallActions: () => ({ accept: acceptMock }),
+  useAnswerWhenIncoming: () => acceptMock,
 }));
 
 const listeners = new Map<string, (event: MessageEvent) => void>();
@@ -86,7 +86,7 @@ describe("useServiceWorkerMessages", () => {
     expect(router.state.location.search).toEqual({ chat: "chat-1" });
   });
 
-  it("accepts the call handed off from an incoming-call notification click", async () => {
+  it("answers the call handed off from an incoming-call notification click", async () => {
     await renderInApp();
     await postMessage({ source: "ghostline-notification-click", callId: "call-1", answer: true });
     expect(acceptMock).toHaveBeenCalledWith("call-1");

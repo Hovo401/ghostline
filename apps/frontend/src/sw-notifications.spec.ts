@@ -17,6 +17,8 @@ const CALL = {
   createdAt: new Date().toISOString(),
   answeredAt: null,
   endedAt: null,
+  callerEndpointId: null,
+  calleeEndpointId: null,
 };
 
 const MESSAGE = {

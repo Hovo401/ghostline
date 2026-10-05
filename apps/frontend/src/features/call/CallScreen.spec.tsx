@@ -28,6 +28,15 @@ vi.mock("./use-native-audio-routes", () => ({
   useNativeAudioRoutes: () => nativeMocks.routes,
 }));
 
+const routerMocks = vi.hoisted(() => ({ pathname: "/app", navigate: vi.fn() }));
+
+vi.mock("@tanstack/react-router", () => ({
+  useLocation: ({ select }: { select: (location: { pathname: string }) => unknown }) =>
+    select({ pathname: routerMocks.pathname }),
+  useNavigate: () => routerMocks.navigate,
+  useRouter: () => undefined,
+}));
+
 const cancelFn = vi.fn();
 const hangupFn = vi.fn();
 
@@ -67,6 +76,8 @@ function call(overrides: Partial<Call> = {}): Call {
     createdAt: new Date().toISOString(),
     answeredAt: new Date().toISOString(),
     endedAt: null,
+    callerEndpointId: null,
+    calleeEndpointId: null,
     ...overrides,
   };
 }
@@ -93,6 +104,8 @@ function fakeSession(overrides: Partial<CallSessionHandle> = {}): CallSessionHan
 
 describe("CallScreen", () => {
   beforeEach(() => {
+    routerMocks.pathname = "/app";
+    routerMocks.navigate.mockReset();
     cancelFn.mockReset();
     hangupFn.mockReset();
     pipState.active = false;
@@ -147,6 +160,23 @@ describe("CallScreen", () => {
     useCallStore.getState().minimize();
     const { container } = render(<CallScreen session={fakeSession()} />);
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it("stays full-screen outside /app even when minimized, and minimizing there goes back to /app", () => {
+    routerMocks.pathname = "/";
+    useCallStore.setState({
+      call: call(),
+      livekitUrl: "wss://lk",
+      token: "tok",
+      phase: "active",
+      minimized: true,
+    });
+    render(<CallScreen session={fakeSession()} />);
+
+    fireEvent.click(screen.getByLabelText("Свернуть"));
+
+    expect(routerMocks.navigate).toHaveBeenCalledWith({ to: "/app" });
+    expect(useCallStore.getState().minimized).toBe(true);
   });
 
   it("shows the in-call controls once active and hangs up on demand", () => {

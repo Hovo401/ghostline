@@ -30,6 +30,13 @@ data class NativeCallState(
     val muted: Boolean,
     /** Native's own: the system put the call on hold ([CallSession.onSystemHold]). Never read from the page. */
     val held: Boolean = false,
+    /**
+     * Epoch millis of the server's `Call.createdAt`, sent with an `incoming` state only (T-094): the ring window
+     * is counted from it. `null` from an older page, which native then does not ring for.
+     */
+    val createdAt: Long? = null,
+    /** The caller's avatar URL of an `incoming` state, for the call screen; `null` if there is none. */
+    val callerAvatarUrl: String? = null,
 ) {
     /** Carries the state into the [OngoingCallService] start intent (the service may start with the process cold). */
     fun putInto(intent: Intent): Intent = intent
@@ -66,6 +73,8 @@ data class NativeCallState(
                 peerName = json.optString("peerName", ""),
                 answeredAt = if (json.isNull("answeredAt")) null else json.optLong("answeredAt", NO_ANSWER).takeIf { it >= 0 },
                 muted = json.optBoolean("muted", false),
+                createdAt = parseIsoMillis(if (json.isNull("createdAt")) null else json.optString("createdAt")),
+                callerAvatarUrl = if (json.isNull("callerAvatarUrl")) null else json.optString("callerAvatarUrl").ifEmpty { null },
             )
         }
 

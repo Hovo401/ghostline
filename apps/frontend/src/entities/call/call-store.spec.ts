@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { useCallStore } from "./call-store";
+import { useSessionStore } from "../../shared/api/session-store";
+import { useToastStore } from "../../shared/ui/toast-store";
+
+import { selectCallBusy, useCallStore } from "./call-store";
 import type { ActiveCall, Call, CallJoin } from "./call.types";
 
 function call(overrides: Partial<Call> = {}): Call {
@@ -14,6 +17,8 @@ function call(overrides: Partial<Call> = {}): Call {
     createdAt: new Date().toISOString(),
     answeredAt: null,
     endedAt: null,
+    callerEndpointId: null,
+    calleeEndpointId: null,
     ...overrides,
   };
 }
@@ -29,10 +34,18 @@ const RESET_STATE = {
   endReason: null,
   remoteJoined: false,
   held: false,
+  elsewhereCall: null,
 };
+
+/** `call()`'s callee (user-b) is the account these tests are signed in as unless said otherwise. */
+function signInAs(id: string): void {
+  useSessionStore.setState({ user: { id } as never });
+}
 
 beforeEach(() => {
   useCallStore.setState(RESET_STATE);
+  useToastStore.setState({ toasts: [] });
+  signInAs("user-b");
 });
 
 describe("useCallStore", () => {
@@ -206,6 +219,222 @@ describe("useCallStore", () => {
       useCallStore.getState().receiveIncoming(call({ id: "call-a" }));
       useCallStore.getState().applyActiveCall(activeCall({ call: call({ id: "call-b" }) }));
       expect(useCallStore.getState().call?.id).toBe("call-a");
+    });
+  });
+
+  describe("answered on another device", () => {
+    it("a ringing tab goes idle with a toast and a plate when the call turns active", () => {
+      useCallStore.getState().receiveIncoming(call());
+      useCallStore
+        .getState()
+        .updateCall(call({ status: "active", answeredAt: "2026-01-01T00:00:00.000Z" }));
+
+      const state = useCallStore.getState();
+      expect(state.phase).toBe("idle");
+      expect(state.call).toBeNull();
+      expect(state.elsewhereCall?.status).toBe("active");
+      expect(useToastStore.getState().toasts[0]?.message).toBe(
+        "Звонок принят на другом устройстве",
+      );
+    });
+
+    it("the tab that answered (connecting) is untouched by the same update", () => {
+      useCallStore.getState().receiveIncoming(call());
+      useCallStore.getState().beginConnecting();
+      useCallStore.getState().updateCall(call({ status: "active" }));
+
+      expect(useCallStore.getState().phase).toBe("connecting");
+      expect(useCallStore.getState().elsewhereCall).toBeNull();
+      expect(useToastStore.getState().toasts).toHaveLength(0);
+    });
+
+    it("the calling tab is not touched when its own call becomes active", () => {
+      signInAs("user-a");
+      useCallStore.getState().startDraft("chat-1", false);
+      useCallStore
+        .getState()
+        .applyOutgoingJoin({ call: call(), livekitUrl: "wss://lk", token: "t" });
+      useCallStore.getState().updateCall(call({ status: "active" }));
+
+      expect(useCallStore.getState().phase).toBe("connecting");
+      expect(useCallStore.getState().elsewhereCall).toBeNull();
+    });
+  });
+
+  describe("elsewhereCall", () => {
+    it("applyActiveCall with no token for an active call never joins, it only records it", () => {
+      useCallStore
+        .getState()
+        .applyActiveCall({ call: call({ status: "active" }), livekitUrl: "wss://lk", token: null });
+
+      const state = useCallStore.getState();
+      expect(state.phase).toBe("idle");
+      expect(state.token).toBeNull();
+      expect(state.elsewhereCall?.id).toBe("call-a");
+    });
+
+    it("applyActiveCall with no token for a ringing call the caller owns elsewhere records it", () => {
+      signInAs("user-a");
+      useCallStore
+        .getState()
+        .applyActiveCall({ call: call(), livekitUrl: "wss://lk", token: null });
+      expect(useCallStore.getState().elsewhereCall?.id).toBe("call-a");
+      expect(useCallStore.getState().phase).toBe("idle");
+    });
+
+    it("an untracked active call update sets it, and a final status clears it", () => {
+      useCallStore.getState().updateCall(call({ status: "active" }));
+      expect(useCallStore.getState().elsewhereCall?.id).toBe("call-a");
+
+      useCallStore.getState().updateCall(call({ status: "ended" }));
+      expect(useCallStore.getState().elsewhereCall).toBeNull();
+    });
+
+    it("a call of another account is never recorded", () => {
+      signInAs("someone-else");
+      useCallStore.getState().updateCall(call({ status: "active" }));
+      expect(useCallStore.getState().elsewhereCall).toBeNull();
+    });
+
+    it("an untracked update is ignored while this tab has a call of its own", () => {
+      useCallStore.getState().receiveIncoming(call({ id: "call-b" }));
+      useCallStore.getState().updateCall(call({ id: "call-a", status: "active" }));
+      expect(useCallStore.getState().elsewhereCall).toBeNull();
+    });
+
+    it("selectCallBusy covers both a local call and an elsewhere one", () => {
+      expect(selectCallBusy(useCallStore.getState())).toBe(false);
+      useCallStore.setState({ elsewhereCall: call({ status: "active" }) });
+      expect(selectCallBusy(useCallStore.getState())).toBe(true);
+      useCallStore.setState({ elsewhereCall: null, phase: "outgoing" });
+      expect(selectCallBusy(useCallStore.getState())).toBe(true);
+    });
+
+    it("reset keeps it, so the end-of-call screen timing out does not hide a call elsewhere", () => {
+      useCallStore.setState({ elsewhereCall: call({ status: "active" }) });
+      useCallStore.getState().reset();
+      expect(useCallStore.getState().elsewhereCall).not.toBeNull();
+    });
+  });
+
+  describe("ending a call drops the media at once", () => {
+    it("endLocally clears the LiveKit credentials", () => {
+      useCallStore.setState({ phase: "active", call: call(), livekitUrl: "wss://lk", token: "t" });
+      useCallStore.getState().endLocally("ended");
+      expect(useCallStore.getState().token).toBeNull();
+      expect(useCallStore.getState().livekitUrl).toBeNull();
+    });
+
+    it("a final status from the server clears them too, keeping the call for the summary", () => {
+      useCallStore.setState({ phase: "active", call: call(), livekitUrl: "wss://lk", token: "t" });
+      useCallStore.getState().updateCall(call({ status: "ended" }));
+      const state = useCallStore.getState();
+      expect(state.token).toBeNull();
+      expect(state.livekitUrl).toBeNull();
+      expect(state.call?.id).toBe("call-a");
+    });
+  });
+
+  describe("setReconnected", () => {
+    it("returns a reconnecting call with a joined peer to active", () => {
+      useCallStore.setState({
+        phase: "reconnecting",
+        call: call({ status: "active" }),
+        remoteJoined: true,
+      });
+      useCallStore.getState().setReconnected();
+      expect(useCallStore.getState().phase).toBe("active");
+    });
+
+    it("leaves any other phase alone", () => {
+      useCallStore.setState({
+        phase: "connecting",
+        call: call({ status: "active" }),
+        remoteJoined: true,
+      });
+      useCallStore.getState().setReconnected();
+      expect(useCallStore.getState().phase).toBe("connecting");
+    });
+  });
+
+  describe("a late accept response", () => {
+    it("is ignored once the call ended locally", () => {
+      useCallStore.setState({
+        phase: "ended",
+        call: call({ status: "active" }),
+        endReason: "ended",
+      });
+      useCallStore
+        .getState()
+        .applyJoin({ call: call({ status: "active" }), livekitUrl: "wss://lk", token: "t" });
+      expect(useCallStore.getState().token).toBeNull();
+    });
+
+    it("is ignored when it belongs to another call", () => {
+      useCallStore.setState({ phase: "connecting", call: call({ id: "call-b" }) });
+      useCallStore
+        .getState()
+        .applyJoin({ call: call({ status: "active" }), livekitUrl: "wss://lk", token: "t" });
+      expect(useCallStore.getState().token).toBeNull();
+      expect(useCallStore.getState().call?.id).toBe("call-b");
+    });
+  });
+
+  describe("reconcileActiveCall (socket reconnect re-sync)", () => {
+    it("drops a tracked call the server has replaced by another live one", () => {
+      useCallStore.setState({
+        phase: "active",
+        call: call({ id: "call-old", status: "active" }),
+        token: "t",
+      });
+      useCallStore.getState().reconcileActiveCall({
+        call: call({ id: "call-new" }),
+        livekitUrl: "wss://lk",
+        token: null,
+      });
+      expect(useCallStore.getState().phase).toBe("incoming");
+      expect(useCallStore.getState().call?.id).toBe("call-new");
+      expect(useCallStore.getState().token).toBeNull();
+    });
+
+    it("ends a tracked call locally when the server knows none", () => {
+      useCallStore.setState({
+        phase: "active",
+        call: call({ status: "active" }),
+        token: "t",
+      });
+      useCallStore.getState().reconcileActiveCall(null);
+      expect(useCallStore.getState().phase).toBe("ended");
+      expect(useCallStore.getState().token).toBeNull();
+    });
+
+    it("silently stops a ringing incoming call the server no longer knows", () => {
+      useCallStore.getState().receiveIncoming(call());
+      useCallStore.getState().reconcileActiveCall(null);
+      expect(useCallStore.getState().phase).toBe("idle");
+    });
+
+    it("does not end a draft whose POST /calls is still in flight", () => {
+      useCallStore.getState().startDraft("chat-1", false);
+      useCallStore.getState().reconcileActiveCall(null);
+      expect(useCallStore.getState().phase).toBe("outgoing");
+    });
+
+    it("clears a stale elsewhere plate", () => {
+      useCallStore.setState({ elsewhereCall: call({ status: "active" }) });
+      useCallStore.getState().reconcileActiveCall(null);
+      expect(useCallStore.getState().elsewhereCall).toBeNull();
+    });
+
+    it("picks up a status change missed while offline for the tracked call", () => {
+      useCallStore.getState().receiveIncoming(call());
+      useCallStore.getState().reconcileActiveCall({
+        call: call({ status: "active" }),
+        livekitUrl: "wss://lk",
+        token: null,
+      });
+      expect(useCallStore.getState().phase).toBe("idle");
+      expect(useCallStore.getState().elsewhereCall?.status).toBe("active");
     });
   });
 

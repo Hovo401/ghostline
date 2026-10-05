@@ -42,6 +42,9 @@ export interface NativeCallState {
   /** Epoch millis the call was answered, `null` while it is still ringing/connecting. */
   answeredAt: number | null;
   muted: boolean;
+  /** Incoming only (T-094): `Call.createdAt`, lets native ring the rest of the 45 s window. */
+  createdAt?: string;
+  callerAvatarUrl?: string | null;
 }
 
 /** A command from the phone's own UI (call screen, notification buttons) to the page. */
@@ -49,6 +52,8 @@ export type NativeCallCommand =
   | { type: "answer"; callId: string; chatId: string; video: boolean }
   /** "Перезвонить" on a missed call. */
   | { type: "callback"; chatId: string; video: boolean }
+  /** "Отклонить" on a ring native started from the page's own state (no decline token). */
+  | { type: "decline"; callId: string }
   | { type: "hangup" }
   | { type: "toggleMute" }
   /** The ongoing-call notification was tapped: bring the call screen up. */

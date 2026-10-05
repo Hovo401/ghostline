@@ -20,6 +20,8 @@ function call(overrides: Partial<Call> = {}): Call {
     createdAt: new Date().toISOString(),
     answeredAt: new Date().toISOString(),
     endedAt: null,
+    callerEndpointId: null,
+    calleeEndpointId: null,
     ...overrides,
   };
 }
@@ -36,6 +38,7 @@ describe("CallMiniBar", () => {
       draft: null,
       endReason: null,
       remoteJoined: false,
+      elsewhereCall: null,
     });
   });
 
@@ -51,6 +54,26 @@ describe("CallMiniBar", () => {
     useCallStore.getState().minimize();
     const { container } = render(<CallMiniBar />);
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it("shows 'Вызов…' once minimized while dialing, before any call object exists", () => {
+    useCallStore.getState().startDraft("chat-1", false);
+    useCallStore.getState().minimize();
+    render(<CallMiniBar />);
+    expect(screen.getByText("Вызов…")).toBeInTheDocument();
+  });
+
+  it("shows a non-interactive plate when the account's call runs on another device", () => {
+    useCallStore.setState({ elsewhereCall: call() });
+    render(<CallMiniBar />);
+    expect(screen.getByText(/Идёт звонок на другом устройстве · Тест Пир/)).toBeInTheDocument();
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("hides the plate while this tab has its own call", () => {
+    useCallStore.setState({ elsewhereCall: call(), phase: "active", call: call() });
+    render(<CallMiniBar />);
+    expect(screen.queryByText(/на другом устройстве/)).toBeNull();
   });
 
   it("shows the peer and status once minimized during an active call", () => {

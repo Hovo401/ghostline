@@ -1,4 +1,11 @@
-import { ConnectionQuality, ConnectionState, Room, RoomEvent, Track } from "livekit-client";
+import {
+  ConnectionQuality,
+  ConnectionState,
+  DisconnectReason,
+  Room,
+  RoomEvent,
+  Track,
+} from "livekit-client";
 import { useEffect, useRef, useState } from "react";
 
 import {
@@ -13,6 +20,10 @@ import {
  * who accepted but never actually got media flowing shouldn't leave the
  * caller staring at "Соединение…" forever. */
 const CONNECT_TIMEOUT_MS = 15_000;
+
+/** A `phase: "reconnecting"` (our link dropped, or the peer left the room) that lasts this long
+ * ends the call with a clear reason instead of leaving a dead "active" call on screen. */
+const RECONNECT_TIMEOUT_MS = 30_000;
 
 export interface CallMediaError {
   camera: string | null;
@@ -50,9 +61,9 @@ export interface CallSessionHandle {
 
 /**
  * Owns the LiveKit `Room` for the current call (calls plan §Фаза 3/4) —
- * called exactly once, from `CallRoot` (`routes/app.tsx`'s only call
- * mount), so minimizing/restoring the call UI (which just toggles what
- * `CallRoot` renders) never tears this down and reconnects. Connects
+ * called exactly once, from `CallRoot` (the signed-in host
+ * at the router root, `routes/-signed-in-host.tsx`), so minimizing/restoring the call UI (which just toggles
+ * what `CallRoot` renders) and navigating between routes never tear this down. Connects
  * whenever `call-store` has `livekitUrl`/`token` (the caller gets these
  * right from `start()`, even while still ringing — "pre-joining while
  * ringing" — the callee gets them from `accept()`) and disconnects once
@@ -83,6 +94,7 @@ export function useCallSession(): CallSessionHandle {
   const phase = useCallStore((state) => state.phase);
   const setRemoteJoined = useCallStore((state) => state.setRemoteJoined);
   const setReconnecting = useCallStore((state) => state.setReconnecting);
+  const setReconnected = useCallStore((state) => state.setReconnected);
   const endLocally = useCallStore((state) => state.endLocally);
   const { hangupMutate } = useCallActions();
 
@@ -172,6 +184,30 @@ export function useCallSession(): CallSessionHandle {
       setConnectionState(state);
       if (state === ConnectionState.Reconnecting) setReconnecting();
     };
+    const handleReconnected = (): void => {
+      // Only if the peer is still in the room: otherwise `TrackSubscribed` brings the call back.
+      if (nextRoom.remoteParticipants.size > 0) setReconnected();
+    };
+    // Fires for our own `disconnect()` too, but cleanup detaches this handler first — so reaching
+    // it mid-call for another reason means the room dropped us (e.g. `DUPLICATE_IDENTITY`, a revoked token).
+    const handleDisconnected = (reason?: DisconnectReason): void => {
+      if (cancelled.current) return;
+      // The server deletes the room when the call ends, which can beat `call:updated`: that is
+      // the normal end (the final status brings the right reason), not a drop.
+      if (
+        reason === DisconnectReason.ROOM_DELETED ||
+        reason === DisconnectReason.CLIENT_INITIATED
+      ) {
+        return;
+      }
+      const { phase: currentPhase } = useCallStore.getState();
+      if (currentPhase === "idle" || currentPhase === "incoming" || currentPhase === "ended") {
+        return;
+      }
+      endLocally("failed");
+      const callId = callRef.current?.id;
+      if (callId) hangupMutateRef.current(callId);
+    };
     const handleConnectionQualityChanged = (nextQuality: ConnectionQuality): void => {
       setQuality(nextQuality);
     };
@@ -185,6 +221,8 @@ export function useCallSession(): CallSessionHandle {
     nextRoom.on(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
     nextRoom.on(RoomEvent.LocalTrackUnpublished, handleLocalTrackUnpublished);
     nextRoom.on(RoomEvent.ConnectionStateChanged, handleConnectionStateChanged);
+    nextRoom.on(RoomEvent.Reconnected, handleReconnected);
+    nextRoom.on(RoomEvent.Disconnected, handleDisconnected);
     nextRoom.on(RoomEvent.ConnectionQualityChanged, handleConnectionQualityChanged);
     nextRoom.on(RoomEvent.ActiveSpeakersChanged, handleActiveSpeakersChanged);
 
@@ -245,6 +283,8 @@ export function useCallSession(): CallSessionHandle {
       nextRoom.off(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
       nextRoom.off(RoomEvent.LocalTrackUnpublished, handleLocalTrackUnpublished);
       nextRoom.off(RoomEvent.ConnectionStateChanged, handleConnectionStateChanged);
+      nextRoom.off(RoomEvent.Reconnected, handleReconnected);
+      nextRoom.off(RoomEvent.Disconnected, handleDisconnected);
       nextRoom.off(RoomEvent.ConnectionQualityChanged, handleConnectionQualityChanged);
       nextRoom.off(RoomEvent.ActiveSpeakersChanged, handleActiveSpeakersChanged);
       void nextRoom.disconnect();
@@ -271,6 +311,18 @@ export function useCallSession(): CallSessionHandle {
       const callId = callRef.current?.id;
       if (callId) hangupMutateRef.current(callId);
     }, CONNECT_TIMEOUT_MS);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [phase, endLocally]);
+
+  useEffect(() => {
+    if (phase !== "reconnecting") return;
+    const timer = setTimeout(() => {
+      endLocally("connection_lost");
+      const callId = callRef.current?.id;
+      if (callId) hangupMutateRef.current(callId);
+    }, RECONNECT_TIMEOUT_MS);
     return () => {
       clearTimeout(timer);
     };

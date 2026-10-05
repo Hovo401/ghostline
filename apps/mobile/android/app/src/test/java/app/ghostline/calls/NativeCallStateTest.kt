@@ -44,6 +44,27 @@ class NativeCallStateTest {
     }
 
     @Test
+    fun anIncomingStateCarriesCreatedAtAndAvatar() {
+        val state = NativeCallState.parse(
+            JSONObject(
+                """{"callId":"c1","chatId":"x","phase":"incoming","peerName":"A","createdAt":"2023-11-14T22:13:20.000Z","callerAvatarUrl":"https://h/a.png"}""",
+            ),
+        )
+        assertEquals(1_700_000_000_000L, state?.createdAt)
+        assertEquals("https://h/a.png", state?.callerAvatarUrl)
+    }
+
+    @Test
+    fun createdAtAndAvatarAreNullWhenAbsentOrNull() {
+        val missing = NativeCallState.parse(JSONObject("""{"callId":"c1","phase":"incoming"}"""))
+        val explicit = NativeCallState.parse(JSONObject("""{"callId":"c1","phase":"incoming","createdAt":null,"callerAvatarUrl":null}"""))
+        assertNull(missing?.createdAt)
+        assertNull(missing?.callerAvatarUrl)
+        assertNull(explicit?.createdAt)
+        assertNull(explicit?.callerAvatarUrl)
+    }
+
+    @Test
     fun aStateNativeCannotReadIsNull() {
         assertNull(NativeCallState.parse(JSONObject("""{"callId":"c1","phase":"teleporting"}""")))
         assertNull(NativeCallState.parse(JSONObject("""{"phase":"active"}""")))

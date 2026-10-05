@@ -1,5 +1,8 @@
 import { create } from "zustand";
 
+import { useSessionStore } from "../../shared/api/session-store";
+import { useToastStore } from "../../shared/ui/toast-store";
+
 import type { ActiveCall, Call, CallEndReason, CallJoin, CallPhase } from "./call.types";
 
 /** `Call.status` values that mean the call is over — mapped straight to a
@@ -13,6 +16,19 @@ const FINAL_STATUS_REASONS: Partial<Record<Call["status"], CallEndReason>> = {
   busy: "busy",
   failed: "failed",
 };
+
+function currentUserId(): string | null {
+  return useSessionStore.getState().user?.id ?? null;
+}
+
+/** Whether `call` is a live call of this account whose media this tab does not hold — started or
+ * answered on another device (ADR-0023). A ringing call counts only for the caller's other
+ * devices: for the callee every device rings, so it is an incoming call, not an "elsewhere" one. */
+function livesElsewhere(call: Call, userId: string | null): boolean {
+  if (userId === null) return false;
+  if (call.status === "active") return call.callerId === userId || call.calleeId === userId;
+  return call.status === "ringing" && call.callerId === userId;
+}
 
 /** This device wants to place a call but `POST /calls` hasn't resolved yet
  * — `startDraft` sets this so the outgoing-call UI can show "Calling…"
@@ -49,6 +65,10 @@ interface CallState {
   /** The phone put this call on hold (a GSM call came in, T-087) — the mic is off and the peer is
    * muted until native sends `resume`. Never set by the web UI itself. */
   held: boolean;
+  /** A live call of this account whose media another device/tab holds (ADR-0023): shown as a
+   * plate and it disables this tab's call buttons. Tab-level, not call-level — `reset()` leaves
+   * it alone — and only ever set while this tab has no call of its own. */
+  elsewhereCall: Call | null;
 
   setLocalVideoIntent: (enabled: boolean) => void;
   /** This device is about to place a call — before any network round trip. */
@@ -68,15 +88,28 @@ interface CallState {
   /** LiveKit join credentials arrived (`accept` response, or
    * `applyActiveCall` on reload). */
   applyJoin: (join: CallJoin) => void;
-  /** `call:updated` — any status change of the call this device is
-   * currently tracking. No-ops for a call this device isn't tracking. A
-   * final status ends the call locally with the matching reason; `"active"`
-   * only flips `phase` to `"active"` once `remoteJoined` is also true. */
+  /** `call:updated` — any status change of a call of this account. For the call this device
+   * tracks: a final status ends it locally with the matching reason, `"active"` only flips
+   * `phase` to `"active"` once `remoteJoined` is also true, and `"active"` while still ringing
+   * here means another device answered. For a call it doesn't track it maintains
+   * `elsewhereCall`. */
   updateCall: (call: Call) => void;
+  /** This device lost the race for the call: another one answered it (`call:updated` while
+   * ringing here, or `accept` answered 409 `answered_elsewhere`). Goes idle quietly with a toast
+   * and shows the call as `elsewhereCall`. */
+  answeredElsewhere: (call: Call | null) => void;
+  /** Drops `elsewhereCall` (logout). */
+  clearElsewhere: () => void;
+  /** Reconciles with `GET /calls/active` after a socket reconnect, to catch what the socket
+   * missed while down. `null` means the server knows no live call, so whatever this tab was
+   * tracking is over. */
+  reconcileActiveCall: (active: ActiveCall | null) => void;
   /** `useCallSession` observed the remote participant actually join the
    * LiveKit room. */
   setRemoteJoined: () => void;
   setReconnecting: () => void;
+  /** The LiveKit room recovered after a drop — back to the phase the call had before it. */
+  setReconnected: () => void;
   /** `GET /calls/active` resumed a call across a reload — only applied
    * while `phase === "idle"`, so it never clobbers a call already in
    * progress in this tab. */
@@ -104,15 +137,22 @@ const IDLE_STATE = {
   held: false,
 };
 
+/** True while this tab can't start another call: it has one of its own (any phase, the
+ * end-of-call screen included) or its account's call runs on another device. */
+export function selectCallBusy(state: Pick<CallState, "phase" | "elsewhereCall">): boolean {
+  return state.phase !== "idle" || state.elsewhereCall !== null;
+}
+
 export const useCallStore = create<CallState>((set, get) => ({
   ...IDLE_STATE,
+  elsewhereCall: null,
 
   setLocalVideoIntent: (enabled) => {
     set({ localVideoIntent: enabled });
   },
 
   startDraft: (chatId, video) => {
-    set({ ...IDLE_STATE, phase: "outgoing", draft: { chatId, video } });
+    set({ ...IDLE_STATE, phase: "outgoing", draft: { chatId, video }, elsewhereCall: null });
   },
 
   applyOutgoingJoin: (join) => {
@@ -122,9 +162,14 @@ export const useCallStore = create<CallState>((set, get) => ({
 
   receiveIncoming: (call) => {
     const { call: current, phase } = get();
+    if (call.callerId === currentUserId()) {
+      // Our own outgoing call, started on another device.
+      if (phase === "idle") set({ elsewhereCall: call });
+      return;
+    }
     const busyWithAnotherCall = current !== null && current.id !== call.id && phase !== "ended";
     if (busyWithAnotherCall) return;
-    set({ ...IDLE_STATE, phase: "incoming", call });
+    set({ ...IDLE_STATE, phase: "incoming", call, elsewhereCall: null });
   },
 
   beginConnecting: () => {
@@ -132,16 +177,38 @@ export const useCallStore = create<CallState>((set, get) => ({
   },
 
   applyJoin: ({ call, livekitUrl, token }) => {
+    // A slow `accept` response can land after the user already hung up (or the next call began):
+    // writing its token back would reconnect a room nobody shows.
+    const state = get();
+    if (state.phase !== "connecting" || state.call?.id !== call.id) return;
     set({ call, livekitUrl, token });
   },
 
   updateCall: (call) => {
-    const current = get().call;
-    if (current?.id !== call.id) return;
-
+    const { call: current, phase, elsewhereCall } = get();
     const endReason = FINAL_STATUS_REASONS[call.status];
+
+    if (current?.id !== call.id) {
+      if (elsewhereCall?.id === call.id) {
+        const stillElsewhere = !endReason && livesElsewhere(call, currentUserId());
+        set({ elsewhereCall: stillElsewhere ? call : null });
+      } else if (phase === "idle" && livesElsewhere(call, currentUserId())) {
+        set({ elsewhereCall: call });
+      }
+      return;
+    }
+
     if (endReason) {
-      set({ call, phase: "ended", endReason });
+      // Token and URL go with the call so `useCallSession` drops the room at once instead of
+      // when `CallEnded` resets the store.
+      set({ call, phase: "ended", endReason, token: null, livekitUrl: null });
+      return;
+    }
+
+    if (phase === "incoming" && call.status === "active") {
+      // Answered by another device while this one was still ringing. The answering device is
+      // already in "connecting" here, so it never lands in this branch.
+      get().answeredElsewhere(call);
       return;
     }
 
@@ -150,14 +217,47 @@ export const useCallStore = create<CallState>((set, get) => ({
         state.phase === "outgoing" ||
         state.phase === "connecting" ||
         state.phase === "reconnecting";
-      const phase: CallPhase =
+      const nextPhase: CallPhase =
         call.status === "active" && stillConnecting
           ? state.remoteJoined
             ? "active"
             : "connecting"
           : state.phase;
-      return { call, phase };
+      return { call, phase: nextPhase };
     });
+  },
+
+  answeredElsewhere: (call) => {
+    useToastStore
+      .getState()
+      .push({ variant: "info", message: "Звонок принят на другом устройстве" });
+    set({
+      ...IDLE_STATE,
+      elsewhereCall: call ? { ...call, status: "active" } : null,
+    });
+  },
+
+  clearElsewhere: () => {
+    set({ elsewhereCall: null });
+  },
+
+  reconcileActiveCall: (active) => {
+    const { call, phase, elsewhereCall } = get();
+    if (active === null) {
+      if (elsewhereCall) set({ elsewhereCall: null });
+      if (call && phase !== "idle" && phase !== "ended") {
+        if (phase === "incoming") set({ ...IDLE_STATE });
+        else get().endLocally("ended");
+      }
+      return;
+    }
+    if (call?.id === active.call.id || elsewhereCall?.id === active.call.id) {
+      get().updateCall(active.call);
+      return;
+    }
+    // The server's live call isn't the one this tab tracks: ours is over there, so don't let it block the live one.
+    if (call && phase !== "idle") set({ ...IDLE_STATE });
+    get().applyActiveCall(active);
   },
 
   setRemoteJoined: () => {
@@ -171,16 +271,31 @@ export const useCallStore = create<CallState>((set, get) => ({
     set({ phase: "reconnecting" });
   },
 
+  setReconnected: () => {
+    set((state) => {
+      if (state.phase !== "reconnecting") return state;
+      const recovered = state.call?.status === "active" && state.remoteJoined;
+      return { phase: recovered ? "active" : "connecting" };
+    });
+  },
+
   applyActiveCall: ({ call, livekitUrl, token }) => {
     if (get().phase !== "idle") return;
     if (token === null) {
-      // Still-ringing call where we're the callee — re-show incoming, no
-      // LiveKit credentials to connect with yet.
-      set({ ...IDLE_STATE, phase: "incoming", call });
+      const userId = currentUserId();
+      if (call.status === "ringing" && call.calleeId === userId) {
+        // Still-ringing call where we're the callee — re-show incoming, no
+        // LiveKit credentials to connect with yet.
+        set({ ...IDLE_STATE, phase: "incoming", call, elsewhereCall: null });
+      } else if (livesElsewhere(call, userId)) {
+        // The media lives on another device of this account: never join it, just show the plate.
+        set({ elsewhereCall: call });
+      }
       return;
     }
     set({
       ...IDLE_STATE,
+      elsewhereCall: null,
       phase: call.status === "ringing" ? "outgoing" : "connecting",
       call,
       livekitUrl,
@@ -189,7 +304,8 @@ export const useCallStore = create<CallState>((set, get) => ({
   },
 
   endLocally: (reason) => {
-    set({ phase: "ended", endReason: reason });
+    // Token and URL are cleared so `useCallSession` drops the room (mic, remote audio) right now.
+    set({ phase: "ended", endReason: reason, token: null, livekitUrl: null });
   },
 
   setHeld: (held) => {

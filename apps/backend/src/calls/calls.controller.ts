@@ -19,6 +19,7 @@ import { CurrentUserId } from "../auth/current-user.decorator";
 import { TokenService } from "../auth/token.service";
 
 import { CallsService } from "./calls.service";
+import { ActiveCallQueryDto, CallEndpointDto } from "./dto/call-endpoint.dto";
 import { StartCallDto } from "./dto/start-call.dto";
 
 /** No `@types/express` in this project (see auth/refresh-cookie.util.ts) — narrow shapes for the two routes below. */
@@ -42,8 +43,11 @@ export class CallsController {
 
   @Get("active")
   @UseGuards(AccessTokenGuard)
-  active(@CurrentUserId() userId: string): Promise<ActiveCall | null> {
-    return this.calls.getActive(userId);
+  active(
+    @CurrentUserId() userId: string,
+    @Query() query: ActiveCallQueryDto,
+  ): Promise<ActiveCall | null> {
+    return this.calls.getActive(userId, query.endpointId);
   }
 
   @Post(":id/accept")
@@ -51,8 +55,9 @@ export class CallsController {
   accept(
     @CurrentUserId() userId: string,
     @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: CallEndpointDto,
   ): Promise<CallJoin> {
-    return this.calls.accept(userId, id);
+    return this.calls.accept(userId, id, dto.endpointId);
   }
 
   @Post(":id/token")
@@ -60,8 +65,9 @@ export class CallsController {
   token(
     @CurrentUserId() userId: string,
     @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: CallEndpointDto,
   ): Promise<CallJoin> {
-    return this.calls.token(userId, id);
+    return this.calls.token(userId, id, dto.endpointId);
   }
 
   @Post(":id/cancel")

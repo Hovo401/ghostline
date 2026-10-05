@@ -35,4 +35,7 @@ export type CallEndReason =
    * `CONNECT_TIMEOUT_MS` (`use-call-session.ts`) — distinct from
    * `"unavailable"` (the `POST /calls` request itself failing) so
    * `CallEnded` can tell the two apart. */
-  | "connect_failed";
+  | "connect_failed"
+  /** The media link dropped and did not come back within `RECONNECT_TIMEOUT_MS`
+   * (`use-call-session.ts`). */
+  | "connection_lost";

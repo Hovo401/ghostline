@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { useAudioPlayerStore, useMediaViewerStore } from "../../entities/attachment";
+import { useCallStore } from "../../entities/call";
 import type { ChatMessage } from "../../entities/message";
 
 import { MessageBubble } from "./MessageBubble";
@@ -370,6 +371,35 @@ describe("MessageBubble", () => {
 
     screen.getByRole("button", { name: /Отклонённый видеозвонок/ }).click();
     expect(onCallBack).toHaveBeenCalledWith(message);
+  });
+
+  it("a call row is disabled while a call is in progress, so tapping it cannot cut the call", () => {
+    useCallStore.setState({ phase: "active" });
+    try {
+      const onCallBack = vi.fn();
+      const message = makeMessage({
+        type: "call",
+        text: null,
+        call: { status: "declined", video: true, durationMs: null },
+      });
+      render(
+        <MessageBubble
+          message={message}
+          isOwn={true}
+          isLastOutgoing={false}
+          scrambleDelay={0}
+          onRetry={vi.fn()}
+          onCallBack={onCallBack}
+        />,
+      );
+
+      const row = screen.getByRole("button", { name: /Отклонённый видеозвонок/ });
+      expect(row).toBeDisabled();
+      fireEvent.click(row);
+      expect(onCallBack).not.toHaveBeenCalled();
+    } finally {
+      useCallStore.getState().reset();
+    }
   });
 
   it("offers a retry for a failed message", () => {

@@ -33,6 +33,8 @@ export function toWireCall(call: PrismaCall): Call {
     createdAt: call.createdAt.toISOString(),
     answeredAt: call.answeredAt?.toISOString() ?? null,
     endedAt: call.endedAt?.toISOString() ?? null,
+    callerEndpointId: call.callerEndpointId,
+    calleeEndpointId: call.calleeEndpointId,
   };
 }
 

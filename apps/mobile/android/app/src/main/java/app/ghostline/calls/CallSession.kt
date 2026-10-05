@@ -21,8 +21,9 @@ enum class CallCommand(val wire: String) {
 /**
  * The call the page reports through `Ghostline.setCallState`, and what native does about it: the
  * ongoing-call service and notification ([OngoingCallService]) and the Telecom entry ([TelecomBridge]).
- * The page sends the state on every change, so [reconcile] is idempotent. A ringing incoming call is not
- * driven from here — [IncomingCallService] owns it until the user answers.
+ * The page sends the state on every change, so [reconcile] is idempotent. A ringing incoming call is
+ * [IncomingCallService]'s until the user answers; the page only starts it (an `incoming` state its push did not
+ * start already), hands it over (the call went on: [RingEnd.Answered]) or ends it (`ended`/`null`), see [pageRingAction].
  */
 object CallSession {
     private var state: NativeCallState? = null
@@ -75,11 +76,23 @@ object CallSession {
         if (previous != null && next != null && previous.callId != next.callId) {
             TelecomBridge.end(previous.callId, DisconnectCause.LOCAL)
         }
+        // The page is also a source for the ring (T-094): it starts it, hands it over on an answer, ends it.
+        val ringCallId = next?.callId ?: previous?.callId
+        val ringAction = if (ringCallId == null) {
+            PageRingAction.None
+        } else {
+            pageRingAction(next?.phase, IncomingCallService.isRinging(ringCallId))
+        }
         if (next == null || next.phase == CallPhase.Ended) {
             state = null
             outgoingCallId = null
             heldCallId = null
             AudioRouter.end()
+            // Declined, cancelled or answered elsewhere, as the page's socket heard it. After `state = null`,
+            // so the stop's onClosed does not come back here.
+            if (ringAction == PageRingAction.Closed && ringCallId != null) {
+                IncomingCallService.stopFor(app, ringCallId, RingEnd.Closed)
+            }
             (next?.callId ?: previous?.callId)?.let { TelecomBridge.end(it, DisconnectCause.LOCAL) }
             if (ongoingUp || OngoingCallService.running) {
                 OngoingCallService.stop(app)
@@ -88,10 +101,22 @@ object CallSession {
             return
         }
         state = next
+        if (ringAction == PageRingAction.Answered) {
+            // Answered on the page (or the native answer came back as its state): the ring is over, the call
+            // lives on, and the later `answered-elsewhere` push of our own answer must not end it.
+            IncomingCallService.stopFor(app, next.callId, RingEnd.Answered)
+            answerWatchdog.confirm(next.callId)
+        }
         if (next.phase == CallPhase.Connecting || next.phase == CallPhase.Active) answerWatchdog.confirm(next.callId)
         when (next.phase) {
-            // IncomingCallService rings; the page's own screen is not ours to mirror.
-            CallPhase.Incoming, CallPhase.Ended -> return
+            CallPhase.Incoming -> {
+                // Quiet or loud by visibility, decided by the service; nothing of the page's screen is mirrored.
+                if (ringAction == PageRingAction.Start) IncomingCallService.startFromPage(app, next)
+                // The page shows it now: with the app on screen native may go quiet (T-094).
+                IncomingCallService.onPageReportedIncoming()
+                return
+            }
+            CallPhase.Ended -> return
             CallPhase.Outgoing -> {
                 outgoingCallId = next.callId
                 register(app, next)
@@ -163,6 +188,17 @@ object CallSession {
     @Synchronized
     fun onClosed(context: Context, callId: String) {
         if (state?.callId == callId) reconcile(context, null)
+    }
+
+    /**
+     * "Отклонить" on a ringing call that has no `declineToken` (started from the page's state, T-094): the page
+     * declines it (`{type: "decline", callId}`, `NativeCallCommand`). With no page to take it the ring has
+     * stopped already and the server's own 45 s timeout ends the call.
+     */
+    fun sendDecline(callId: String) {
+        if (!emit(JSObject().put("type", "decline").put("callId", callId))) {
+            Log.w(PushNotifier.LOG_TAG, "no page to take the decline command")
+        }
     }
 
     /** A button of the phone's own UI, to the page. A dead page can't hang up, so the notification just goes. */

@@ -13,6 +13,7 @@ import {
   useUploadQueueStore,
   type MediaSource,
 } from "../../entities/attachment";
+import { selectCallBusy, useCallStore } from "../../entities/call";
 import {
   formatCallLabel,
   formatDuration,
@@ -587,6 +588,7 @@ function CallBubble({
   onCallBack?: (message: ChatMessage) => void;
 }) {
   const call = message.call;
+  const busy = useCallStore(selectCallBusy);
   if (!call) return null;
 
   const label = formatCallLabel(call, isOwn);
@@ -594,12 +596,14 @@ function CallBubble({
   return (
     <button
       type="button"
+      disabled={busy}
       onClick={() => {
         onCallBack?.(message);
       }}
       className={[
         "flex w-fit max-w-[82%] items-center gap-2.5 rounded-bubble px-3.5 py-2.5 text-msg",
         isOwn ? "[background:var(--color-accent)] text-ink" : "border border-line bg-in text-fg",
+        busy ? "opacity-[.45]" : "",
       ].join(" ")}
     >
       <span aria-hidden className="flex-none">

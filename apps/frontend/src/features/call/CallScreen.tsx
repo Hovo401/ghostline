@@ -1,7 +1,8 @@
+import { useLocation, useNavigate } from "@tanstack/react-router";
 import { ConnectionQuality, ConnectionState } from "livekit-client";
 import { useEffect, useState } from "react";
 
-import { playRingback, useCallActions, useCallStore } from "../../entities/call";
+import { useCallActions, useCallStore } from "../../entities/call";
 import { formatDuration } from "../../entities/message";
 import { useBackToClose } from "../../shared/lib/use-back-to-close";
 import {
@@ -125,7 +126,8 @@ function MinimizeIcon() {
 /** Caller's "ringing, waiting for answer" screen — shown for `phase ===
  * "outgoing"`, before LiveKit join credentials exist at all (or even before
  * a `Call` object exists, during `call-store`'s `draft`), so it renders
- * without a session handle. Plays the ringback tone for as long as it's up. */
+ * without a session handle. The ringback tone is `CallRoot`'s, so it keeps
+ * playing while this is minimized. */
 function OutgoingCallScreen({
   video,
   peerName,
@@ -137,11 +139,6 @@ function OutgoingCallScreen({
   peerAvatar?: string;
   onCancel: () => void;
 }) {
-  useEffect(() => {
-    const stop = playRingback();
-    return stop;
-  }, []);
-
   return (
     <div
       role="dialog"
@@ -172,20 +169,29 @@ export interface CallScreenProps {
 
 /**
  * Full-screen call UI (calls plan §Фаза 3/4) — rendered by `CallRoot`
- * (`routes/app.tsx`'s only call mount), which owns the LiveKit session
+ * (the signed-in host's only call mount), which owns the LiveKit session
  * (`useCallSession`) independently of this component's mount state. Renders
  * nothing outside an outgoing/connecting/active/reconnecting call this
  * device isn't currently minimizing — minimizing just stops rendering this,
  * it does *not* tear down `session` (that lives in `CallRoot`, unaffected by
- * this component unmounting). Remote audio is played by `CallRoot`, not
+ * this component unmounting). Only `/app` has the mini-bar to minimize into,
+ * so on any other route the call is always shown full-screen and "minimize"
+ * means going back to `/app`. Remote audio is played by `CallRoot`, not
  * here, so it keeps playing while this is minimized.
  */
 export function CallScreen({ session }: CallScreenProps) {
   const phase = useCallStore((state) => state.phase);
   const call = useCallStore((state) => state.call);
   const draft = useCallStore((state) => state.draft);
-  const minimized = useCallStore((state) => state.minimized);
-  const minimize = useCallStore((state) => state.minimize);
+  const minimizedFlag = useCallStore((state) => state.minimized);
+  const minimizeCall = useCallStore((state) => state.minimize);
+  const inApp = useLocation({ select: (location) => location.pathname.startsWith("/app") });
+  const navigate = useNavigate();
+  const minimized = minimizedFlag && inApp;
+  const minimize = (): void => {
+    if (!inApp) void navigate({ to: "/app" });
+    minimizeCall();
+  };
   const pip = useNativePip();
   const held = useCallStore((state) => state.held);
   const { hangup, cancel } = useCallActions();

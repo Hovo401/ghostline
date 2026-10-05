@@ -1,4 +1,6 @@
-import { useCallStore } from "../../entities/call";
+import { useEffect } from "react";
+
+import { playRingback, useCallStore } from "../../entities/call";
 
 import { CallEnded } from "./CallEnded";
 import { CallScreen } from "./CallScreen";
@@ -8,12 +10,10 @@ import { useNativeCallBridge } from "./use-native-call-bridge";
 import { useTrackAttach } from "./use-track-attach";
 
 /**
- * The one call mount (`routes/app.tsx`, replacing the previous three
- * separate `<IncomingCall/> <CallScreen/> <CallMiniBar/>` mounts) — owns the
- * LiveKit session (`useCallSession`) for the lifetime of the app shell, so
- * minimizing/restoring the call UI (which only changes which of the
- * self-gating components below renders anything) never tears the `Room`
- * down and reconnects it. Every child here is self-gating on `call-store`'s
+ * The one call mount (the signed-in host at the router root,
+ * `routes/-signed-in-host.tsx`) — owns the LiveKit session (`useCallSession`)
+ * for as long as the user is signed in, so minimizing/restoring the call UI
+ * or navigating off `/app` never tears the `Room` down and reconnects it. Every child here is self-gating on `call-store`'s
  * `phase`/`minimized`, so it's safe to always render all of them.
  *
  * The remote `<audio>` lives here rather than in `CallScreen` for the same
@@ -26,6 +26,12 @@ export function CallRoot() {
   // On hold (a GSM call took the line) the peer must not be heard — the track stays attached.
   const held = useCallStore((state) => state.held);
   const remoteAudioRef = useTrackAttach(session.remoteAudioTrack);
+  // Here rather than in the outgoing screen: the tone must outlive minimizing it to the mini-bar.
+  const dialing = useCallStore((state) => state.phase === "outgoing");
+  useEffect(() => {
+    if (!dialing) return;
+    return playRingback();
+  }, [dialing]);
 
   return (
     <>

@@ -74,9 +74,29 @@ skipped for silent/DND). The ring window is 45 s counted from the push's `create
 rings the rest of it, not a fresh 45 s. "Отклонить" goes through `CallActionReceiver` →
 `NotificationActionApi.declineCall` with the push's `declineToken` — no WebView.
 
-- `GhostlineMessagingService` still ignores `call:incoming` while the app is on screen: the page's
-  own `IncomingCall` rings. `IncomingCall.tsx` stays silent only when the app is hidden **and**
-  native push is registered, so an old APK or a failed registration never leaves a call silent.
+- T-094: `IncomingCallService` starts for **every** incoming call, on screen or not; only how loud it is
+  follows `AppVisibility` (`RingMode`, `ringModeFor`/`ringChange` in `CallLogic.kt`). On screen = `Quiet`: the
+  CallStyle entry on the low channel `incoming_calls_quiet`, no heads-up, no full-screen intent, no `Ringer`, no
+  Telecom entry (registered on escalation, or by `CallSession` once answered) — the page rings itself. Off screen
+  (`MainActivity.onStop`, PiP) = `Loud`: the service re-posts on `incoming_calls` with the full-screen intent and
+  starts `Ringer`; coming back goes quiet again and `Ringer.stop()`. `AppVisibility.onChanged` drives it; the
+  update goes through `startForeground` on the already-running service (no new FGS start from the background).
+  Quiet needs the page to show the call too: only with the app on screen **and** `CallSession.current()` =
+  `incoming` for that callId (`ringModeFor`); a push-only call (socket still reconnecting) keeps ringing. A fresh
+  push gets `PAGE_GRACE_MS` for the page to report; the page's report (`onPageReportedIncoming`) quietens it later.
+  If the loud channel is disabled the escalation is skipped (stays quiet, no Telecom entry). A page-started call
+  (no token) adopts the token of a later push for the same callId (`adoptsDeclineToken`): the notification is
+  rebuilt, the ring is not restarted, and "Отклонить" then goes through `NotificationActionApi` without page JS.
+  The quiet "Ответить" opens `MainActivity` with `LaunchAction.Answer`; the ring ends when the page reports
+  `connecting`. The test call is always loud. `call:missed` on screen only ends the ring (no missed notification).
+- Second start source: `Ghostline.setCallState` with `phase: "incoming"` now carries `createdAt` (ISO string of
+  `Call.createdAt`; without it native does not start) and `callerAvatarUrl` (nullable). `CallSession` starts the
+  service if the call is not already ringing/recently closed/answered (`IncomingCallService.isRinging`, dedupe by
+  callId). Such a call has no `declineToken`: "Отклонить" emits the `decline {callId}` `callCommand`
+  (`CallSession.sendDecline`) for the page; with a token the `CallActionReceiver` -> `NotificationActionApi` path stays.
+- The page's later states for a ringing callId: connecting/active/outgoing -> `RingEnd.Answered` (so the own
+  `answered-elsewhere` push cannot kill it); `ended`/`null` -> `stopFor(..., Closed)` (`pageRingAction`).
+  Old pages (no `createdAt`) still work: push starts the quiet ring, the page's answer/end stops it.
 - A `call:closed` can arrive before its `call:incoming` (FCM does not order): `RecentlyClosed` keeps
   the last 8 ids for 60 s. `stopSelf(lastStartId)` — not a bare `stopSelf()` — so a new call started
   right after a cancelled one is not torn down with it (same in `OngoingCallService`).

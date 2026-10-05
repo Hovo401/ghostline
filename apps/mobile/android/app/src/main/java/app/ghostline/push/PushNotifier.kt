@@ -9,6 +9,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import app.ghostline.AppVisibility
 import app.ghostline.MainActivity
 import app.ghostline.R
 import app.ghostline.calls.IncomingCallService
@@ -28,6 +29,8 @@ object PushNotifier {
     const val LOG_TAG = "GhostlinePush"
     const val CHANNEL_MESSAGES = "messages"
     const val CHANNEL_INCOMING_CALLS = "incoming_calls"
+    /** The shade entry of a call the open page rings itself (T-094): low importance, no heads-up. */
+    const val CHANNEL_INCOMING_CALLS_QUIET = "incoming_calls_quiet"
     const val CHANNEL_MISSED_CALLS = "missed_calls"
     const val CHANNEL_ONGOING_CALL = "ongoing_call"
     private const val NOTIFICATION_ID = 0
@@ -53,7 +56,10 @@ object PushNotifier {
             )
             is NativePush.CallMissed -> {
                 IncomingCallService.stopFor(context, push.callId)
-                MissedCallNotifier.show(context, push.callId, push.chatId, push.callerName, push.video)
+                // On screen the chat already shows the missed call; the push only had to end the ring.
+                if (!AppVisibility.foreground) {
+                    MissedCallNotifier.show(context, push.callId, push.chatId, push.callerName, push.video)
+                }
             }
             is NativePush.ChatRead -> MessageNotifier.onChatRead(context, push.chatId, push.readSeq)
             NativePush.Test -> show(context, "Ghostline", "Тестовое уведомление — push работает", "test", null)
@@ -130,6 +136,12 @@ object PushNotifier {
                 enableVibration(false)
                 lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
             }
+        val quiet = NotificationChannel(CHANNEL_INCOMING_CALLS_QUIET, "Входящие звонки (приложение открыто)", NotificationManager.IMPORTANCE_LOW)
+            .apply {
+                setSound(null, null)
+                enableVibration(false)
+                lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+            }
         val missed = NotificationChannel(CHANNEL_MISSED_CALLS, "Пропущенные", NotificationManager.IMPORTANCE_DEFAULT)
         // Quiet: the call is already on the phone's ear; the notification is only the way back and the hang-up.
         val ongoing = NotificationChannel(CHANNEL_ONGOING_CALL, "Текущий звонок", NotificationManager.IMPORTANCE_LOW)
@@ -138,6 +150,6 @@ object PushNotifier {
                 enableVibration(false)
             }
         context.getSystemService(NotificationManager::class.java)
-            .createNotificationChannels(listOf(incoming, missed, ongoing))
+            .createNotificationChannels(listOf(incoming, quiet, missed, ongoing))
     }
 }

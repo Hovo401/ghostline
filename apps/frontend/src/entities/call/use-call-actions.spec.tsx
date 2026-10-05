@@ -1,13 +1,18 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, apiFetch } from "../../shared/api/http-client";
 import type * as HttpClient from "../../shared/api/http-client";
+import { useToastStore } from "../../shared/ui/toast-store";
 
 import { useCallStore } from "./call-store";
 import type { Call } from "./call.types";
-import { useActiveCallQuery, useCallActions } from "./use-call-actions";
+import { useActiveCallQuery, useAnswerWhenIncoming, useCallActions } from "./use-call-actions";
+
+const ENDPOINT_ID = vi.hoisted(() => "99999999-9999-4999-8999-999999999999");
+
+vi.mock("./endpoint-id", () => ({ getEndpointId: () => Promise.resolve(ENDPOINT_ID) }));
 
 vi.mock("../../shared/api/http-client", async (importOriginal) => {
   const actual = await importOriginal<typeof HttpClient>();
@@ -25,6 +30,8 @@ function call(overrides: Partial<Call> = {}): Call {
     createdAt: new Date().toISOString(),
     answeredAt: null,
     endedAt: null,
+    callerEndpointId: null,
+    calleeEndpointId: null,
     ...overrides,
   };
 }
@@ -77,7 +84,11 @@ describe("useCallActions", () => {
     });
     expect(apiFetch).toHaveBeenCalledWith("/calls", {
       method: "POST",
-      body: { chatId: "22222222-2222-4222-8222-222222222222", video: true },
+      body: {
+        chatId: "22222222-2222-4222-8222-222222222222",
+        video: true,
+        endpointId: ENDPOINT_ID,
+      },
     });
     expect(useCallStore.getState().draft).toBeNull();
   });
@@ -167,6 +178,7 @@ describe("useCallActions", () => {
     });
     expect(apiFetch).toHaveBeenCalledWith("/calls/11111111-1111-4111-8111-111111111111/accept", {
       method: "POST",
+      body: { endpointId: ENDPOINT_ID },
     });
   });
 
@@ -204,6 +216,115 @@ describe("useCallActions", () => {
       });
     });
   });
+
+  it("accept answered 409 answered_elsewhere resets quietly with a toast, no retry", async () => {
+    useToastStore.setState({ toasts: [] });
+    vi.mocked(apiFetch).mockRejectedValue(new ApiError(409, "answered_elsewhere"));
+    const { result } = renderWithClient(() => useCallActions());
+    useCallStore.getState().receiveIncoming(call());
+
+    result.current.accept("11111111-1111-4111-8111-111111111111");
+
+    await waitFor(() => {
+      expect(useCallStore.getState().phase).toBe("idle");
+    });
+    expect(useToastStore.getState().toasts[0]?.message).toBe("Звонок принят на другом устройстве");
+    expect(apiFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("recognises answered_elsewhere in the JSON body Nest really sends", async () => {
+    useToastStore.setState({ toasts: [] });
+    const body = JSON.stringify({
+      message: "answered_elsewhere",
+      error: "Conflict",
+      statusCode: 409,
+    });
+    vi.mocked(apiFetch).mockRejectedValue(new ApiError(409, body));
+    const { result } = renderWithClient(() => useCallActions());
+    useCallStore.getState().receiveIncoming(call());
+
+    result.current.accept("11111111-1111-4111-8111-111111111111");
+
+    await waitFor(() => {
+      expect(useCallStore.getState().phase).toBe("idle");
+    });
+    expect(useToastStore.getState().toasts[0]?.message).toBe("Звонок принят на другом устройстве");
+  });
+
+  it("accept failing any other way ends the call locally as failed right away", async () => {
+    vi.mocked(apiFetch).mockRejectedValue(new ApiError(404, "not_found"));
+    const { result } = renderWithClient(() => useCallActions());
+    useCallStore.getState().receiveIncoming(call());
+
+    result.current.accept("11111111-1111-4111-8111-111111111111");
+
+    await waitFor(() => {
+      expect(useCallStore.getState().phase).toBe("ended");
+    });
+    expect(useCallStore.getState().endReason).toBe("failed");
+  });
+
+  it("leaveCall hangs up on the server before wiping the call state", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(call({ status: "ended" }));
+    const { result } = renderWithClient(() => useCallActions());
+    useCallStore.getState().receiveIncoming(call());
+    useCallStore.setState({ phase: "active", elsewhereCall: call() });
+
+    await result.current.leaveCall();
+
+    expect(apiFetch).toHaveBeenCalledWith("/calls/11111111-1111-4111-8111-111111111111/hangup", {
+      method: "POST",
+    });
+    expect(useCallStore.getState().phase).toBe("idle");
+    expect(useCallStore.getState().elsewhereCall).toBeNull();
+  });
+});
+
+describe("useAnswerWhenIncoming", () => {
+  beforeEach(() => {
+    vi.mocked(apiFetch).mockReset();
+    vi.mocked(apiFetch).mockResolvedValue({
+      call: call({ status: "active" }),
+      livekitUrl: "wss://lk",
+      token: "tok",
+    });
+    useCallStore.setState(RESET_STATE);
+  });
+
+  it("answers at once when the tab already rings for that call", async () => {
+    const { result } = renderWithClient(() => useAnswerWhenIncoming());
+    useCallStore.getState().receiveIncoming(call());
+
+    result.current("11111111-1111-4111-8111-111111111111");
+
+    expect(useCallStore.getState().phase).toBe("connecting");
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("waits for the ring to show up (fresh tab), then answers once", () => {
+    const { result } = renderWithClient(() => useAnswerWhenIncoming());
+
+    result.current("11111111-1111-4111-8111-111111111111");
+    expect(useCallStore.getState().phase).toBe("idle");
+
+    act(() => {
+      useCallStore.getState().receiveIncoming(call());
+    });
+
+    expect(useCallStore.getState().phase).toBe("connecting");
+  });
+
+  it("never answers a different call, an outgoing one, or a dead one", () => {
+    const { result } = renderWithClient(() => useAnswerWhenIncoming());
+    useCallStore.getState().startDraft("chat-1", false);
+
+    result.current("11111111-1111-4111-8111-111111111111");
+
+    expect(useCallStore.getState().phase).toBe("outgoing");
+    expect(apiFetch).not.toHaveBeenCalled();
+  });
 });
 
 describe("useActiveCallQuery", () => {
@@ -220,6 +341,16 @@ describe("useActiveCallQuery", () => {
       expect(result.current.isSuccess).toBe(true);
     });
     expect(useCallStore.getState().call).toBeNull();
+  });
+
+  it("asks the server as this endpoint", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(null);
+    const { result } = renderWithClient(() => useActiveCallQuery());
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+    expect(apiFetch).toHaveBeenCalledWith(`/calls/active?endpointId=${ENDPOINT_ID}`);
   });
 
   it("resumes an active call's join credentials while idle", async () => {

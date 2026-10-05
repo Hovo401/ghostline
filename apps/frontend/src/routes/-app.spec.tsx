@@ -46,6 +46,7 @@ vi.mock("../features/settings", () => ({
   Settings: () => <p>settings screen</p>,
   isSettingsTab: () => false,
 }));
+vi.mock("../features/landing", () => ({ Landing: () => <p>landing page</p> }));
 vi.mock("../features/media-viewer", () => ({ MediaViewer: () => null }));
 
 async function settle(): Promise<void> {
@@ -91,6 +92,42 @@ describe("/app layout", () => {
 
     expect(await screen.findByText("Нет сети, подключаемся…")).toBeInTheDocument();
     expect(screen.queryByText("chat list")).not.toBeInTheDocument();
+  });
+
+  it("keeps the call and the messenger session mounted when the user goes to the landing page", async () => {
+    const router = createRouter({
+      routeTree,
+      history: createMemoryHistory({ initialEntries: ["/app"] }),
+    });
+    render(<RouterProvider router={router} />);
+    await settle();
+    expect(screen.getByText("chat list")).toBeInTheDocument();
+
+    await act(async () => {
+      await router.navigate({ to: "/" });
+    });
+    await settle();
+
+    expect(screen.getByText("landing page")).toBeInTheDocument();
+    expect(screen.queryByText("chat list")).not.toBeInTheDocument();
+    expect(screen.getByTestId("remote-audio")).toBeInTheDocument();
+    expect(lifecycle.callRootMounts).toBe(1);
+    expect(lifecycle.callRootUnmounts).toBe(0);
+    expect(lifecycle.sessions).toBe(1);
+  });
+
+  it("does not mount the call or the session for a signed-out visitor", async () => {
+    useSessionStore.setState({ status: "anonymous", accessToken: null, user: null });
+    const router = createRouter({
+      routeTree,
+      history: createMemoryHistory({ initialEntries: ["/"] }),
+    });
+    render(<RouterProvider router={router} />);
+    await settle();
+
+    expect(screen.getByText("landing page")).toBeInTheDocument();
+    expect(lifecycle.callRootMounts).toBe(0);
+    expect(lifecycle.sessions).toBe(0);
   });
 
   it("keeps the call and the messenger session mounted across settings and back", async () => {
