@@ -116,6 +116,16 @@ yet; do that when this wave is done. FR IDs: see REQUIREMENTS.md's "v1" priority
 - [x] T-065 — Chat integration: call buttons in `ChatThreadPanel`, call history row in
       `MessageBubble`. Depends on T-064.
 
+- [ ] T-092 — Calls on several devices of one account (FR-CALL-09/10, ADR-0023): `callerEndpointId`/
+      `calleeEndpointId` on `Call`, accept/token/active hand media only to the owning endpoint, other
+      devices show "call on another device" and a ringing device stops when another answers. Backend +
+      contracts + migration `add_call_endpoints` done; frontend in progress.
+- [ ] T-093 — Call sound never without a visible call UI (FR-CALL-11): call host above `/app`, mini-bar
+      while dialling, media dropped the moment a call ends, call-back bubble disabled during a call,
+      reconnect/disconnect recovery, resync after socket reconnect. Depends on T-092.
+- [ ] T-094 — Android: an incoming call is always in the shade, one ring source (page while the app is
+      on screen, native when it is not). Depends on T-092.
+
 ### Web Push notifications (FR-NOTIF-04/06, FR-SET-13)
 
 - [x] T-066 — Backend `notifications` module: VAPID key endpoint, subscription CRUD, settings,

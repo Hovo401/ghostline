@@ -1,4 +1,10 @@
-import type { ActiveCall, Call, CallJoin, StartCallBody } from "@ghostline/contracts";
+import {
+  ANSWERED_ELSEWHERE_ERROR,
+  type ActiveCall,
+  type Call,
+  type CallJoin,
+  type StartCallBody,
+} from "@ghostline/contracts";
 import { InjectQueue } from "@nestjs/bullmq";
 import {
   BadRequestException,
@@ -41,6 +47,11 @@ const BUSY_LOCK_ACTIVE_TTL_MS = 4 * 60 * 60 * 1000; // 4h, matches the join toke
 const JOIN_TOKEN_TTL = "2h";
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_STARTS = 8;
+
+/** The endpoint holding `userId`'s side of the call, `null` before the callee has answered. */
+function endpointOf(call: PrismaCall, userId: string): string | null {
+  return call.callerId === userId ? call.callerEndpointId : call.calleeEndpointId;
+}
 
 /** Terminal statuses that get a history row in the chat (message.util.ts's `MessageCallInfoSchema`). */
 const MESSAGE_WORTHY_STATUSES = new Set<PrismaCallStatus>([
@@ -105,7 +116,7 @@ export class CallsService {
       where: { chatId: dto.chatId, status: "RINGING", callerId: calleeId, calleeId: userId },
       orderBy: { createdAt: "desc" },
     });
-    if (glare) return this.accept(userId, glare.id);
+    if (glare) return this.accept(userId, glare.id, dto.endpointId);
 
     const [callerBusy, calleeBusy] = await Promise.all([
       this.redis.get(busyLockKey(userId)),
@@ -116,7 +127,14 @@ export class CallsService {
     }
 
     const call = await this.prisma.call.create({
-      data: { chatId: dto.chatId, callerId: userId, calleeId, video: dto.video, status: "RINGING" },
+      data: {
+        chatId: dto.chatId,
+        callerId: userId,
+        calleeId,
+        video: dto.video,
+        status: "RINGING",
+        callerEndpointId: dto.endpointId,
+      },
     });
 
     const [callerLocked, calleeLocked] = await Promise.all([
@@ -184,10 +202,12 @@ export class CallsService {
    * A still-`RINGING` call where the requester is the callee gets no
    * LiveKit token (they haven't answered — minting one would let their own
    * unopened tab "join" an empty room), just the call so the frontend can
-   * re-show the incoming-call screen. Every other case (the caller of a
-   * ringing call, either party of an active one) gets a full join.
+   * re-show the incoming-call screen. Otherwise media goes only to the
+   * endpoint that owns the user's side of the call (ADR-0023); any other
+   * tab/device of the same account gets the call with `token: null` and shows
+   * it as "on another device" — it must never join on its own.
    */
-  async getActive(userId: string): Promise<ActiveCall | null> {
+  async getActive(userId: string, endpointId: string): Promise<ActiveCall | null> {
     const call = await this.prisma.call.findFirst({
       where: {
         status: { in: ["RINGING", "ACTIVE"] },
@@ -200,17 +220,27 @@ export class CallsService {
     if (call.status === "RINGING" && call.calleeId === userId) {
       return { call: toWireCall(call), livekitUrl: this.config.livekit.url, token: null };
     }
+    if (endpointOf(call, userId) !== endpointId) {
+      return { call: toWireCall(call), livekitUrl: this.config.livekit.url, token: null };
+    }
     return this.buildJoin(call, userId);
   }
 
-  async accept(userId: string, callId: string): Promise<CallJoin> {
+  /**
+   * Only the callee can answer, and only one of their devices wins: the
+   * RINGING → ACTIVE write records its endpoint. A repeat from that same
+   * endpoint gets a fresh join (idempotent), any other device gets 409
+   * `answered_elsewhere` instead of a token — a second tab used to join the
+   * call with the same LiveKit identity and kick the first one out.
+   */
+  async accept(userId: string, callId: string, endpointId: string): Promise<CallJoin> {
     const call = await this.getCallOr404(callId);
     if (call.calleeId !== userId) throw new ForbiddenException("only the callee can accept");
 
     if (call.status === "RINGING") {
       const result = await this.prisma.call.updateMany({
         where: { id: callId, status: "RINGING" },
-        data: { status: "ACTIVE", answeredAt: new Date() },
+        data: { status: "ACTIVE", answeredAt: new Date(), calleeEndpointId: endpointId },
       });
       if (result.count > 0) {
         await Promise.all([
@@ -230,14 +260,21 @@ export class CallsService {
     }
 
     const fresh = await this.prisma.call.findUniqueOrThrow({ where: { id: callId } });
+    if (fresh.status !== "ACTIVE") {
+      throw new ConflictException(`call is ${fresh.status.toLowerCase()}, can't be accepted`);
+    }
+    if (fresh.calleeEndpointId !== endpointId)
+      throw new ConflictException(ANSWERED_ELSEWHERE_ERROR);
     return this.buildJoin(fresh, userId);
   }
 
-  /** Reconnect/reload while `ACTIVE` — same room, a fresh token, no status change. */
-  async token(userId: string, callId: string): Promise<CallJoin> {
+  /** Reconnect while `ACTIVE` — same room, a fresh token, no status change; only for the owning endpoint. */
+  async token(userId: string, callId: string, endpointId: string): Promise<CallJoin> {
     const call = await this.getCallOr404(callId);
     if (call.callerId !== userId && call.calleeId !== userId) throw new ForbiddenException();
     if (call.status !== "ACTIVE") throw new ConflictException("call is not active");
+    if (endpointOf(call, userId) !== endpointId)
+      throw new ConflictException(ANSWERED_ELSEWHERE_ERROR);
     return this.buildJoin(call, userId);
   }
 

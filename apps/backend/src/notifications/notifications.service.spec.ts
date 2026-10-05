@@ -329,6 +329,8 @@ describe("NotificationsService", () => {
         createdAt: new Date().toISOString(),
         answeredAt: null,
         endedAt: new Date().toISOString(),
+        callerEndpointId: null,
+        calleeEndpointId: null,
       };
 
       await service.notifyCallClosed(call, "ended");

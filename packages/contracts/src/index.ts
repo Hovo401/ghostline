@@ -127,11 +127,23 @@ export type {
 export {
   CallStatusSchema,
   CallSchema,
+  ANSWERED_ELSEWHERE_ERROR,
+  EndpointIdSchema,
   StartCallBodySchema,
+  CallEndpointBodySchema,
+  ActiveCallQuerySchema,
   CallJoinSchema,
   ActiveCallSchema,
 } from "./call/call.schema";
-export type { CallStatus, Call, StartCallBody, CallJoin, ActiveCall } from "./call/call.schema";
+export type {
+  CallStatus,
+  Call,
+  StartCallBody,
+  CallEndpointBody,
+  ActiveCallQuery,
+  CallJoin,
+  ActiveCall,
+} from "./call/call.schema";
 
 export {
   PushSubscriptionKeysSchema,

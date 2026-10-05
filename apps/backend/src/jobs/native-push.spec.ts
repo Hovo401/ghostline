@@ -55,6 +55,8 @@ const call = {
   createdAt: "2026-10-04T10:00:00.000Z",
   answeredAt: null,
   endedAt: null,
+  callerEndpointId: null,
+  calleeEndpointId: null,
 };
 
 const token = (chatId: string) => `token-for-${chatId}`;

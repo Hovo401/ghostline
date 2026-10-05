@@ -39,7 +39,11 @@ them natively would mean two clients to keep in sync.
      - `NotificationCompat.CallStyle.forIncomingCall` with a full-screen intent opens a
        Telegram-style Compose `IncomingCallActivity` on the lock screen;
      - when the phone is unlocked, it shows as a heads-up CallStyle notification;
-     - a local 45s timeout ends the ringing.
+     - a local 45s timeout ends the ringing;
+     - (T-094) the service runs for every incoming call, including with the app on screen. On screen it is
+       quiet (low-importance shade entry, the page rings); when the app leaves the screen it escalates to
+       the full-screen intent and the ringer for the remaining window, and goes quiet again on return. A
+       call can also be started from the page's `setCallState("incoming")` if the push is late.
    - **Telecom:** calls are registered through **Jetpack `androidx.core:core-telecom`**
      (`CallsManager`, self-managed). It handles audio focus, GSM-call hold/resume,
      Bluetooth/wired/earpiece/speaker endpoints and headset buttons.

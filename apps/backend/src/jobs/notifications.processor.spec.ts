@@ -212,6 +212,8 @@ describe("NotificationsProcessor", () => {
             createdAt: new Date().toISOString(),
             answeredAt: null,
             endedAt: new Date().toISOString(),
+            callerEndpointId: null,
+            calleeEndpointId: null,
           },
           callerName: "Bob",
         },

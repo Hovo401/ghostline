@@ -180,6 +180,9 @@ model Call {
   createdAt  DateTime   @default(now())
   answeredAt DateTime?
   endedAt    DateTime?
+  // The one tab/device per side that holds the media (ADR-0023).
+  callerEndpointId String? @db.Uuid
+  calleeEndpointId String? @db.Uuid
 
   chat    Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
   caller  User     @relation("CallCaller", fields: [callerId], references: [id], onDelete: Cascade)
