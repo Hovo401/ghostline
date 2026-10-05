@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useCallStore, type Call } from "../../entities/call";
@@ -57,6 +57,8 @@ function call(overrides: Partial<Call> = {}): Call {
     createdAt: new Date().toISOString(),
     answeredAt: null,
     endedAt: null,
+    callerEndpointId: null,
+    calleeEndpointId: null,
     ...overrides,
   };
 }
@@ -146,6 +148,24 @@ describe("IncomingCall", () => {
 
     expect(playRingtone).toHaveBeenCalled();
     expect(vibrateRing).toHaveBeenCalled();
+  });
+
+  it("hands the ring to native when the app is minimised while it rings", () => {
+    isNativeApp.mockReturnValue(true);
+    pushStatus = "subscribed";
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    useCallStore.getState().receiveIncoming(call());
+    render(<IncomingCall />);
+    expect(playRingtone).toHaveBeenCalledTimes(1);
+
+    visibility.mockReturnValue("hidden");
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    expect(stopTone).toHaveBeenCalled();
+    expect(stopVibration).toHaveBeenCalled();
+    expect(playRingtone).toHaveBeenCalledTimes(1);
   });
 
   it("only offers an audio-only answer for a voice call", () => {

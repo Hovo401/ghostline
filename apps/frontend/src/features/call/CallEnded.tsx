@@ -26,6 +26,8 @@ function reasonCopy(reason: CallEndReason, durationLabel: string | null): string
       return "Слишком много попыток, подождите";
     case "connect_failed":
       return "Не удалось установить соединение";
+    case "connection_lost":
+      return "Связь потеряна";
     case "failed":
     case "unavailable":
     case "forbidden":

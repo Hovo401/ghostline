@@ -2,21 +2,18 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
 import { selectHasActiveUploads, useUploadQueueStore } from "../entities/attachment";
 import { ensureSession, SessionPending } from "../entities/session";
-import { CallMiniBar, CallRoot } from "../features/call";
-import { useMessengerSession } from "../features/chat";
+import { CallMiniBar } from "../features/call";
 import { MediaViewer } from "../features/media-viewer";
 import { useSessionStore } from "../shared/api/session-store";
 import { useBeforeUnload } from "../shared/lib/use-before-unload";
-import { Toaster } from "../shared/ui/toast";
 
 /** Messenger layout (REQUIREMENTS.md §4/§5.4-§5.6, DESIGN-BRIEF.md §7.2) —
  * stays mounted across its child screens (`/app` chats, `/app/settings`),
- * which is the point: the socket + realtime subscriptions
- * (`useMessengerSession`), the fullscreen media viewer (T-033), the toast
- * stack and the call overlay (calls plan) live here once. `CallRoot` owns
- * the LiveKit session, so a call must outlive any in-app navigation —
- * settings used to be a sibling route, and opening it unmounted `CallRoot`
- * and hung up the call (ADR 0016). `routes` can import sibling features,
+ * which is the point: the fullscreen media viewer (T-033) and the call
+ * mini-bar live here once. The socket, realtime subscriptions, `CallRoot`
+ * (which owns the LiveKit session) and the toast stack live higher, in the
+ * signed-in host at the router root (`-signed-in-host.tsx`), so a call
+ * outlives any navigation, `/` included (T-093, ADR 0016). `routes` can import sibling features,
  * `features/chat` can't import `features/media-viewer`/`features/call`
  * directly (apps/frontend/CLAUDE.md layering).
  *
@@ -25,7 +22,6 @@ import { Toaster } from "../shared/ui/toast";
  * warn instead of silently losing it.
  */
 function AppShell() {
-  useMessengerSession();
   const hasActiveUploads = useUploadQueueStore(selectHasActiveUploads);
   useBeforeUnload(hasActiveUploads);
 
@@ -38,8 +34,6 @@ function AppShell() {
         </div>
       </div>
       <MediaViewer />
-      <CallRoot />
-      <Toaster />
     </>
   );
 }

@@ -44,6 +44,7 @@ export function useNativeCallBridge(session: {
   const actions = useCallActions();
   const peer = useCallPeer(call?.chatId ?? draft?.chatId ?? null, call);
   const peerName = peer?.displayName ?? null;
+  const peerAvatarUrl = peer?.avatarUrl ?? null;
 
   // The command handler lives for the whole app, so it reads the latest of these through refs.
   const actionsRef = useRef(actions);
@@ -64,12 +65,12 @@ export function useNativeCallBridge(session: {
   const reportedRef = useRef<NativeCallState | null>(null);
   const micEnabled = session.micEnabled;
   useEffect(() => {
-    const input: NativeCallStateInput = { phase, call, peerName, micEnabled };
+    const input: NativeCallStateInput = { phase, call, peerName, peerAvatarUrl, micEnabled };
     const next = buildNativeCallState(input);
     if (isSameNativeCallState(reportedRef.current, next)) return;
     reportedRef.current = next;
     void setNativeCallState(next);
-  }, [phase, call, peerName, micEnabled]);
+  }, [phase, call, peerName, peerAvatarUrl, micEnabled]);
 
   // The pending native answer is resolved from the store's own subscription, so `accept` runs in the
   // very tick that `incoming` appears — before React paints the ringing overlay.
@@ -116,6 +117,12 @@ export function useNativeCallBridge(session: {
           if (state.phase === "ended") state.reset();
           if (state.phase === "idle" || state.phase === "ended") {
             actionsRef.current.start({ chatId: command.chatId, video: command.video });
+          }
+          return;
+        case "decline":
+          // Only the call that is ringing here; a stale button of an older call must not end this one.
+          if (state.phase === "incoming" && state.call?.id === command.callId) {
+            actionsRef.current.decline(command.callId);
           }
           return;
         case "hangup":

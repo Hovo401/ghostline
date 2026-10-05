@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { selectActiveUploadCount, useUploadQueueStore } from "../../entities/attachment";
-import { useCallActions, useCallStore } from "../../entities/call";
+import { selectCallBusy, useCallActions, useCallStore } from "../../entities/call";
 import { type ChatListItem, useMarkChatRead, useTypingStore } from "../../entities/chat";
 import { useMessages } from "../../entities/message";
 import { useCurrentUserId } from "../../entities/user";
@@ -28,7 +28,7 @@ export function ChatThreadPanel({ chat, className }: ChatThreadPanelProps) {
   const { messages, hasNextPage, fetchNextPage } = useMessages(chat.id);
   const markRead = useMarkChatRead();
   const { start: startCall } = useCallActions();
-  const callInProgress = useCallStore((state) => state.phase !== "idle");
+  const callInProgress = useCallStore(selectCallBusy);
   const closeChat = useInAppBack();
   // Local, not store state: this panel is keyed per chat (Chat.tsx), so a
   // chat switch starts with the profile closed for free.

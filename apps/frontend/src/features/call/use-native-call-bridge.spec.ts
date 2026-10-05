@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   start: vi.fn(),
   cancel: vi.fn(),
   hangup: vi.fn(),
+  decline: vi.fn(),
   setNativeCallState: vi.fn<(state: NativeCallState | null) => Promise<void>>(),
   consumeNativeLaunchAction: vi.fn<() => Promise<NativeLaunchAction | null>>(),
   listenForNativeCallCommands: vi.fn<(cb: (command: NativeCallCommand) => void) => () => void>(),
@@ -26,7 +27,7 @@ vi.mock("../../entities/call", async (importOriginal) => {
       start: mocks.start,
       cancel: mocks.cancel,
       hangup: mocks.hangup,
-      decline: vi.fn(),
+      decline: mocks.decline,
       hangupMutate: vi.fn(),
     }),
   };
@@ -52,6 +53,8 @@ const baseCall: Call = {
   createdAt: "2026-01-01T10:00:00.000Z",
   answeredAt: null,
   endedAt: null,
+  callerEndpointId: null,
+  calleeEndpointId: null,
 };
 
 let send: (command: NativeCallCommand) => void;
@@ -110,6 +113,8 @@ describe("useNativeCallBridge", () => {
         peerName: "Аня",
         answeredAt: null,
         muted: false,
+        createdAt: baseCall.createdAt,
+        callerAvatarUrl: null,
       });
       expect(mocks.setNativeCallState).toHaveBeenCalledTimes(1);
 
@@ -306,6 +311,35 @@ describe("useNativeCallBridge", () => {
         await Promise.resolve();
       });
       expect(mocks.start).toHaveBeenCalledExactlyOnceWith({ chatId: "chat-9", video: false });
+    });
+  });
+
+  describe("decline", () => {
+    it("declines the call that is ringing here, and only that one", () => {
+      setup();
+      act(() => {
+        useCallStore.getState().receiveIncoming(baseCall);
+      });
+      act(() => {
+        send({ type: "decline", callId: "other-call" });
+      });
+      expect(mocks.decline).not.toHaveBeenCalled();
+
+      act(() => {
+        send({ type: "decline", callId: "call-1" });
+      });
+      expect(mocks.decline).toHaveBeenCalledExactlyOnceWith("call-1");
+    });
+
+    it("is ignored once the call is no longer ringing", () => {
+      setup();
+      act(() => {
+        useCallStore.setState({ phase: "active", call: baseCall });
+      });
+      act(() => {
+        send({ type: "decline", callId: "call-1" });
+      });
+      expect(mocks.decline).not.toHaveBeenCalled();
     });
   });
 

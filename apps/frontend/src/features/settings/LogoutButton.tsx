@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { useCallActions } from "../../entities/call";
 import { unregisterNativeDevice, usePushSubscription } from "../../entities/notification";
 import { useLogout } from "../../entities/session";
 
@@ -13,12 +14,15 @@ import { useLogout } from "../../entities/session";
 export function LogoutButton({ className }: { className?: string }) {
   const navigate = useNavigate();
   const logout = useLogout();
+  const { leaveCall } = useCallActions();
   const { status: pushStatus, unsubscribe } = usePushSubscription();
   const [pending, setPending] = useState(false);
 
   const handleClick = async (): Promise<void> => {
     if (!window.confirm("Выйти из аккаунта на этом устройстве?")) return;
     setPending(true);
+    // Hang up while the session is still valid; the call can't outlive the account on this device.
+    await leaveCall();
     if (pushStatus === "subscribed" || pushStatus === "pending") {
       await unsubscribe().catch((error: unknown) => {
         console.error("push unsubscribe on logout failed", error);

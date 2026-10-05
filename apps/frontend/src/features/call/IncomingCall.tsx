@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 import {
   playRingtone,
@@ -17,6 +17,17 @@ import { useCallPeer } from "./use-call-peer";
 
 const VIBRATE_REPEAT_MS = 2000;
 
+function subscribeToVisibility(onChange: () => void): () => void {
+  document.addEventListener("visibilitychange", onChange);
+  return () => {
+    document.removeEventListener("visibilitychange", onChange);
+  };
+}
+
+function isPageHidden(): boolean {
+  return document.visibilityState === "hidden";
+}
+
 /**
  * Incoming-call overlay (calls plan §Фаза 3) — driven entirely by
  * `entities/call`'s `useCallStore`, renders nothing outside `phase ===
@@ -27,7 +38,10 @@ const VIBRATE_REPEAT_MS = 2000;
  *
  * In the Android app with the page hidden (backgrounded/screen off) and native
  * push active, the native calling screen (T-080) rings instead — starting the
- * JS ringtone too would double it up. Otherwise (visible, a plain browser tab,
+ * JS ringtone too would double it up. The visibility is tracked live, not read
+ * once: a call that started ringing on screen must hand the ring to native the
+ * moment the app is minimised (T-094), or the ringtone plays on with nothing
+ * in the notification shade. Otherwise (visible, a plain browser tab,
  * or native push not registered/enabled) JS rings, since nobody else would.
  */
 export function IncomingCall() {
@@ -37,6 +51,7 @@ export function IncomingCall() {
   const { accept, decline } = useCallActions();
   // In the app, "subscribed" = Android notification permission granted + FCM device registered.
   const nativePushActive = usePushSubscription().status === "subscribed";
+  const pageHidden = useSyncExternalStore(subscribeToVisibility, isPageHidden);
   const incomingCall = phase === "incoming" ? call : null;
   const peer = useCallPeer(incomingCall?.chatId ?? null, incomingCall);
 
@@ -45,7 +60,7 @@ export function IncomingCall() {
     // Native already rings for this call when the app isn't on screen (T-085) — only
     // JS's own ringtone/vibration would double it up. But only if native push is really
     // live (permission granted + device registered): otherwise nobody else would ring.
-    if (nativePushActive && isNativeApp() && document.visibilityState === "hidden") return;
+    if (nativePushActive && isNativeApp() && pageHidden) return;
     const stopTone = playRingtone();
     vibrateRing();
     const vibrateTimer = setInterval(vibrateRing, VIBRATE_REPEAT_MS);
@@ -55,8 +70,8 @@ export function IncomingCall() {
       stopVibration();
     };
     // Re-arm for each distinct incoming call, not just each phase flip (and if the push
-    // status settles while ringing: "pending" → "subscribed" hands the ringing to native).
-  }, [phase, call?.id, nativePushActive]);
+    // status settles or the page is hidden while ringing: both hand the ringing to native).
+  }, [phase, call?.id, nativePushActive, pageHidden]);
 
   if (phase !== "incoming" || !call) return null;
 

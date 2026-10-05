@@ -6,7 +6,7 @@ import {
   type Attachment,
   type AudioTrack,
 } from "../../entities/attachment";
-import { useCallActions } from "../../entities/call";
+import { selectCallBusy, useCallActions, useCallStore } from "../../entities/call";
 import {
   type ChatMessage,
   groupMessages,
@@ -63,6 +63,9 @@ export function MessageFeed({
   // the same chat, in the same mode (audio/video) the original call was.
   const callBack = (message: ChatMessage): void => {
     if (message.type !== "call" || !message.call) return;
+    // The bubble is disabled while busy; this is the belt to its braces — a call must never be
+    // cut off by tapping a history row.
+    if (selectCallBusy(useCallStore.getState())) return;
     startCall({ chatId, video: message.call.video });
   };
 

@@ -7,6 +7,8 @@ export interface NativeCallStateInput {
   phase: CallPhase;
   call: Call | null;
   peerName: string | null;
+  /** Only reported with an incoming call, for the native notification's avatar. */
+  peerAvatarUrl?: string | null;
   micEnabled: boolean;
 }
 
@@ -15,7 +17,7 @@ export interface NativeCallStateInput {
  * to report: no call (`idle`), or an outgoing draft that has no call id yet (`POST /calls` still in flight).
  */
 export function buildNativeCallState(input: NativeCallStateInput): NativeCallState | null {
-  const { phase, call, peerName, micEnabled } = input;
+  const { phase, call, peerName, peerAvatarUrl, micEnabled } = input;
   if (phase === "idle" || !call) return null;
   const answeredAt = call.answeredAt ? Date.parse(call.answeredAt) : Number.NaN;
   return {
@@ -26,6 +28,11 @@ export function buildNativeCallState(input: NativeCallStateInput): NativeCallSta
     peerName: peerName ?? FALLBACK_PEER_NAME,
     answeredAt: Number.isNaN(answeredAt) ? null : answeredAt,
     muted: !micEnabled,
+    // An incoming call is also started natively from this state when its push never came or was
+    // dropped (T-094): native needs the server's `createdAt` to ring only the time that is left.
+    ...(phase === "incoming"
+      ? { createdAt: call.createdAt, callerAvatarUrl: peerAvatarUrl ?? null }
+      : {}),
   };
 }
 
@@ -41,6 +48,8 @@ export function isSameNativeCallState(
     a.video === b.video &&
     a.peerName === b.peerName &&
     a.answeredAt === b.answeredAt &&
-    a.muted === b.muted
+    a.muted === b.muted &&
+    a.createdAt === b.createdAt &&
+    a.callerAvatarUrl === b.callerAvatarUrl
   );
 }

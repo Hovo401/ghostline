@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import { useCallActions } from "../../entities/call";
+import { useAnswerWhenIncoming } from "../../entities/call";
 
 import { useOpenChat } from "./use-chat-navigation";
 
@@ -35,7 +35,7 @@ function isNotificationClickHandoff(data: unknown): data is NotificationClickHan
  */
 export function useServiceWorkerMessages(): void {
   const openChat = useOpenChat();
-  const { accept } = useCallActions();
+  const answerWhenIncoming = useAnswerWhenIncoming();
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
@@ -43,12 +43,12 @@ export function useServiceWorkerMessages(): void {
     const handleMessage = (event: MessageEvent): void => {
       if (!isNotificationClickHandoff(event.data)) return;
       if (event.data.chatId) openChat(event.data.chatId);
-      if (event.data.callId && event.data.answer) accept(event.data.callId);
+      if (event.data.callId && event.data.answer) answerWhenIncoming(event.data.callId);
     };
 
     navigator.serviceWorker.addEventListener("message", handleMessage);
     return () => {
       navigator.serviceWorker.removeEventListener("message", handleMessage);
     };
-  }, [openChat, accept]);
+  }, [openChat, answerWhenIncoming]);
 }

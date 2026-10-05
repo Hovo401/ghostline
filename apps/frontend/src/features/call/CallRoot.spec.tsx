@@ -9,6 +9,17 @@ import type * as CallEntity from "../../entities/call";
 import { CallRoot } from "./CallRoot";
 import type { CallSessionHandle } from "./use-call-session";
 
+const routerMocks = vi.hoisted(() => ({ pathname: "/app", navigate: vi.fn() }));
+
+vi.mock("@tanstack/react-router", () => ({
+  useLocation: ({ select }: { select: (location: { pathname: string }) => unknown }) =>
+    select({ pathname: routerMocks.pathname }),
+  useNavigate: () => routerMocks.navigate,
+  useRouter: () => undefined,
+}));
+
+const ringback = vi.hoisted(() => ({ play: vi.fn(), stop: vi.fn() }));
+
 const attach = vi.fn();
 const detach = vi.fn();
 const remoteAudioTrack = { attach, detach } as unknown as Track;
@@ -17,6 +28,10 @@ vi.mock("../../entities/call", async (importOriginal) => {
   const actual = await importOriginal<typeof CallEntity>();
   return {
     ...actual,
+    playRingback: (): (() => void) => {
+      ringback.play();
+      return ringback.stop;
+    },
     useCallActions: () => ({
       start: vi.fn(),
       accept: vi.fn(),
@@ -56,6 +71,8 @@ vi.mock("./use-call-session", () => ({
 
 describe("CallRoot", () => {
   beforeEach(() => {
+    ringback.play.mockReset();
+    ringback.stop.mockReset();
     attach.mockReset();
     detach.mockReset();
     useCallStore.setState({
@@ -70,6 +87,8 @@ describe("CallRoot", () => {
         createdAt: new Date().toISOString(),
         answeredAt: new Date().toISOString(),
         endedAt: null,
+        callerEndpointId: null,
+        calleeEndpointId: null,
       },
       livekitUrl: "wss://lk",
       token: "tok",
@@ -100,6 +119,22 @@ describe("CallRoot", () => {
     expect(container.querySelector("[role=dialog]")).toBeNull();
     expect(container.querySelector("audio")).toBe(audio);
     expect(detach).not.toHaveBeenCalled();
+  });
+
+  it("rings back while dialing, also once minimized, and stops when the call moves on", () => {
+    useCallStore.setState({ phase: "outgoing" });
+    render(<CallRoot />);
+    expect(ringback.play).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      useCallStore.getState().minimize();
+    });
+    expect(ringback.stop).not.toHaveBeenCalled();
+
+    act(() => {
+      useCallStore.setState({ phase: "connecting" });
+    });
+    expect(ringback.stop).toHaveBeenCalledTimes(1);
   });
 
   it("mutes the remote audio while the call is on hold, without detaching it", () => {

@@ -13,6 +13,16 @@ export class ApiError extends Error {
     super(message);
     this.name = "ApiError";
   }
+
+  /** The server's own message: Nest answers with `{"message": "..."}`, `message` here is that raw body. */
+  get detail(): string {
+    try {
+      const body = JSON.parse(this.message) as { message?: unknown };
+      return typeof body.message === "string" ? body.message : this.message;
+    } catch {
+      return this.message;
+    }
+  }
 }
 
 export interface ApiFetchOptions {

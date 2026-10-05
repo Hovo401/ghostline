@@ -9,6 +9,8 @@ import { useCallSession } from "./use-call-session";
 
 type Handler = (...args: unknown[]) => void;
 
+const hangupMutate = vi.hoisted(() => vi.fn());
+
 const { FakeRoom, rooms, cameraEnabledImpl } = vi.hoisted(() => {
   const rooms: InstanceType<typeof FakeRoom>[] = [];
   const cameraEnabledImpl = vi.fn<() => Promise<void>>();
@@ -55,7 +57,7 @@ vi.mock("../../entities/call", async (importOriginal) => {
     ...actual,
     buildRoomOptions: () => ({}),
     resolveLivekitUrl: (url: string) => url,
-    useCallActions: () => ({ hangupMutate: vi.fn() }),
+    useCallActions: () => ({ hangupMutate }),
   };
 });
 
@@ -70,12 +72,15 @@ function call(): Call {
     createdAt: new Date().toISOString(),
     answeredAt: new Date().toISOString(),
     endedAt: null,
+    callerEndpointId: null,
+    calleeEndpointId: null,
   };
 }
 
 describe("useCallSession", () => {
   beforeEach(() => {
     rooms.length = 0;
+    hangupMutate.mockReset();
     cameraEnabledImpl.mockReset();
     useCallStore.setState({
       phase: "active",
@@ -112,6 +117,101 @@ describe("useCallSession", () => {
     expect(result.current.mediaError.camera).toBeNull();
     expect(result.current.cameraEnabled).toBe(true);
     expect(result.current.localVideoTrack).toBe(track);
+  });
+
+  describe("link loss", () => {
+    async function mountedRoom() {
+      cameraEnabledImpl.mockResolvedValue(undefined);
+      const hook = renderHook(() => useCallSession());
+      await waitFor(() => {
+        expect(rooms[0]).toBeDefined();
+      });
+      const room = rooms[0];
+      if (!room) throw new Error("room not created");
+      return { ...hook, room };
+    }
+
+    it("goes back to active when the room reconnects with the peer still in it", async () => {
+      const { room } = await mountedRoom();
+      useCallStore.setState({ phase: "reconnecting", remoteJoined: true });
+      room.remoteParticipants.set("peer-1", {});
+
+      act(() => {
+        room.emit("reconnected");
+      });
+
+      expect(useCallStore.getState().phase).toBe("active");
+    });
+
+    it("hangs up after 30 s of reconnecting, and not before", async () => {
+      await mountedRoom();
+      vi.useFakeTimers();
+      try {
+        act(() => {
+          useCallStore.setState({ phase: "reconnecting" });
+        });
+        act(() => {
+          vi.advanceTimersByTime(29_000);
+        });
+        expect(useCallStore.getState().phase).toBe("reconnecting");
+
+        act(() => {
+          vi.advanceTimersByTime(1_500);
+        });
+        expect(useCallStore.getState().phase).toBe("ended");
+        expect(useCallStore.getState().endReason).toBe("connection_lost");
+        expect(hangupMutate).toHaveBeenCalledWith("call-a");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("recovering before the deadline cancels the hang-up", async () => {
+      const { room } = await mountedRoom();
+      vi.useFakeTimers();
+      try {
+        useCallStore.setState({ remoteJoined: true });
+        room.remoteParticipants.set("peer-1", {});
+        act(() => {
+          useCallStore.setState({ phase: "reconnecting" });
+        });
+        act(() => {
+          room.emit("reconnected");
+        });
+        act(() => {
+          vi.advanceTimersByTime(60_000);
+        });
+        expect(useCallStore.getState().phase).toBe("active");
+        expect(hangupMutate).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("a disconnect we did not ask for ends the call as failed and hangs up", async () => {
+      const { room } = await mountedRoom();
+
+      act(() => {
+        room.emit("disconnected", 2);
+      });
+
+      expect(useCallStore.getState().phase).toBe("ended");
+      expect(useCallStore.getState().endReason).toBe("failed");
+      expect(useCallStore.getState().token).toBeNull();
+      expect(hangupMutate).toHaveBeenCalledWith("call-a");
+    });
+
+    it("is not a failure: no failed reason, no extra hangup", async () => {
+      const { room } = await mountedRoom();
+      useCallStore.setState({ phase: "active", remoteJoined: true });
+
+      act(() => {
+        room.emit("disconnected", 5); // DisconnectReason.ROOM_DELETED
+      });
+
+      expect(useCallStore.getState().phase).toBe("active");
+      expect(hangupMutate).not.toHaveBeenCalled();
+    });
   });
 
   describe("setMic", () => {
